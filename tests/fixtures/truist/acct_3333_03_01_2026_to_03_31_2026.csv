@@ -1,0 +1,3 @@
+Posted Date,Transaction Date,Transaction Type,Check/Serial #,Full description,Merchant name,Category name,Sub-category name,Amount,Daily Posted Balance
+03/05/2026,03/05/2026,Transfer,,TRANSFER FROM CHECKING,,,,$300.00,"$5,300.00"
+03/31/2026,03/31/2026,Deposit,,INTEREST PAID,,,,$1.25,"$5,301.25"

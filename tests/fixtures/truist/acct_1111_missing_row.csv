@@ -1,0 +1,7 @@
+Posted Date,Transaction Date,Transaction Type,Check/Serial #,Full description,Merchant name,Category name,Sub-category name,Amount,Daily Posted Balance
+03/02/2026,03/02/2026,Deposit,,PAYROLL ACME CORP,,,,"$2,000.00","$3,000.00"
+03/04/2026,03/04/2026,Check,1042,Check #1042,,,,($500.00),"$2,380.00"
+03/05/2026,03/05/2026,Transfer,,TRANSFER TO SAVINGS,,,,($300.00),"$1,930.00"
+03/05/2026,03/05/2026,Withdrawal,,CARD PAYMENT VISA,,,,($150.00),"$1,930.00"
+03/09/2026,03/08/2026,Debit,,SPOTIFY USA,,,,($10.99),"$1,899.01"
+03/09/2026,03/08/2026,Debit,,MYSTERY VENDOR 9,,,,($20.00),"$1,899.01"
