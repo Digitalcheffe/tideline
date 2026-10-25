@@ -362,7 +362,7 @@ public static class ScreenEndpoints
             {
                 var history = paid[r.Item.Id].OrderBy(p => p.Month).Select(p => p.Cents).Where(c => c > 0).ToList();
                 var last = history.Count > 0 ? history[^1] : (long?)null;
-                var previous = history.Count > 1 ? history[^2] : (long?)null;
+                var previous = PriceHistory.RecentChange(history);
 
                 var cost = last ?? (r.Item.ExpectedMinCents + r.Item.ExpectedMaxCents) / 2;
                 var perMonth = r.Item.Frequency == Frequency.Yearly ? cost / 12 : cost / Math.Max(1, r.Item.EveryN);
@@ -383,7 +383,7 @@ public static class ScreenEndpoints
                     category = r.CategoryName,
                     lastChargeCents = last,
                     previousChargeCents = previous,
-                    priceChanged = last is not null && previous is not null && last != previous,
+                    priceChanged = previous is not null,
                     monthlyCostCents = perMonth,
                     yearlyCostCents = perMonth * 12,
                     nextCharge = next,

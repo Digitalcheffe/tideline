@@ -206,6 +206,40 @@ public sealed class ImportPipelineTests : IDisposable
     }
 
     [Fact]
+    public async Task An_older_file_after_a_newer_one_is_refused_because_it_would_sit_before_the_opening_balance()
+    {
+        await Import("acct_1111_03_09_2026_to_03_15_2026.csv");   // later days first: the opening balance is derived from this file
+
+        var r = await Import("acct_1111_03_01_2026_to_03_31_2026.csv");
+
+        r.Status.Should().Be(ImportStatus.Failed);
+        r.Error.Should().Contain("Import files oldest first").And.Contain("2026-03-08");
+        Scalar<long>("SELECT COUNT(*) FROM transactions").Should().Be(3);
+    }
+
+    [Fact]
+    public async Task Oldest_first_ordering_puts_files_in_date_order_not_name_order()
+    {
+        var dir = Path.Combine(Path.GetTempPath(), $"tideline-order-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(dir);
+        try
+        {
+            foreach (var n in new[] { "acct_1111_03_09_2026_to_03_15_2026.csv", "acct_1111_03_01_2026_to_03_31_2026.csv", "acct_2222_03_01_2026_to_03_31_2026.csv" })
+                File.Copy(Path.Combine(AppContext.BaseDirectory, "fixtures", "truist", n), Path.Combine(dir, n));
+            File.WriteAllText(Path.Combine(dir, "acct_9999_junk.csv"), "not a csv at all");
+
+            var ordered = ImportOrder.OldestFirst(Directory.GetFiles(dir)).Select(Path.GetFileName).ToList();
+
+            ordered.Should().Equal("acct_1111_03_01_2026_to_03_31_2026.csv", "acct_2222_03_01_2026_to_03_31_2026.csv",
+                "acct_1111_03_09_2026_to_03_15_2026.csv", "acct_9999_junk.csv");
+        }
+        finally
+        {
+            Directory.Delete(dir, recursive: true);
+        }
+    }
+
+    [Fact]
     public async Task A_file_with_a_missing_row_fails_whole_and_writes_nothing_but_the_failed_batch()
     {
         var r = await Import("acct_1111_missing_row.csv");

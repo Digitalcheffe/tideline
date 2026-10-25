@@ -31,14 +31,17 @@ public sealed class ApiFixture : IDisposable
     public string ConnectionString { get; }
     public HttpClient Client { get; }
 
-    public ApiFixture(bool importFixtures = true)
+    public ApiFixture(bool importFixtures = true, int? demoLines = null)
     {
         Directory.CreateDirectory(_dir);
         ConnectionString = $"Data Source={Path.Combine(_dir, "t.db")};Pooling=False";
 
         Migrator.MigrateUp(ConnectionString);
         var clock = new FixedClock(Now);
-        var json = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "fixtures", "household.json"));
+        var demoFolder = Path.Combine(_dir, "demo");
+        var json = demoLines is { } n
+            ? File.ReadAllText(DemoData.Generate(demoFolder, DemoOptions.Default with { Lines = n }).HouseholdFile)
+            : File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "fixtures", "household.json"));
         HouseholdSetup.Apply(HouseholdSetup.Parse(json), new SqliteConnectionFactory(ConnectionString), clock);
 
         _factory = new WebApplicationFactory<Program>().WithWebHostBuilder(b =>
@@ -49,7 +52,15 @@ public sealed class ApiFixture : IDisposable
         });
         Client = _factory.CreateClient();
 
-        if (importFixtures)
+        if (demoLines is not null)
+        {
+            foreach (var path in ImportOrder.OldestFirst(Directory.GetFiles(demoFolder, "acct_*.csv")))
+            {
+                var result = Pipeline.ImportTruistAsync(Path.GetFileName(path), File.ReadAllText(path)).GetAwaiter().GetResult();
+                if (!result.Succeeded) throw new InvalidOperationException($"demo file {path} failed: {result.Error}");
+            }
+        }
+        else if (importFixtures)
         {
             foreach (var name in new[] { "acct_1111_03_01_2026_to_03_31_2026.csv", "acct_3333_03_01_2026_to_03_31_2026.csv", "acct_2222_03_01_2026_to_03_31_2026.csv" })
             {

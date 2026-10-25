@@ -20,6 +20,9 @@ public sealed class CliApp(TextWriter output, TimeProvider clock)
           status                          every account: ledger balance against the bank's last balance
           lines [--account 1234] [--random N | --take N]
                                           show ledger lines, to check a few against the bank
+          demo <folder> [--lines 5000] [--seed 42] [--from 2025-01-01] [--to 2026-09-30] [--load]
+                                          write made-up exports for six accounts (and a household file) to try the app;
+                                          with --load, also set up and import them into the database
 
         The database is Database__ConnectionString (default: Data Source=tideline.db), or --db "<connection string>".
         """;
@@ -58,6 +61,9 @@ public sealed class CliApp(TextWriter output, TimeProvider clock)
                     return Status(connectionString);
                 case "lines":
                     return Lines(connectionString, options);
+                case "demo":
+                    if (rest.Count != 1) return Bad("demo needs one folder: tideline demo ./demo-data");
+                    return await DemoAsync(rest[0], options, connectionString);
                 default:
                     return Bad($"unknown command '{command}'.");
             }
@@ -103,6 +109,7 @@ public sealed class CliApp(TextWriter output, TimeProvider clock)
             else throw new FileNotFoundException($"'{p}' is not a file or folder.");
         }
         if (files.Count == 0) throw new FileNotFoundException("No acct_*.csv files found.");
+        files = ImportOrder.OldestFirst(files).ToList();
 
         var pipeline = new ImportPipeline(new SqliteConnectionFactory(connectionString), new WriteGate(), clock);
         int failed = 0, inserted = 0, review = 0;
@@ -125,6 +132,39 @@ public sealed class CliApp(TextWriter output, TimeProvider clock)
         output.WriteLine();
         output.WriteLine($"{files.Count - failed} of {files.Count} files imported, {inserted} new lines, {review} to review.");
         return failed == 0 ? 0 : 2;
+    }
+
+    private async Task<int> DemoAsync(string folder, Dictionary<string, string?> options, string connectionString)
+    {
+        var d = DemoOptions.Default;
+        var o = d with
+        {
+            Lines = options.GetValueOrDefault("lines") is { } l ? int.Parse(l) : d.Lines,
+            Seed = options.GetValueOrDefault("seed") is { } sd ? int.Parse(sd) : d.Seed,
+            From = options.GetValueOrDefault("from") is { } f ? DateOnly.Parse(f) : d.From,
+            To = options.GetValueOrDefault("to") is { } t ? DateOnly.Parse(t) : d.To,
+        };
+        var result = DemoData.Generate(folder, o);
+
+        output.WriteLine($"Wrote {result.Lines:N0} made-up lines in {result.Files} files to {Path.GetFullPath(folder)}");
+        foreach (var (account, count) in result.LinesPerAccount) output.WriteLine($"  {account,-20} {count,5} lines");
+        output.WriteLine($"Household file: {result.HouseholdFile}");
+
+        if (!options.ContainsKey("load"))
+        {
+            output.WriteLine();
+            output.WriteLine("To load it: tideline migrate, then tideline setup <household file>, then tideline import <folder> (or run demo again with --load).");
+            return 0;
+        }
+
+        output.WriteLine();
+        EnsureDirectory(connectionString);
+        Migrator.MigrateUp(connectionString);
+        var clock2 = clock;
+        foreach (var line in HouseholdSetup.Apply(HouseholdSetup.Parse(File.ReadAllText(result.HouseholdFile)), new SqliteConnectionFactory(connectionString), clock2))
+            if (!line.EndsWith("already there", StringComparison.Ordinal)) { /* quiet: the household is long */ }
+        output.WriteLine("Household set up.");
+        return await ImportAsync([folder], connectionString);
     }
 
     private int Status(string connectionString)

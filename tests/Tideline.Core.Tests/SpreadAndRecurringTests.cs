@@ -138,3 +138,17 @@ public class CardCheckTests
     public void Payments_count_until_the_next_months_due_day(int y, int m, int due, string expected) =>
         CardCheck.PaymentDeadline(y, m, due).Should().Be(DateOnly.Parse(expected));
 }
+
+public class PriceHistoryTests
+{
+    [Theory]
+    [InlineData(new long[] { 1549, 1549, 1799 }, 1549L)]
+    [InlineData(new long[] { 1549, 1799, 1799, 1799 }, 1549L)]       // three charges ago is still recent
+    [InlineData(new long[] { 1549, 1799, 1799, 1799, 1799 }, null)]  // older than that is not news
+    [InlineData(new long[] { 1099, 1099, 1099 }, null)]
+    [InlineData(new long[] { 1099 }, null)]
+    [InlineData(new long[] { }, null)]
+    [InlineData(new long[] { 999, 1099, 999 }, 1099L)]               // the most recent different amount
+    public void Flags_only_a_recent_change(long[] charges, long? previous) =>
+        PriceHistory.RecentChange(charges).Should().Be(previous);
+}

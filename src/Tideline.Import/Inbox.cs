@@ -30,7 +30,7 @@ public sealed class InboxProcessor(
             Directory.CreateDirectory(inboxPath);
             int imported = 0, failed = 0, waiting = 0;
 
-            foreach (var path in Directory.EnumerateFiles(inboxPath).OrderBy(p => p, StringComparer.OrdinalIgnoreCase))
+            foreach (var path in ImportOrder.OldestFirst(Directory.EnumerateFiles(inboxPath)))
             {
                 ct.ThrowIfCancellationRequested();
                 var name = Path.GetFileName(path);

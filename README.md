@@ -33,6 +33,14 @@ npm --prefix web run dev
 
 The period picker is in the top bar; every number is a link to the lines behind it. Tests: `dotnet test`, `npm --prefix web test`, and `npm --prefix web run e2e` (set `PW_CHANNEL=msedge` or `chrome` to use an installed browser).
 
+To try it with a realistic amount of data, generate made-up exports (5,000 lines, six accounts, 21 months) and load them in one go:
+
+```bash
+dotnet run --project src/Tideline.Cli -- demo ./demo-data --load --db "Data Source=/path/to/demo.db"
+```
+
+The numbers come from a seed, so the same options always give the same files. Keep the folder outside the repository.
+
 `tests/fixtures/household.json` shows the household file format with made-up data. `status` lists each
 account's ledger balance next to the bank's last balance; they should match to the cent.
 

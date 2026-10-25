@@ -128,6 +128,10 @@ public sealed class ImportPipeline(SqliteConnectionFactory factory, WriteGate ga
             return Fail($"{late} row(s) are dated after the CSV cutover on {until:yyyy-MM-dd}; SimpleFIN covers those days.");
         }
 
+        // 3a. an older file after a newer one would sit before the opening balance and throw every balance off
+        if (check is not null && account.OpeningOn is { } openingOn && fresh.Count > 0 && fresh.Min(r => r.PostedOn) <= openingOn)
+            return Fail($"{name} has lines on or before {openingOn:yyyy-MM-dd}, the date {account.Name} starts counting from. Import files oldest first, or set the opening balance and date in Settings.");
+
         // 3. first deposit file for an account with no opening balance: the file implies it
         if (check is not null && account.OpeningBalanceCents is null && ledger.ForAccount(account.Id).Count == 0 && file.Rows.Count > 0)
         {
