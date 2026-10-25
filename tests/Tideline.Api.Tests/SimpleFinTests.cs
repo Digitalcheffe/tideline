@@ -66,7 +66,7 @@ public sealed class SimpleFinTests : IDisposable
     {
         _api.SimpleFin.ClaimStatus = HttpStatusCode.Forbidden;
         var used = await Ok(HttpMethod.Post, "/api/v1/imports/simplefin/connect", new { setupToken = Token() }, HttpStatusCode.BadRequest);
-        used.GetProperty("detail").GetString().Should().Be("This token was already claimed. Disable it at SimpleFIN and make a new one.");
+        used.GetProperty("detail").GetString().Should().Contain("already claimed").And.Contain("someone else may have");
 
         var junk = await Ok(HttpMethod.Post, "/api/v1/imports/simplefin/connect", new { setupToken = "not a token!!" }, HttpStatusCode.BadRequest);
         junk.GetProperty("detail").GetString().Should().Contain("setup token");

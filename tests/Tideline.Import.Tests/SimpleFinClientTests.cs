@@ -68,6 +68,21 @@ public class SimpleFinClientTests
     }
 
     [Fact]
+    public void Version_two_names_the_bank_through_connections_and_a_pending_line_with_no_posting_time_is_pending()
+    {
+        const string json = """
+            {"errlist":[],"connections":[{"conn_id":"C1","name":"Truist","org_id":"truist.com","sfin_url":"https://x.test"}],
+             "accounts":[{"id":"A1","name":"Checking","conn_id":"C1","currency":"USD","balance":"10.00","balance-date":1775044800,
+               "transactions":[{"id":"t1","posted":0,"amount":"-1.00","description":"HOLD"}]}]}
+            """;
+
+        var a = SimpleFinClient.Parse(json).Accounts.Single();
+
+        a.Organization.Should().Be("Truist");
+        a.Transactions.Single().Pending.Should().BeTrue();
+    }
+
+    [Fact]
     public void Older_responses_with_a_plain_list_of_errors_are_read_too_and_junk_is_refused_in_words()
     {
         SimpleFinClient.Parse("""{"errors":["Something went wrong"],"accounts":[]}""").Errors.Should().Equal("Something went wrong");

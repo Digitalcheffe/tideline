@@ -56,7 +56,7 @@ public sealed class SimpleFinClient(HttpClient http)
         using (response)
         {
             if (response.StatusCode == HttpStatusCode.Forbidden)
-                throw new SimpleFinException("This token was already claimed. Disable it at SimpleFIN and make a new one.");
+                throw new SimpleFinException("This token was already claimed (or never existed). If you did not claim it yourself, someone else may have: disable it at SimpleFIN and make a new one.");
             if (!response.IsSuccessStatusCode) throw new SimpleFinException($"SimpleFIN answered {(int)response.StatusCode} when the token was claimed.");
 
             var access = (await response.Content.ReadAsStringAsync(ct)).Trim();
@@ -90,8 +90,10 @@ public sealed class SimpleFinClient(HttpClient http)
         }
         using (response)
         {
+            if (response.StatusCode == HttpStatusCode.PaymentRequired)
+                throw new SimpleFinException("SimpleFIN says payment is needed. Check the SimpleFIN Bridge subscription.");
             if (response.StatusCode is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden)
-                throw new SimpleFinException("SimpleFIN no longer accepts this connection. Make a new setup token and connect again.");
+                throw new SimpleFinException("SimpleFIN no longer accepts this connection (access revoked, or the address is wrong). Make a new setup token and connect again. If you did not revoke it yourself, disable it at SimpleFIN.");
             if (!response.IsSuccessStatusCode) throw new SimpleFinException($"SimpleFIN answered {(int)response.StatusCode}.");
             return Parse(await response.Content.ReadAsStringAsync(ct));
         }
@@ -110,6 +112,10 @@ public sealed class SimpleFinClient(HttpClient http)
         else if (root.TryGetProperty("errors", out var plain) && plain.ValueKind == JsonValueKind.Array)
             errors.AddRange(plain.EnumerateArray().Select(e => e.GetString() ?? ""));
 
+        var connections = new Dictionary<string, string>();
+        if (root.TryGetProperty("connections", out var conns) && conns.ValueKind == JsonValueKind.Array)
+            foreach (var c in conns.EnumerateArray()) connections[Text(c, "conn_id")] = Text(c, "name");
+
         var accounts = new List<SfAccount>();
         if (root.TryGetProperty("accounts", out var list) && list.ValueKind == JsonValueKind.Array)
             foreach (var a in list.EnumerateArray())
@@ -117,9 +123,14 @@ public sealed class SimpleFinClient(HttpClient http)
                 var txs = new List<SfTransaction>();
                 if (a.TryGetProperty("transactions", out var tl) && tl.ValueKind == JsonValueKind.Array)
                     foreach (var t in tl.EnumerateArray())
-                        txs.Add(new SfTransaction(Text(t, "id"), Unix(t, "posted") ?? DateTimeOffset.UnixEpoch, Cents(Text(t, "amount")), Text(t, "description").Trim(),
-                            t.TryGetProperty("pending", out var p) && p.ValueKind == JsonValueKind.True, t.GetRawText()));
-                accounts.Add(new SfAccount(Text(a, "id"), Text(a, "name"), a.TryGetProperty("org", out var org) ? Text(org, "name") : "", Text(a, "currency"),
+                    {
+                        // a pending line may have no posting time yet (posted is 0)
+                        var posted = Unix(t, "posted");
+                        txs.Add(new SfTransaction(Text(t, "id"), posted ?? DateTimeOffset.UnixEpoch, Cents(Text(t, "amount")), Text(t, "description").Trim(),
+                            posted is null || (t.TryGetProperty("pending", out var p) && p.ValueKind == JsonValueKind.True), t.GetRawText()));
+                    }
+                accounts.Add(new SfAccount(Text(a, "id"), Text(a, "name"),
+                    connections.GetValueOrDefault(Text(a, "conn_id")) ?? (a.TryGetProperty("org", out var org) ? Text(org, "name") : ""), Text(a, "currency"),
                     Cents(Text(a, "balance")), Unix(a, "balance-date"), txs));
             }
         return new SfResponse(accounts, errors.Where(e => e.Length > 0).ToList());
