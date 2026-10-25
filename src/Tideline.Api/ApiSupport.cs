@@ -1,4 +1,3 @@
-using System.Net;
 using System.Globalization;
 using System.Text;
 using Tideline.Core;
@@ -11,8 +10,29 @@ public sealed class TidelineOptions
     public string? InboxPath { get; set; }
     public int InboxIntervalSeconds { get; set; } = 300;
 
-    /// <summary>Until sign-in with MFA exists (Phase 3) the API only answers this computer. Setting this turns that off.</summary>
-    public bool AllowRemote { get; set; }
+    /// <summary>The address people use, put in setup links. In development that is the web app's port.</summary>
+    public string PublicUrl { get; set; } = "http://localhost:5173";
+
+    /// <summary>Where the keys that encrypt authenticator secrets live. Empty means a "keys" folder beside the database.</summary>
+    public string? DataProtectionKeys { get; set; }
+
+    /// <summary>The cookie is Secure and named with the __Host- prefix. Browsers accept that on localhost, so this stays on.</summary>
+    public bool SecureCookie { get; set; } = true;
+
+    public int IdleHours { get; set; } = 12;
+    public int AbsoluteDays { get; set; } = 14;
+    public int AuthRequestsPerMinute { get; set; } = 10;
+    public int MaxFailedLogins { get; set; } = 5;
+    public int LockoutMinutes { get; set; } = 15;
+
+    /// <summary>
+    /// For testing on your own computer only: everyone is treated as the owner with the second step passed. It does nothing
+    /// unless the environment is Development and the app listens on this computer alone, and the app refuses to start otherwise.
+    /// This is the one exception to "no setting turns MFA off" (docs/09-security.md, "Development switch").
+    /// </summary>
+    public bool DevNoAuth { get; set; }
+
+    public string CookieName => SecureCookie ? "__Host-tideline" : "tideline";
 }
 
 /// <summary>"Today" and month boundaries in the household's time zone (docs/04-domain-rules.md).</summary>
@@ -27,28 +47,6 @@ public sealed class Clock(TidelineOptions options, TimeProvider time)
     }
 
     public DateOnly Today => DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(time.GetUtcNow(), _zone).DateTime);
-}
-
-/// <summary>
-/// There is no sign-in until Phase 3, so the API refuses anything that is not this computer. A finished ledger
-/// must never be readable by the rest of the network.
-/// </summary>
-public sealed class LocalOnlyMiddleware(RequestDelegate next, TidelineOptions options)
-{
-    public Task InvokeAsync(HttpContext context)
-    {
-        var ip = context.Connection.RemoteIpAddress;
-        if (options.AllowRemote || ip is null || IPAddress.IsLoopback(ip)) return next(context);
-
-        context.Response.StatusCode = StatusCodes.Status403Forbidden;
-        return context.Response.WriteAsJsonAsync(new
-        {
-            type = "about:blank",
-            title = "Local only",
-            status = 403,
-            detail = "Sign-in is not built yet (Phase 3), so Tideline only answers the computer it runs on.",
-        });
-    }
 }
 
 /// <summary>Builds the query string of a drill-down link (docs/07-api.md, "Drill-down contract").</summary>

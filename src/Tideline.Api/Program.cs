@@ -1,4 +1,11 @@
+using System.Threading.RateLimiting;
+using Microsoft.AspNetCore.DataProtection;
+using Microsoft.AspNetCore.DataProtection.KeyManagement;
+using Microsoft.AspNetCore.DataProtection.Repositories;
+using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 using Tideline.Api;
+using Tideline.Api.Auth;
 using Tideline.Api.Endpoints;
 using Tideline.Data;
 using Tideline.Import;
@@ -15,6 +22,38 @@ builder.Services.AddSingleton(sp => new SqliteConnectionFactory(ConnectionString
 builder.Services.AddSingleton<WriteGate>();
 builder.Services.AddSingleton<ImportPipeline>();
 builder.Services.AddSingleton<Clock>();
+
+// the keys that encrypt authenticator secrets live next to the database unless told otherwise
+builder.Services.AddDataProtection().SetApplicationName("Tideline");
+builder.Services.AddOptions<KeyManagementOptions>().Configure<IServiceProvider>((o, sp) =>
+{
+    var options = sp.GetRequiredService<TidelineOptions>();
+    var db = new Microsoft.Data.Sqlite.SqliteConnectionStringBuilder(ConnectionString(sp.GetRequiredService<IConfiguration>())).DataSource;
+    var dir = options.DataProtectionKeys ?? Path.Combine(Path.GetDirectoryName(Path.GetFullPath(db))!, "keys");
+    Directory.CreateDirectory(dir);
+    o.XmlRepository = new FileSystemXmlRepository(new DirectoryInfo(dir), NullLoggerFactory.Instance);
+});
+builder.Services.AddSingleton<SecretBox>();
+builder.Services.AddSingleton<Csrf>();
+builder.Services.AddSingleton<AuthService>();
+
+// 10 requests a minute per address on everything under /auth (docs/09-security.md)
+builder.Services.AddRateLimiter(o =>
+{
+    o.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    o.OnRejected = async (context, _) => await Problems.Write(context.HttpContext, 429, "Slow down", "Too many tries. Wait a minute and try again.", "rate_limited");
+    o.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(ctx =>
+    {
+        if (!ctx.Request.Path.StartsWithSegments("/api/v1/auth")) return RateLimitPartition.GetNoLimiter("open");
+        var limit = ctx.RequestServices.GetRequiredService<TidelineOptions>().AuthRequestsPerMinute;
+        return RateLimitPartition.GetFixedWindowLimiter(ctx.Connection.RemoteIpAddress?.ToString() ?? "unknown", _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = limit,
+            Window = TimeSpan.FromMinutes(1),
+            QueueLimit = 0,
+        });
+    });
+});
 
 var options = builder.Configuration.GetSection("Tideline").Get<TidelineOptions>() ?? new TidelineOptions();
 
@@ -37,16 +76,29 @@ if (!string.Equals(app.Configuration["Database:AutoMigrate"], "false", StringCom
     Migrator.MigrateUp(connectionString);
 }
 
-app.UseMiddleware<LocalOnlyMiddleware>();
+var devNoAuth = app.Services.GetRequiredService<TidelineOptions>().DevNoAuth;
+if (devNoAuth)
+{
+    DevAuth.RequireSafe(app.Environment, app.Configuration);
+    DevAuth.EnsureOwner(app.Services.GetRequiredService<SqliteConnectionFactory>(), app.Services.GetRequiredService<TimeProvider>());
+    app.Logger.LogWarning("SIGN-IN IS SWITCHED OFF (Tideline:DevNoAuth). Everyone on this computer is the owner. Never use this with real data on a shared machine.");
+}
+
+app.UseMiddleware<SecurityHeadersMiddleware>();
+app.UseRateLimiter();
+app.UseMiddleware<AuthMiddleware>();
+app.UseMiddleware<AccessMiddleware>();
 app.UseDefaultFiles();
 app.UseStaticFiles();
 
 var api = app.MapGroup("/api/v1");
+api.MapAuthEndpoints();
 api.MapLookupEndpoints();
 api.MapLinesEndpoints();
 api.MapScreenEndpoints();
 api.MapTransactionEndpoints();
 
+// no data beyond "up"
 app.MapGet("/health", (SqliteConnectionFactory factory) =>
 {
     using var conn = factory.Open();

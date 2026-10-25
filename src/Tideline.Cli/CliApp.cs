@@ -20,6 +20,8 @@ public sealed class CliApp(TextWriter output, TimeProvider clock)
           status                          every account: ledger balance against the bank's last balance
           lines [--account 1234] [--random N | --take N]
                                           show ledger lines, to check a few against the bank
+          user <add|list|link|reset-mfa|role|deactivate>
+                                          people who can sign in; `tideline user` shows the details
           demo <folder> [--lines 5000] [--seed 42] [--from 2025-01-01] [--to 2026-09-30] [--load]
                                           write made-up exports for six accounts (and a household file) to try the app;
                                           with --load, also set up and import them into the database
@@ -61,6 +63,8 @@ public sealed class CliApp(TextWriter output, TimeProvider clock)
                     return Status(connectionString);
                 case "lines":
                     return Lines(connectionString, options);
+                case "user":
+                    return UserCommands.Run(rest, options, connectionString, clock, output);
                 case "demo":
                     if (rest.Count != 1) return Bad("demo needs one folder: tideline demo ./demo-data");
                     return await DemoAsync(rest[0], options, connectionString);
@@ -68,7 +72,7 @@ public sealed class CliApp(TextWriter output, TimeProvider clock)
                     return Bad($"unknown command '{command}'.");
             }
         }
-        catch (Exception e) when (e is InvalidDataException or FileNotFoundException or DirectoryNotFoundException or System.Text.Json.JsonException or FormatException)
+        catch (Exception e) when (e is InvalidDataException or Microsoft.Data.Sqlite.SqliteException { SqliteErrorCode: 19 } or FileNotFoundException or DirectoryNotFoundException or System.Text.Json.JsonException or FormatException)
         {
             output.WriteLine($"Error: {e.Message}");
             return 1;

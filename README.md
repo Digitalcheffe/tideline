@@ -8,9 +8,8 @@ gives each line one meaning (income, bill, required, extra, one-time or savings)
 few things that need a person: a bill that did not get paid, a card balance carried over, a plan that
 is slipping.
 
-> **Status:** Phases 1 and 2 are built: import and the screens (Overview, Accounts, Cards, Bills, Required, Extra,
-> Income, Lines with editing and splits). Sign-in with MFA is Phase 3, so for now the app only answers the computer it runs
-> on. Progress is tracked in the [GitHub issues](https://github.com/Digitalcheffe/tideline/issues).
+> **Status:** Phases 1 and 2 are built (import, and the screens with editing and splits). Phase 3 is in progress: sign-in with a
+> mandatory second step is done; Settings, audit log and backups are next. Progress is tracked in the [GitHub issues](https://github.com/Digitalcheffe/tideline/issues).
 
 ## Try it (Phase 1)
 
@@ -30,6 +29,8 @@ npm --prefix web install
 npm --prefix web run dev:demo   # first run fills data/dev/tideline.db with 5,000 made-up lines
 npm --prefix web run dev:all    # the same app on whatever is in that database
 ```
+
+To look around without signing in (testing on your own computer only), run `npm --prefix web run dev:test`: demo data, sign-in switched off, and a red banner so you never forget. Otherwise the first run makes an owner and prints a one-time setup link: open it, choose a password, and scan the QR code with an authenticator app (1Password, Google Authenticator and so on). Signing in always needs both, and the recovery codes shown at the end are your way back in if you lose the phone. Lost the link? `dotnet run --project src/Tideline.Cli -- user link --email owner@example.com --db "Data Source=data/dev/tideline.db"`.
 
 Then open http://localhost:5173. The API restarts when C# changes and the web app reloads when TypeScript changes. The database lives in `data/dev/` (ignored by git); set `TIDELINE_DB` to use another file. Stop with Ctrl+C.
 

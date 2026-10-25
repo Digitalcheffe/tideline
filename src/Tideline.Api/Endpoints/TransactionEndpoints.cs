@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Tideline.Api.Auth;
 using Tideline.Data;
 using Tideline.Data.Repositories;
 using Tideline.Data.Services;
@@ -51,35 +52,35 @@ public static class TransactionEndpoints
         });
 
         // docs/07-api.md, "Ledger": every edit is audited, sets is_manual_override, and is refused (409) if the line changed since it was read.
-        api.MapPatch("/transactions/{id:long}", (long id, EditRequest request, SqliteConnectionFactory factory, TimeProvider time) =>
-            Edit(factory, time, e => new { version = e.Update(id, request) }));
+        api.MapPatch("/transactions/{id:long}", (long id, EditRequest request, SqliteConnectionFactory factory, TimeProvider time, HttpContext http) =>
+            Edit(http, factory, time, e => new { version = e.Update(id, request) }));
 
-        api.MapPost("/transactions/{id:long}/reset-to-rules", (long id, SqliteConnectionFactory factory, TimeProvider time) =>
-            Edit(factory, time, e => new { version = e.ResetToRules(id) }));
+        api.MapPost("/transactions/{id:long}/reset-to-rules", (long id, SqliteConnectionFactory factory, TimeProvider time, HttpContext http) =>
+            Edit(http, factory, time, e => new { version = e.ResetToRules(id) }));
 
-        api.MapPut("/transactions/{id:long}/splits", (long id, SplitsRequest request, SqliteConnectionFactory factory, TimeProvider time) =>
-            Edit(factory, time, e => new { version = e.ReplaceSplits(id, request.Splits ?? [], request.Version) }));
+        api.MapPut("/transactions/{id:long}/splits", (long id, SplitsRequest request, SqliteConnectionFactory factory, TimeProvider time, HttpContext http) =>
+            Edit(http, factory, time, e => new { version = e.ReplaceSplits(id, request.Splits ?? [], request.Version) }));
 
-        api.MapPost("/transactions/bulk", (BulkRequest request, SqliteConnectionFactory factory, TimeProvider time) =>
-            Edit(factory, time, e => e.BulkUpdate(request.Ids ?? [], request.Set ?? new BulkChange())));
+        api.MapPost("/transactions/bulk", (BulkRequest request, SqliteConnectionFactory factory, TimeProvider time, HttpContext http) =>
+            Edit(http, factory, time, e => e.BulkUpdate(request.Ids ?? [], request.Set ?? new BulkChange())));
 
-        api.MapPost("/transactions", (ManualEntry entry, SqliteConnectionFactory factory, TimeProvider time) =>
-            Edit(factory, time, e => new { id = e.CreateManual(entry) }, created: true));
+        api.MapPost("/transactions", (ManualEntry entry, SqliteConnectionFactory factory, TimeProvider time, HttpContext http) =>
+            Edit(http, factory, time, e => new { id = e.CreateManual(entry) }, created: true));
 
-        api.MapDelete("/transactions/{id:long}", (long id, SqliteConnectionFactory factory, TimeProvider time) =>
-            Edit(factory, time, e => { e.DeleteManual(id); return new { deleted = true }; }));
+        api.MapDelete("/transactions/{id:long}", (long id, SqliteConnectionFactory factory, TimeProvider time, HttpContext http) =>
+            Edit(http, factory, time, e => { e.DeleteManual(id); return new { deleted = true }; }));
     }
 
     public sealed record BulkRequest(IReadOnlyList<long>? Ids, BulkChange? Set);
 
     public sealed record SplitsRequest(string? Version, IReadOnlyList<SplitInput>? Splits);
 
-    private static IResult Edit(SqliteConnectionFactory factory, TimeProvider time, Func<TransactionEditor, object> action, bool created = false)
+    private static IResult Edit(HttpContext http, SqliteConnectionFactory factory, TimeProvider time, Func<TransactionEditor, object> action, bool created = false)
     {
         try
         {
             using var conn = factory.Open();
-            var result = action(new TransactionEditor(conn, time));
+            var result = action(new TransactionEditor(conn, time, http.Actor()));
             return created ? Results.Json(result, statusCode: StatusCodes.Status201Created) : Results.Ok(result);
         }
         catch (EditException e)

@@ -10,7 +10,8 @@
     "preview": "vite preview",
     "e2e": "playwright test",
     "dev:all": "node scripts/dev.mjs",
-    "dev:demo": "node scripts/dev.mjs --demo"
+    "dev:demo": "node scripts/dev.mjs --demo",
+    "dev:test": "node scripts/dev.mjs --demo --no-auth"
   },
   "dependencies": {
     "@tanstack/react-query": "5.104.5",

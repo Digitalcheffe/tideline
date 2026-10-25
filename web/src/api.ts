@@ -5,6 +5,18 @@ export interface Figure {
   drill: string | null
 }
 
+// The anti-forgery token for this session, set once we know who is signed in. Every change sends it.
+let csrfToken: string | null = null
+export function setCsrf(token: string | null) {
+  csrfToken = token
+}
+
+// Called when the server says nobody is signed in (the session ended), so the app can show the sign-in page.
+let onUnauthorized: (() => void) | null = null
+export function setOnUnauthorized(fn: (() => void) | null) {
+  onUnauthorized = fn
+}
+
 export class ApiError extends Error {
   constructor(
     public status: number,
@@ -23,6 +35,7 @@ export async function get<T>(path: string, params?: Record<string, string | unde
         .join('&')
     : ''
   const response = await fetch(`/api/v1${path}${query}`)
+  if (response.status === 401) onUnauthorized?.()
   if (!response.ok) {
     let detail = response.statusText
     try {
@@ -40,9 +53,11 @@ export async function get<T>(path: string, params?: Record<string, string | unde
 export async function send<T>(method: string, path: string, body?: unknown): Promise<T> {
   const response = await fetch(`/api/v1${path}`, {
     method,
-    headers: body === undefined ? undefined : { 'Content-Type': 'application/json' },
+    headers: { ...(body === undefined ? {} : { 'Content-Type': 'application/json' }), ...(csrfToken ? { 'X-CSRF-Token': csrfToken } : {}) },
     body: body === undefined ? undefined : JSON.stringify(body),
   })
+  // a wrong password is a 401 too, but that is the sign-in page talking, not a session that ended
+  if (response.status === 401 && !path.startsWith('/auth/login') && !path.startsWith('/auth/mfa') && !path.startsWith('/auth/enroll') && !path.startsWith('/auth/setup') && !path.startsWith('/auth/recovery')) onUnauthorized?.()
   const text = await response.text()
   const json = text ? JSON.parse(text) : null
   if (!response.ok) throw new ApiError(response.status, json?.detail ?? json?.title ?? (json?.errors ? Object.values(json.errors).flat().join(' ') : response.statusText))
@@ -52,6 +67,7 @@ export async function send<T>(method: string, path: string, body?: unknown): Pro
 /** Raw query string as built by a drill link, passed straight to /lines. */
 export function getLines(query: string): Promise<LinePage> {
   return fetch(`/api/v1/lines?${query}`).then(async (r) => {
+    if (r.status === 401) onUnauthorized?.()
     if (!r.ok) {
       const problem = await r.json().catch(() => null)
       throw new ApiError(r.status, problem?.errors ? Object.values(problem.errors).flat().join(' ') : (problem?.title ?? r.statusText))
@@ -235,4 +251,26 @@ export interface Income {
   categories: { id: number; name: string; cents: number; lines: number; drill: string }[]
   payees: { payee: string; cents: number; lines: number; drill: string }[]
   reviewDeposits: { count: number; sumCents: number; drill: string; items: Line[] }
+}
+
+// ---- signing in ------------------------------------------------------------------------------------------
+
+export interface Me {
+  user: { id: number; email: string; displayName: string; role: 'owner' | 'member' | 'viewer' }
+  /** Sign-in is switched off for testing on this computer (Tideline:DevNoAuth). */
+  authDisabled?: boolean
+  mfaPassed: boolean
+  mfaEnrolled: boolean
+  methods: string[]
+  sessionExpires: string | null
+  recoveryCodesLeft: number
+  csrf: string | null
+}
+
+/** Who is signed in, or null. */
+export async function getMe(): Promise<Me | null> {
+  const response = await fetch('/api/v1/auth/me')
+  if (response.status === 401) return null
+  if (!response.ok) throw new ApiError(response.status, response.statusText)
+  return (await response.json()) as Me
 }

@@ -49,7 +49,7 @@ public sealed record ManualEntry(
 /// Edits to a ledger line. The bank fields are never touched (the triggers would refuse); everything a person
 /// changes is audited in the same database transaction (docs/07-api.md, "Ledger").
 /// </summary>
-public sealed class TransactionEditor(IDbConnection conn, TimeProvider clock)
+public sealed class TransactionEditor(IDbConnection conn, TimeProvider clock, Actor? actor = null)
 {
     private sealed class Current
     {
@@ -174,7 +174,7 @@ public sealed class TransactionEditor(IDbConnection conn, TimeProvider clock)
             foreach (var t in tagIds) conn.Execute("INSERT INTO transaction_tags (transaction_id, tag_id) VALUES (@id, @t)", new { id, t }, tx);
         }
 
-        new AuditWriter(conn, clock, tx).Write("transaction.update", "transaction", id, before, Snapshot(id, tx));
+        new AuditWriter(conn, clock, tx, actor).Write("transaction.update", "transaction", id, before, Snapshot(id, tx));
         var version = NewVersion(id, tx);
         tx.Commit();
         return version;
@@ -202,7 +202,7 @@ public sealed class TransactionEditor(IDbConnection conn, TimeProvider clock)
         if (change.CategoryId is { } cat and > 0) RequireCategory(cat, tx);
         var add = change.AddTags is null ? [] : TagIds(change.AddTags, tx);
         var remove = (change.RemoveTags ?? []).Select(NormalizeTag).Distinct().ToList();
-        var audit = new AuditWriter(conn, clock, tx);
+        var audit = new AuditWriter(conn, clock, tx, actor);
 
         int updated = 0, skipped = 0, missing = 0;
         foreach (var id in ids.Distinct())
@@ -262,7 +262,7 @@ public sealed class TransactionEditor(IDbConnection conn, TimeProvider clock)
         conn.Execute("DELETE FROM transaction_tags WHERE transaction_id = @id", new { id }, tx);
         foreach (var t in k.TagIds.Distinct()) conn.Execute("INSERT INTO transaction_tags (transaction_id, tag_id) VALUES (@id, @t)", new { id, t }, tx);
 
-        new AuditWriter(conn, clock, tx).Write("transaction.reset", "transaction", id, before, Snapshot(id, tx));
+        new AuditWriter(conn, clock, tx, actor).Write("transaction.reset", "transaction", id, before, Snapshot(id, tx));
         var version = NewVersion(id, tx);
         tx.Commit();
         return version;
@@ -313,7 +313,7 @@ public sealed class TransactionEditor(IDbConnection conn, TimeProvider clock)
         }
 
         Touch(id, tx);
-        new AuditWriter(conn, clock, tx).Write("transaction.splits", "transaction", id, before, SplitSnapshot(id, tx));
+        new AuditWriter(conn, clock, tx, actor).Write("transaction.splits", "transaction", id, before, SplitSnapshot(id, tx));
         var newVersion = NewVersion(id, tx);
         tx.Commit();
         return newVersion;
@@ -353,7 +353,7 @@ public sealed class TransactionEditor(IDbConnection conn, TimeProvider clock)
             Payee: string.IsNullOrWhiteSpace(e.Payee) ? null : e.Payee.Trim(), CategoryId: e.CategoryId, Type: type, TagIds: tagIds));
         conn.Execute("UPDATE transactions SET is_manual_override = 1, notes = @notes WHERE id = @id", new { id, notes = string.IsNullOrWhiteSpace(e.Notes) ? null : e.Notes }, tx);
 
-        new AuditWriter(conn, clock, tx).Write("transaction.create", "transaction", id, null,
+        new AuditWriter(conn, clock, tx, actor).Write("transaction.create", "transaction", id, null,
             new { e.AccountId, e.PostedOn, e.AmountCents, e.Description, e.CategoryId, Type = type.Value.ToDb(), e.Payee, e.Notes });
         tx.Commit();
         return id;
@@ -373,7 +373,7 @@ public sealed class TransactionEditor(IDbConnection conn, TimeProvider clock)
         conn.Execute("DELETE FROM transaction_tags WHERE transaction_id = @id", new { id }, tx);
         conn.Execute("DELETE FROM transactions WHERE id = @id", new { id }, tx);
 
-        new AuditWriter(conn, clock, tx).Write("transaction.delete", "transaction", id, before, null);
+        new AuditWriter(conn, clock, tx, actor).Write("transaction.delete", "transaction", id, before, null);
         tx.Commit();
     }
 }

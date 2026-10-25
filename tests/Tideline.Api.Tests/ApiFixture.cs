@@ -6,15 +6,21 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Tideline.Api.Auth;
 using Tideline.Cli;
+using Tideline.Core.Security;
 using Tideline.Data;
+using Tideline.Data.Security;
 using Tideline.Import;
 
 namespace Tideline.Api.Tests;
 
-public sealed class FixedClock(DateTimeOffset now) : TimeProvider
+/// <summary>A clock the tests can move. Each authenticator code can be used once, so signing in again needs the next 30 seconds.</summary>
+public sealed class TestClock(DateTimeOffset now) : TimeProvider
 {
-    public override DateTimeOffset GetUtcNow() => now;
+    private DateTimeOffset _now = now;
+    public override DateTimeOffset GetUtcNow() => _now;
+    public void Advance(TimeSpan by) => _now += by;
 }
 
 /// <summary>
@@ -28,8 +34,21 @@ public sealed class ApiFixture : IDisposable
     private readonly string _dir = Path.Combine(Path.GetTempPath(), $"tideline-api-{Guid.NewGuid():N}");
     private readonly WebApplicationFactory<Program> _factory;
 
+    public const string OwnerEmail = "owner@example.com";
+    public const string Password = "a long passphrase of mine";
+
     public string ConnectionString { get; }
+
+    /// <summary>Signed in as the owner, second step passed, with the anti-forgery header set. What most tests use.</summary>
     public HttpClient Client { get; }
+
+    /// <summary>Nobody is signed in.</summary>
+    public HttpClient Anonymous { get; }
+
+    public TestClock Clock { get; }
+    public string OwnerSecret { get; }
+    public long OwnerId { get; }
+    public string KeysFolder => Path.Combine(_dir, "keys");
 
     public ApiFixture(bool importFixtures = true, int? demoLines = null)
     {
@@ -37,7 +56,8 @@ public sealed class ApiFixture : IDisposable
         ConnectionString = $"Data Source={Path.Combine(_dir, "t.db")};Pooling=False";
 
         Migrator.MigrateUp(ConnectionString);
-        var clock = new FixedClock(Now);
+        var clock = new TestClock(Now);
+        Clock = clock;
         var demoFolder = Path.Combine(_dir, "demo");
         var json = demoLines is { } n
             ? File.ReadAllText(DemoData.Generate(demoFolder, DemoOptions.Default with { Lines = n }).HouseholdFile)
@@ -48,9 +68,24 @@ public sealed class ApiFixture : IDisposable
         {
             b.UseSetting("Database:ConnectionString", ConnectionString);
             b.UseSetting("Tideline:Timezone", "UTC");
+            b.UseSetting("Tideline:SecureCookie", "false"); // the test host is plain http; one test checks the real attributes
+            b.UseSetting("Tideline:AuthRequestsPerMinute", "100000");
+            b.UseSetting("Tideline:DataProtectionKeys", KeysFolder);
             b.ConfigureServices(s => s.Replace(ServiceDescriptor.Singleton<TimeProvider>(clock)));
         });
-        Client = _factory.CreateClient();
+        Anonymous = _factory.CreateClient();
+
+        // the owner: set up the way a real one would be, then signed in through the real endpoints
+        OwnerSecret = Totp.NewSecret();
+        using (var conn = new SqliteConnectionFactory(ConnectionString).Open())
+        {
+            var users = new UserRepository(conn, clock);
+            OwnerId = users.Create(OwnerEmail, "Test Owner", Role.Owner);
+            users.SetPassword(OwnerId, AuthService.HashPassword(Password));
+            new MfaRepository(conn, clock).AddTotp(OwnerId, "Authenticator app", _factory.Services.GetRequiredService<SecretBox>().Protect(OwnerSecret));
+            users.SetMfaEnrolled(OwnerId, clock.GetUtcNow());
+        }
+        Client = SignInAsync(OwnerEmail, Password, OwnerSecret).GetAwaiter().GetResult();
 
         if (demoLines is not null)
         {
@@ -69,6 +104,56 @@ public sealed class ApiFixture : IDisposable
                 if (!result.Succeeded) throw new InvalidOperationException($"fixture {name} failed: {result.Error}");
             }
         }
+    }
+
+    public HttpClient NewClient() => _factory.CreateClient();
+
+    /// <summary>A client that keeps no cookies, so a test can hold and replay them by hand.</summary>
+    public HttpClient RawClient(WebApplicationFactory<Program>? host = null) =>
+        (host ?? _factory).CreateClient(new WebApplicationFactoryClientOptions { HandleCookies = false });
+
+    /// <summary>A person already set up: password chosen and, unless told otherwise, the authenticator enrolled.</summary>
+    public (long Id, string Secret) AddUser(string email, string name, Role role, bool enrolled = true, string? password = Password)
+    {
+        using var conn = new SqliteConnectionFactory(ConnectionString).Open();
+        var users = new UserRepository(conn, Clock);
+        var id = users.Create(email, name, role);
+        if (password is not null) users.SetPassword(id, AuthService.HashPassword(password));
+        var secret = Totp.NewSecret();
+        if (enrolled)
+        {
+            new MfaRepository(conn, Clock).AddTotp(id, "Authenticator app", _factory.Services.GetRequiredService<SecretBox>().Protect(secret));
+            users.SetMfaEnrolled(id, Clock.GetUtcNow());
+        }
+        return (id, secret);
+    }
+
+    /// <summary>The code an authenticator would show right now, one 30 second step later than the last one given.</summary>
+    public string NextCode(string secret)
+    {
+        Clock.Advance(TimeSpan.FromSeconds(31));
+        return Totp.Code(secret, Totp.StepOf(Clock.GetUtcNow()));
+    }
+
+    public T Service<T>() where T : notnull => _factory.Services.GetRequiredService<T>();
+
+    public WebApplicationFactory<Program> Host => _factory;
+
+    /// <summary>Password, then the authenticator code: the whole sign-in, as a person does it.</summary>
+    public async Task<HttpClient> SignInAsync(string email, string password, string totpSecret)
+    {
+        var client = _factory.CreateClient();
+        var login = await client.PostAsJsonAsync("/api/v1/auth/login", new { email, password });
+        if (!login.IsSuccessStatusCode) throw new InvalidOperationException($"sign-in failed: {(int)login.StatusCode} {await login.Content.ReadAsStringAsync()}");
+
+        var me = JsonDocument.Parse(await client.GetStringAsync("/api/v1/auth/me")).RootElement;
+        client.DefaultRequestHeaders.Add("X-CSRF-Token", me.GetProperty("csrf").GetString());
+
+        Clock.Advance(TimeSpan.FromSeconds(31)); // a code is good once; this is the next one
+        var code = Totp.Code(totpSecret, Totp.StepOf(Clock.GetUtcNow()));
+        var second = await client.PostAsJsonAsync("/api/v1/auth/mfa/totp", new { code });
+        if (!second.IsSuccessStatusCode) throw new InvalidOperationException($"second step failed: {(int)second.StatusCode} {await second.Content.ReadAsStringAsync()}");
+        return client;
     }
 
     public ImportPipeline Pipeline => _factory.Services.GetRequiredService<ImportPipeline>();
@@ -120,6 +205,7 @@ public sealed class ApiFixture : IDisposable
     public void Dispose()
     {
         Client.Dispose();
+        Anonymous.Dispose();
         _factory.Dispose();
         SqliteConnection.ClearAllPools();
         if (Directory.Exists(_dir)) Directory.Delete(_dir, recursive: true);

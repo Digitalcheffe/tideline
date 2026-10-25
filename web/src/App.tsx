@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, NavLink, Route, Routes, useLocation } from 'react-router-dom'
 import { PeriodPicker, usePeriod } from './period'
 import { monthLabel, wholeMonth, wholeYear } from './format'
+import { AuthGate, useMe, useSignOut } from './auth'
 import { Overview } from './routes/Overview'
 import { Accounts } from './routes/Accounts'
 import { Cards } from './routes/Cards'
@@ -49,6 +50,16 @@ function Logo() {
 }
 
 export default function App() {
+  return (
+    <AuthGate>
+      <Shell />
+    </AuthGate>
+  )
+}
+
+function Shell() {
+  const me = useMe()
+  const signOut = useSignOut()
   const period = usePeriod()
   const location = useLocation()
   const [menuOpen, setMenuOpen] = useState(false)
@@ -66,6 +77,11 @@ export default function App() {
 
   return (
     <div className="shell">
+      {me.authDisabled && (
+        <div className="devbanner" role="alert">
+          Sign-in is switched off for testing. Everyone on this computer is the owner. Never use this setting with real data on a shared machine.
+        </div>
+      )}
       <header className="mobilebar">
         <button type="button" className="hamburger" aria-label="Menu" aria-expanded={menuOpen} onClick={() => setMenuOpen(!menuOpen)}>
           <span />
@@ -101,9 +117,22 @@ export default function App() {
         </nav>
 
         <div className="nav-foot">
-          <NavLink to="/settings" className={({ isActive }) => (isActive ? 'active' : '')}>
-            Settings
-          </NavLink>
+          {me.user.role === 'owner' && (
+            <NavLink to="/settings" className={({ isActive }) => (isActive ? 'active' : '')}>
+              Settings
+            </NavLink>
+          )}
+          <div className="whoami">
+            <div>
+              <strong>{me.user.displayName}</strong>
+              <span className="muted"> · {me.user.role}</span>
+            </div>
+            {!me.authDisabled && (
+              <button className="linklike" type="button" onClick={() => signOut()}>
+                Sign out
+              </button>
+            )}
+          </div>
         </div>
       </aside>
 
