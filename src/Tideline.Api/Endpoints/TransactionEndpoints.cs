@@ -64,6 +64,13 @@ public static class TransactionEndpoints
         api.MapPost("/transactions/bulk", (BulkRequest request, SqliteConnectionFactory factory, TimeProvider time, HttpContext http) =>
             Edit(http, factory, time, e => e.BulkUpdate(request.Ids ?? [], request.Set ?? new BulkChange())));
 
+        // docs/07-api.md: pair two lines by hand, or take a move apart (both lines go back to the rules)
+        api.MapPost("/moves", (PairRequest request, SqliteConnectionFactory factory, TimeProvider time, HttpContext http) =>
+            Edit(http, factory, time, e => new { id = e.Pair(request.TransactionIds ?? []) }, created: true));
+
+        api.MapDelete("/moves/{id:long}", (long id, SqliteConnectionFactory factory, TimeProvider time, HttpContext http) =>
+            Edit(http, factory, time, e => new { unpaired = e.Unpair(id) }));
+
         api.MapPost("/transactions", (ManualEntry entry, SqliteConnectionFactory factory, TimeProvider time, HttpContext http) =>
             Edit(http, factory, time, e => new { id = e.CreateManual(entry) }, created: true));
 
@@ -72,6 +79,8 @@ public static class TransactionEndpoints
     }
 
     public sealed record BulkRequest(IReadOnlyList<long>? Ids, BulkChange? Set);
+
+    public sealed record PairRequest(IReadOnlyList<long>? TransactionIds);
 
     public sealed record SplitsRequest(string? Version, IReadOnlyList<SplitInput>? Splits);
 

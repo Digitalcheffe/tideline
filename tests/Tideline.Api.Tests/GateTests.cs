@@ -200,7 +200,7 @@ public sealed partial class GateTests(ITestOutputHelper output) : IDisposable
             name, setType = "extra", conditions = new[] { new { field = "description", op = "contains_any", value = JsonSerializer.SerializeToElement(new[] { text }) } },
         };
 
-        long channel = 0, snapAccount = 0, snapshot = 0, person = 0, plan = 0, account = 0, category = 0, tag = 0, pattern = 0, recurring = 0, rule = 0, manual = 0, token = 0, invited = 0;
+        long channel = 0, snapAccount = 0, snapshot = 0, person = 0, plan = 0, account = 0, category = 0, tag = 0, pattern = 0, recurring = 0, rule = 0, manual = 0, token = 0, invited = 0, move = 0;
 
         var m1 = _api.AddUser("m1@example.com", "M One", Tideline.Core.Security.Role.Member);
         var m2 = _api.AddUser("m2@example.com", "M Two", Tideline.Core.Security.Role.Member);
@@ -255,6 +255,12 @@ public sealed partial class GateTests(ITestOutputHelper output) : IDisposable
             new("PUT /transactions/{id:long}/splits", Kind.Update, "transaction.splits", async () =>
                 await Ok(HttpMethod.Put, $"/api/v1/transactions/{coffee}/splits", new { version = await _api.VersionOf(coffee), splits = new[] { new { amountCents = (await _api.Get($"/api/v1/transactions/{coffee}")).GetProperty("bank").GetProperty("amountCents").GetInt64(), categoryId = groceries, type = "extra" } } })),
             new("POST /transactions/bulk", Kind.Update, "transaction.update", () => Ok(HttpMethod.Post, "/api/v1/transactions/bulk", new { ids = new[] { mystery }, set = new { type = "one_time" } })),
+            new("POST /moves", Kind.Create, "move.pair", async () =>
+            {
+                var partner = (await Ok(HttpMethod.Post, "/api/v1/transactions", new { accountId = savings, postedOn = "2026-03-21", amountCents = 1234, description = "GATE PARTNER", categoryId = groceries, type = "extra" }, HttpStatusCode.Created)).GetProperty("id").GetInt64();
+                move = (await Ok(HttpMethod.Post, "/api/v1/moves", new { transactionIds = new[] { manual, partner } }, HttpStatusCode.Created)).GetProperty("id").GetInt64();
+            }),
+            new("DELETE /moves/{id:long}", Kind.Delete, "move.unpair", () => Ok(HttpMethod.Delete, $"/api/v1/moves/{move}")),
             new("DELETE /transactions/{id:long}", Kind.Delete, "transaction.delete", () => Ok(HttpMethod.Delete, $"/api/v1/transactions/{manual}")),
 
             // people, tokens, sessions

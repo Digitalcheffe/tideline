@@ -200,6 +200,31 @@ public sealed class ScreenTests : IDisposable
     }
 
     [Fact]
+    public async Task A_bill_line_linked_to_an_item_that_is_not_a_bill_is_in_an_Other_row_and_the_grid_still_adds_up()
+    {
+        _api.Execute("INSERT INTO categories (id, name, default_type) VALUES (902, 'Gym', 'extra')");
+        _api.Execute("INSERT INTO categories (id, name, default_type) VALUES (903, 'Memberships', 'bill')");
+        _api.Execute("""
+            INSERT INTO recurring (id, name, category_id, expected_min_cents, expected_max_cents, frequency, every_n, due_day, first_due_on, grace_days, is_active)
+            VALUES (901, 'Gym dues', 902, 3000, 3000, 'monthly', 1, 10, '2026-01-10', 5, 1)
+            """);
+        _api.Execute("""
+            INSERT INTO transactions (account_id, posted_on, amount_cents, original_description, external_id, source, category_id, type, recurring_id, created_at, updated_at)
+            VALUES (1, '2026-02-10', -3000, 'GYM', 'manual:gym1', 'manual', 903, 'bill', 901, '2026-04-01T00:00:00Z', '2026-04-01T00:00:00Z')
+            """);
+
+        var b = await _api.Get("/api/v1/bills?year=2026");
+        var other = b.GetProperty("rows").Items().Single(r => r.GetProperty("isOther").GetBoolean());
+
+        other.GetProperty("name").GetString().Should().Be("Other: Memberships");
+        other.GetProperty("cells")[1].GetProperty("paidCents").GetInt64().Should().Be(3000);
+        (-(await _api.Drill(other.GetProperty("cells")[1].GetProperty("drill").GetString())).SumCents).Should().Be(3000);
+
+        var bills = (await _api.Get("/api/v1/overview?from=2026-01-01&to=2026-12-31")).GetProperty("spread").GetProperty("bills").Cents();
+        b.GetProperty("totalPaidCents").GetInt64().Should().Be(bills).And.Be(13099 + 3000);
+    }
+
+    [Fact]
     public async Task One_time_items_over_the_threshold_are_listed_for_attention()
     {
         _api.Execute("""

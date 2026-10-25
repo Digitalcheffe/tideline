@@ -14,6 +14,10 @@ internal static class EffectiveSql
     public const string Columns =
         "transaction_id, split_line_id, account_id, posted_on, amount_cents, category_id, type, payee, description, notes, recurring_id, plan_id, move_id, is_split_part";
 
+    /// <summary>A line the Bills grid has no row for: no recurring item, or an item whose category is not a bill.</summary>
+    public const string OutsideBillRows =
+        "e.recurring_id IS NULL OR NOT EXISTS (SELECT 1 FROM recurring ri JOIN categories rc ON rc.id = ri.category_id WHERE ri.id = e.recurring_id AND rc.default_type = 'bill')";
+
     public const string Ctes = """
         split_sums AS (
             SELECT transaction_id, SUM(amount_cents) AS s FROM split_lines GROUP BY transaction_id

@@ -137,6 +137,33 @@ test.describe.serial('smoke', () => {
     await expect(page.getByText('MYSTERY VENDOR 9')).toBeVisible()
   })
 
+  test('two lines are paired as a transfer by hand and unpaired from the drawer', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 800 })
+    const accounts: { id: number; name: string }[] = await (await page.request.get('/api/v1/accounts')).json()
+    const categories: { id: number; name: string }[] = await (await page.request.get('/api/v1/categories')).json()
+    const csrf: string = (await (await page.request.get('/api/v1/auth/me')).json()).csrf
+    const add = async (account: string, cents: number, description: string) =>
+      page.request.post('/api/v1/transactions', {
+        headers: { 'X-CSRF-Token': csrf },
+        data: { accountId: accounts.find((a) => a.name === account)!.id, postedOn: '2026-03-22', amountCents: cents, description, categoryId: categories[0].id, type: 'extra' },
+      })
+    for (const [account, cents, description] of [['Checking', -7700, 'PAIR ME OUT'], ['Savings', 7700, 'PAIR ME IN']] as const) {
+      const response = await add(account, cents, description)
+      expect(response.ok(), await response.text()).toBeTruthy()
+    }
+
+    await page.goto(`/lines?${MARCH}&q=PAIR ME`)
+    await page.getByLabel('Select all lines on this page').check()
+    await page.getByRole('button', { name: 'Pair as a transfer' }).click()
+    await expect(page.getByText('No lines match.')).toBeVisible()
+
+    await page.goto(`/lines?${MARCH}&q=PAIR ME&move=include`)
+    await page.getByText('PAIR ME OUT').click()
+    await page.getByRole('button', { name: 'Not a transfer: unpair' }).click()
+    await expect(page.getByText('Everything on this account that day')).toBeVisible()
+    await expect(page.getByText('Set by')).toBeVisible()
+  })
+
   test('the phone layout has no sideways scrolling on the Overview', async ({ page }) => {
     await page.setViewportSize({ width: 375, height: 812 })
     await page.goto(`/?${MARCH}`)

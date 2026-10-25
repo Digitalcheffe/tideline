@@ -279,7 +279,7 @@ public static class ScreenEndpoints
                 var paid = byMonth.GetValueOrDefault(key);
                 var first = new DateOnly(year, m, 1);
                 return new BillCell(key, paid != 0 ? "paid" : "not_expected", paid, 0,
-                    paid != 0 ? Drill.Range(first, Months.Last(first), ("type", "bill"), ("category", g.Key), ("recurring", "none")) : null);
+                    paid != 0 ? Drill.Range(first, Months.Last(first), ("type", "bill"), ("category", g.Key), ("recurring", "other")) : null);
             }).ToList();
             rows.Add(new BillRow(null, "Other: " + g.First().CategoryName, g.First().CategoryName, true, cells, cells.Sum(c => c.PaidCents), 0));
         }

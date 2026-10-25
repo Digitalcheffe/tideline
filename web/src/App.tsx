@@ -1,22 +1,24 @@
-import { useEffect, useState } from 'react'
+import { lazy, Suspense, useEffect, useState } from 'react'
 import { Link, NavLink, Route, Routes, useLocation } from 'react-router-dom'
 import { PeriodPicker, usePeriod } from './period'
 import { monthLabel, wholeMonth, wholeYear } from './format'
 import { AuthGate, useMe, useSignOut } from './auth'
-import { Overview } from './routes/Overview'
-import { Accounts } from './routes/Accounts'
-import { Cards } from './routes/Cards'
-import { Bills } from './routes/Bills'
-import { TypeScreen } from './routes/TypeScreen'
-import { Income } from './routes/Income'
-import { Lines } from './routes/Lines'
 import { Coming } from './routes/Coming'
-import { Settings } from './routes/settings/Settings'
-import { Budget } from './routes/Budget'
-import { Planning } from './routes/Planning'
-import { Retirement } from './routes/Retirement'
-import { Savings } from './routes/Savings'
 import { ThemeToggle } from './theme'
+
+// each screen loads when it is first opened, so the chart library is only fetched for the screens that draw charts
+const Overview = lazy(() => import('./routes/Overview').then((m) => ({ default: m.Overview })))
+const Accounts = lazy(() => import('./routes/Accounts').then((m) => ({ default: m.Accounts })))
+const Cards = lazy(() => import('./routes/Cards').then((m) => ({ default: m.Cards })))
+const Bills = lazy(() => import('./routes/Bills').then((m) => ({ default: m.Bills })))
+const TypeScreen = lazy(() => import('./routes/TypeScreen').then((m) => ({ default: m.TypeScreen })))
+const Income = lazy(() => import('./routes/Income').then((m) => ({ default: m.Income })))
+const Lines = lazy(() => import('./routes/Lines').then((m) => ({ default: m.Lines })))
+const Settings = lazy(() => import('./routes/settings/Settings').then((m) => ({ default: m.Settings })))
+const Budget = lazy(() => import('./routes/Budget').then((m) => ({ default: m.Budget })))
+const Planning = lazy(() => import('./routes/Planning').then((m) => ({ default: m.Planning })))
+const Retirement = lazy(() => import('./routes/Retirement').then((m) => ({ default: m.Retirement })))
+const Savings = lazy(() => import('./routes/Savings').then((m) => ({ default: m.Savings })))
 
 const GROUPS: { title: string; items: { to: string; label: string }[] }[] = [
   {
@@ -145,6 +147,7 @@ function Shell() {
 
       <div className="content">
         <main>
+          <Suspense fallback={<p className="muted">Loading…</p>}>
           <Routes>
             <Route path="/" element={<Overview period={period} />} />
             <Route path="/accounts" element={<Accounts period={period} />} />
@@ -162,6 +165,7 @@ function Shell() {
             <Route path="/settings/*" element={<Settings />} />
             <Route path="*" element={<Coming title="Not found" phase="" />} />
           </Routes>
+          </Suspense>
         </main>
       </div>
     </div>

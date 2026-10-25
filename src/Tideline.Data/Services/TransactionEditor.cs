@@ -242,6 +242,18 @@ public sealed class TransactionEditor(IDbConnection conn, TimeProvider clock, Ac
         var c = Load(id, tx);
         RequireNotMove(c);
 
+        var before = Snapshot(id, tx);
+        RunRules(c, LineClassifier.Load(conn, clock, tx), tx);
+
+        new AuditWriter(conn, clock, tx, actor).Write("transaction.reset", "transaction", id, before, Snapshot(id, tx));
+        var version = NewVersion(id, tx);
+        tx.Commit();
+        return version;
+    }
+
+    /// <summary>Gives a line the meaning the rules would give it now, and clears the "set by hand" mark.</summary>
+    private void RunRules(Current c, LineClassifier classifier, IDbTransaction tx)
+    {
         var account = new AccountRepository(conn, clock, tx).Get(c.AccountId)!;
         var merchant = "";
         if (!string.IsNullOrEmpty(c.RawJson))
@@ -250,10 +262,8 @@ public sealed class TransactionEditor(IDbConnection conn, TimeProvider clock, Ac
             catch (JsonException) { /* no merchant name to use */ }
         }
 
-        var classifier = LineClassifier.Load(conn, clock, tx);
         var k = classifier.Classify(new RuleLine(c.OriginalDescription, c.AmountCents, account.BankNumberHash ?? "", account.Kind), merchant);
-
-        var before = Snapshot(id, tx);
+        var id = c.Id;
         conn.Execute("""
             UPDATE transactions SET category_id = @category, type = @type, payee = @payee, recurring_id = @recurring, plan_id = @plan,
                 rule_id = @rule, is_manual_override = 0, updated_at = @now
@@ -261,11 +271,92 @@ public sealed class TransactionEditor(IDbConnection conn, TimeProvider clock, Ac
             """, new { id, category = k.CategoryId, type = k.Type.ToDb(), payee = k.Payee, recurring = k.RecurringId, plan = k.PlanId, rule = k.RuleId, now = clock.GetUtcNow() }, tx);
         conn.Execute("DELETE FROM transaction_tags WHERE transaction_id = @id", new { id }, tx);
         foreach (var t in k.TagIds.Distinct()) conn.Execute("INSERT INTO transaction_tags (transaction_id, tag_id) VALUES (@id, @t)", new { id, t }, tx);
+    }
 
-        new AuditWriter(conn, clock, tx, actor).Write("transaction.reset", "transaction", id, before, Snapshot(id, tx));
-        var version = NewVersion(id, tx);
+    // ---- moves by hand ---------------------------------------------------------------------------------------
+
+    /// <summary>
+    /// Pairs two lines as one move between our own accounts (docs/07-api.md, POST /moves): one out and one in, the same
+    /// amount, on different accounts. A line may already be a waiting leg (a move with no partner yet); a line in a
+    /// complete move has to be unpaired first. A paired line has no category, type, splits or tags.
+    /// </summary>
+    public long Pair(IReadOnlyList<long> ids)
+    {
+        TypeHandlers.EnsureRegistered();
+        if (ids.Distinct().Count() != 2) throw new EditException(EditError.Invalid, "Pick exactly two different lines to pair.");
+
+        using var tx = conn.BeginTransaction();
+        var a = Load(ids[0], tx);
+        var b = Load(ids[1], tx);
+        var (outLeg, inLeg) = a.AmountCents < 0 ? (a, b) : (b, a);
+
+        if (a.AccountId == b.AccountId) throw new EditException(EditError.Unprocessable, "A move goes from one account to another. These two lines are on the same account.");
+        if (outLeg.AmountCents >= 0 || inLeg.AmountCents <= 0 || outLeg.AmountCents != -inLeg.AmountCents)
+            throw new EditException(EditError.Unprocessable, "A move needs one line going out and one coming in, for the same amount.");
+        foreach (var leg in new[] { a, b })
+        {
+            if (leg.MoveId is { } m && conn.ExecuteScalar<long>("SELECT COUNT(*) FROM transactions WHERE move_id = @m", new { m }, tx) > 1)
+                throw new EditException(EditError.Unprocessable, "One of these lines is already part of a move. Unpair it first.");
+            if (conn.ExecuteScalar<long>("SELECT COUNT(*) FROM split_lines WHERE transaction_id = @id", new { id = leg.Id }, tx) > 0)
+                throw new EditException(EditError.Unprocessable, "A line that is split cannot be a move. Remove its splits first.");
+        }
+
+        var accounts = new AccountRepository(conn, clock, tx);
+        var kinds = new[] { outLeg, inLeg }.Select(l => accounts.Get(l.AccountId)!.Kind).ToList();
+        var countsAs = Tideline.Core.Moves.MovePairer.CountsAs(kinds[0], kinds[1]);
+
+        // keep the move a waiting leg already has; a second waiting move is dropped
+        var keep = outLeg.MoveId ?? inLeg.MoveId;
+        var ledger = new LedgerRepository(conn, clock, tx);
+        var moveId = keep ?? ledger.CreateMove(countsAs);
+        if (keep is not null) conn.Execute("UPDATE moves SET counts_as = @countsAs WHERE id = @moveId", new { countsAs = countsAs.ToDb(), moveId }, tx);
+
+        var before = new[] { outLeg, inLeg }.Select(l => new { l.Id, Snapshot = Snapshot(l.Id, tx), l.MoveId }).ToList();
+        var drop = new[] { outLeg.MoveId, inLeg.MoveId }.Where(m => m is not null && m != moveId).Select(m => m!.Value).Distinct().ToList();
+        foreach (var leg in new[] { outLeg, inLeg })
+        {
+            conn.Execute("DELETE FROM transaction_tags WHERE transaction_id = @id", new { id = leg.Id }, tx);
+            conn.Execute("""
+                UPDATE transactions SET move_id = @moveId, category_id = NULL, type = NULL, recurring_id = NULL, plan_id = NULL, rule_id = NULL,
+                    is_manual_override = 1, updated_at = @now
+                WHERE id = @id
+                """, new { id = leg.Id, moveId, now = clock.GetUtcNow() }, tx);
+        }
+        foreach (var m in drop) conn.Execute("DELETE FROM moves WHERE id = @m", new { m }, tx);
+
+        new AuditWriter(conn, clock, tx, actor).Write("move.pair", "move", moveId,
+            new { legs = before }, new { legs = new[] { outLeg.Id, inLeg.Id }, countsAs = countsAs.ToDb() });
         tx.Commit();
-        return version;
+        return moveId;
+    }
+
+    /// <summary>
+    /// Takes a move apart, or releases a leg that is waiting for its partner. Each line goes back to the rules, which give
+    /// it a category and type again. They are not paired again by later imports.
+    /// </summary>
+    public int Unpair(long moveId)
+    {
+        TypeHandlers.EnsureRegistered();
+        using var tx = conn.BeginTransaction();
+        var legs = conn.Query<long>("SELECT id FROM transactions WHERE move_id = @moveId ORDER BY id", new { moveId }, tx).ToList();
+        if (legs.Count == 0 && conn.ExecuteScalar<long>("SELECT COUNT(*) FROM moves WHERE id = @moveId", new { moveId }, tx) == 0)
+            throw new EditException(EditError.NotFound, $"There is no move {moveId}.");
+
+        var before = new { legs = legs.Select(l => new { Id = l, Snapshot = Snapshot(l, tx) }).ToList() };
+        var classifier = LineClassifier.Load(conn, clock, tx);
+        foreach (var id in legs)
+        {
+            var c = Load(id, tx);
+            conn.Execute("UPDATE transactions SET move_id = NULL, type = 'extra' WHERE id = @id", new { id }, tx);   // a line needs a type until the rules give it one
+            c.MoveId = null;
+            RunRules(c, classifier, tx);
+        }
+        conn.Execute("DELETE FROM moves WHERE id = @moveId", new { moveId }, tx);
+
+        new AuditWriter(conn, clock, tx, actor).Write("move.unpair", "move", moveId, before,
+            new { legs = legs.Select(l => new { Id = l, Snapshot = Snapshot(l, tx) }).ToList() });
+        tx.Commit();
+        return legs.Count;
     }
 
     // ---- splits ----------------------------------------------------------------------------------------------

@@ -73,7 +73,7 @@ export function Lines() {
   if (apiParams.get('account')) chips.push(apiParams.get('account')!.split(',').map(accountName).join(', '))
   if (apiParams.get('tag')) chips.push(`tagged ${apiParams.get('tag')}`)
   if (apiParams.get('review') === 'true') chips.push('to review')
-  if (apiParams.get('recurring')) chips.push(apiParams.get('recurring') === 'none' ? 'not a recurring item' : 'one recurring item')
+  if (apiParams.get('recurring')) chips.push(apiParams.get('recurring') === 'none' ? 'not a recurring item' : apiParams.get('recurring') === 'other' ? 'not in a bill row' : 'one recurring item')
   if (apiParams.get('move') === 'include') chips.push('with transfers')
   if (apiParams.get('move') === 'only') chips.push('transfers only')
   if (apiParams.get('direction')) chips.push(apiParams.get('direction') === 'in' ? 'money in' : 'money out')
@@ -306,6 +306,14 @@ function BulkBar({ ids, categories, onDone }: { ids: number[]; categories: Categ
     },
   })
 
+  const pair = useMutation({
+    mutationFn: () => send<{ id: number }>('POST', '/moves', { transactionIds: ids }),
+    onSuccess: () => {
+      client.invalidateQueries()
+      onDone()
+    },
+  })
+
   const pickCategory = (value: string) => {
     setCategoryId(value)
     const chosen = categories.find((c) => String(c.id) === value)
@@ -342,12 +350,23 @@ function BulkBar({ ids, categories, onDone }: { ids: number[]; categories: Categ
       <button className="btn primary" type="submit" disabled={nothing || apply.isPending}>
         {apply.isPending ? 'Saving…' : 'Apply'}
       </button>
+      {ids.length === 2 && (
+        <button
+          className="btn"
+          type="button"
+          disabled={pair.isPending}
+          title="One line going out of one account and one coming into another, for the same amount"
+          onClick={() => pair.mutate()}
+        >
+          {pair.isPending ? 'Pairing…' : 'Pair as a transfer'}
+        </button>
+      )}
       <button className="btn" type="button" onClick={onDone}>
         Clear selection
       </button>
-      {apply.error && (
+      {(apply.error ?? pair.error) && (
         <span className="problem" role="alert">
-          {apply.error.message}
+          {(apply.error ?? pair.error)!.message}
         </span>
       )}
     </form>

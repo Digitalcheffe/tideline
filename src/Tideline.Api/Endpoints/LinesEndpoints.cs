@@ -105,7 +105,8 @@ public static class LineFilterParser
 
         var recurringText = q["recurring"].ToString();
         var recurringNone = string.Equals(recurringText, "none", StringComparison.OrdinalIgnoreCase);
-        long? recurring = recurringNone ? null : OneLong("recurring");
+        var recurringOther = string.Equals(recurringText, "other", StringComparison.OrdinalIgnoreCase);
+        long? recurring = recurringNone || recurringOther ? null : OneLong("recurring");
 
         var move = MoveMode.Exclude;
         var moveText = q["move"].ToString();
@@ -127,7 +128,7 @@ public static class LineFilterParser
 
         filter = new LineFilter(from!.Value, to!.Value, types, categories, List("tag"), accounts, recurring, recurringNone, plan, move,
             string.Equals(q["review"].ToString(), "true", StringComparison.OrdinalIgnoreCase),
-            q["q"].ToString() is { Length: > 0 } text ? text : null, min, max, sort, direction);
+            q["q"].ToString() is { Length: > 0 } text ? text : null, min, max, sort, direction, recurringOther);
         return true;
     }
 }

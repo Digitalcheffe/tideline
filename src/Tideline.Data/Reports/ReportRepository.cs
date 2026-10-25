@@ -165,7 +165,7 @@ public sealed class ReportRepository(IDbConnection conn, IDbTransaction? tx = nu
             .Select(r => new RecurringMonthPaid(r.Id, r.Month, r.Cents)).ToList();
     }
 
-    /// <summary>Bill lines not linked to a recurring item, per category per month ("Other: Insurance").</summary>
+    /// <summary>Bill lines the grid has no row for (no recurring item, or an item that is not a bill), per category per month ("Other: Insurance").</summary>
     public IReadOnlyList<UnlinkedBillMonth> UnlinkedBills(DateOnly start, DateOnly end)
     {
         TypeHandlers.EnsureRegistered();
@@ -173,7 +173,7 @@ public sealed class ReportRepository(IDbConnection conn, IDbTransaction? tx = nu
             {SpreadLines}
             SELECT c.id, c.name, SUBSTR(e.posted_on, 1, 7), SUM(-e.amount_cents)
             FROM effective e JOIN categories c ON c.id = e.category_id JOIN accounts a ON a.id = e.account_id
-            WHERE e.type = 'bill' AND e.recurring_id IS NULL AND a.is_in_spread = 1 AND e.posted_on BETWEEN @start AND @end
+            WHERE e.type = 'bill' AND ({EffectiveSql.OutsideBillRows}) AND a.is_in_spread = 1 AND e.posted_on BETWEEN @start AND @end
             GROUP BY c.id, c.name, SUBSTR(e.posted_on, 1, 7)
             ORDER BY 2, 3
             """, new { start, end }, tx)

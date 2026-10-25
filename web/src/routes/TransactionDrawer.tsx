@@ -1,7 +1,7 @@
 import { useEffect } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
-import { get, type TransactionDetail } from '../api'
+import { get, send, type TransactionDetail } from '../api'
 import { Badge, ErrorBox, Loading, Money } from '../components'
 import { dateLabel, typeLabel } from '../format'
 import { EditPanel } from './EditPanel'
@@ -36,6 +36,25 @@ export function TransactionDrawer({ id, onClose }: { id: number; onClose: () => 
 }
 
 function Detail({ t }: { t: TransactionDetail }) {
+  const client = useQueryClient()
+  const unpair = useMutation({
+    mutationFn: () => send('DELETE', `/moves/${t.moveId}`),
+    onSuccess: () => client.invalidateQueries(),
+  })
+  const unpairButton = (label: string) => (
+    <p>
+      <button className="btn" type="button" disabled={unpair.isPending} onClick={() => unpair.mutate()}>
+        {unpair.isPending ? 'Working…' : label}
+      </button>
+      {unpair.error && (
+        <span className="problem" role="alert">
+          {' '}
+          {unpair.error.message}
+        </span>
+      )}
+    </p>
+  )
+
   return (
     <>
       <div className="frombank">
@@ -74,14 +93,21 @@ function Detail({ t }: { t: TransactionDetail }) {
 
       <h3>Meaning</h3>
       {t.movePartner ? (
-        <p>
-          <Badge tone="muted">Transfer</Badge> The other side is <strong>{t.movePartner.accountName}</strong> on {dateLabel(t.movePartner.postedOn)}:{' '}
-          <Money cents={t.movePartner.amountCents} /> “{t.movePartner.description}”. Transfers between your own accounts are not counted as money in or out.
-        </p>
+        <>
+          <p>
+            <Badge tone="muted">Transfer</Badge> The other side is <strong>{t.movePartner.accountName}</strong> on {dateLabel(t.movePartner.postedOn)}:{' '}
+            <Money cents={t.movePartner.amountCents} /> “{t.movePartner.description}”. Transfers between your own accounts are not counted as money in or out.
+          </p>
+          {unpairButton('Not a transfer: unpair')}
+        </>
       ) : t.moveId ? (
-        <p>
-          <Badge tone="warn">Waiting for its other side</Badge> This looks like a transfer. It pairs when the other account's export is imported.
-        </p>
+        <>
+          <p>
+            <Badge tone="warn">Waiting for its other side</Badge> This looks like a transfer. It pairs when the other account's export is imported.
+            If it is not a transfer, release it and the rules will treat it as an ordinary line.
+          </p>
+          {unpairButton('Release this line')}
+        </>
       ) : (
         <dl className="kv">
           <dt>Type</dt>
