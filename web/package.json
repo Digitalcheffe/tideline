@@ -8,7 +8,9 @@
     "build": "tsc --noEmit && vite build",
     "test": "vitest run",
     "preview": "vite preview",
-    "e2e": "playwright test"
+    "e2e": "playwright test",
+    "dev:all": "node scripts/dev.mjs",
+    "dev:demo": "node scripts/dev.mjs --demo"
   },
   "dependencies": {
     "@tanstack/react-query": "5.104.5",

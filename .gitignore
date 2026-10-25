@@ -483,3 +483,6 @@ $RECYCLE.BIN/
 
 # local tooling
 .claude/
+
+# local databases and demo files
+data/

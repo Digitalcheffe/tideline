@@ -23,15 +23,17 @@ dotnet run --project src/Tideline.Cli -- import /path/to/exports --db "Data Sour
 dotnet run --project src/Tideline.Cli -- status --db "Data Source=/path/to/tideline.db"
 ```
 
-Then start the app (the API on one port, the web app on another) and open http://localhost:5173:
+Run the app locally with one command (needs the .NET 10 SDK and Node 24):
 
 ```bash
-dotnet run --project src/Tideline.Api --urls http://localhost:5130 -- "--Database:ConnectionString=Data Source=/path/to/tideline.db"
 npm --prefix web install
-npm --prefix web run dev
+npm --prefix web run dev:demo   # first run fills data/dev/tideline.db with 5,000 made-up lines
+npm --prefix web run dev:all    # the same app on whatever is in that database
 ```
 
-The period picker is in the top bar; every number is a link to the lines behind it. Tests: `dotnet test`, `npm --prefix web test`, and `npm --prefix web run e2e` (set `PW_CHANNEL=msedge` or `chrome` to use an installed browser).
+Then open http://localhost:5173. The API restarts when C# changes and the web app reloads when TypeScript changes. The database lives in `data/dev/` (ignored by git); set `TIDELINE_DB` to use another file. Stop with Ctrl+C.
+
+The period picker is at the top of the menu on the left; every number is a link to the lines behind it. Tests: `dotnet test`, `npm --prefix web test`, and `npm --prefix web run e2e` (set `PW_CHANNEL=msedge` or `chrome` to use an installed browser).
 
 To try it with a realistic amount of data, generate made-up exports (5,000 lines, six accounts, 21 months) and load them in one go:
 
