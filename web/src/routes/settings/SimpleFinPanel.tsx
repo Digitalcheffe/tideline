@@ -57,6 +57,9 @@ interface DryRun {
   onlyInLedger: DryLine[]
 }
 
+const DISCONNECT_WARNING =
+  'Disconnect SimpleFIN?\n\nThis only makes Tideline forget the connection. It does not cancel it at SimpleFIN. To stop access for good, also revoke it at SimpleFIN Bridge (disable the token or connection there).\n\nLines already imported stay. You will need a new setup token to connect again.'
+
 /** The second door in (docs/05-import.md, "SimpleFIN"): connect once, match accounts, try a month beside the CSV, then let it run. */
 export function SimpleFinPanel() {
   const status = useQuery({ queryKey: ['settings', 'simplefin'], queryFn: () => get<Status>('/imports/simplefin') })
@@ -71,9 +74,16 @@ function Connect() {
   return (
     <Card title="SimpleFIN">
       <p className="muted">
-        SimpleFIN Bridge reads your accounts at the bank (read only) and Tideline pulls from it every few hours, so files are not needed. Make a setup token at SimpleFIN, then paste it
-        here once. It works one time only.
+        SimpleFIN Bridge is a separate service that reads your accounts at the bank, read only. Tideline asks it for new lines every few hours, so files are not needed. Tideline can
+        look at your accounts through it but cannot move money, and it never sees your bank login.
       </p>
+      <ol className="steps">
+        <li>Go to SimpleFIN Bridge (simplefin.org) and sign in, or make an account there.</li>
+        <li>Link your bank at the Bridge. You sign in to the bank on the Bridge&rsquo;s own page, not in Tideline.</li>
+        <li>At the Bridge, make a new setup token for Tideline and copy the whole thing.</li>
+        <li>Paste it below and press Connect straight away. A token works one time only, so if you press Connect and it fails, make a new token.</li>
+        <li>Then match each SimpleFIN account to one of yours, pick the day SimpleFIN takes over from your CSV files, and try a month first before you rely on it.</li>
+      </ol>
       <form
         className="form"
         onSubmit={(e) => {
@@ -115,7 +125,7 @@ function Connected({ status }: { status: Status }) {
               className="btn"
               disabled={off.busy}
               onClick={() => {
-                if (window.confirm('Disconnect SimpleFIN? Lines already imported stay. You will need a new setup token to connect again.')) void off.run(() => send('DELETE', '/imports/simplefin'))
+                if (window.confirm(DISCONNECT_WARNING)) void off.run(() => send('DELETE', '/imports/simplefin'))
               }}
             >
               Disconnect
@@ -127,6 +137,9 @@ function Connected({ status }: { status: Status }) {
           <Badge tone="good">Connected</Badge> Last synced {status.lastSyncAt ? when(status.lastSyncAt) : 'never'}. It syncs about every {status.everyHours} hours. {status.requestsToday} of {status.requestLimit} requests used today.
         </p>
         {status.lastError && <p className="problem">SimpleFIN says: {status.lastError}</p>}
+        <p className="muted">
+          Disconnect only makes Tideline forget the connection. It does not cancel it at SimpleFIN: to stop access completely, also revoke it at SimpleFIN Bridge.
+        </p>
         <Problem message={sync.error ?? off.error} />
         {report && (
           <div role="status">
