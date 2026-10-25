@@ -8,8 +8,9 @@ gives each line one meaning (income, bill, required, extra, one-time or savings)
 few things that need a person: a bill that did not get paid, a card balance carried over, a plan that
 is slipping.
 
-> **Status:** Phases 1 and 2 are built (import, and the screens with editing and splits). Phase 3 is in progress: sign-in with a
-> mandatory second step is done; Settings, audit log and backups are next. Progress is tracked in the [GitHub issues](https://github.com/Digitalcheffe/tideline/issues).
+> **Status:** Phases 1 and 2 are built (import, and the screens with editing and splits). Phase 3 is built and waiting for a check on
+> real devices: sign-in with a mandatory second step, Settings (accounts, categories and tags, recurring, rules with a try-first
+> test, imports, people, sessions, API tokens, logs, backups and export). Progress is tracked in the [GitHub issues](https://github.com/Digitalcheffe/tideline/issues).
 
 ## Try it (Phase 1)
 
@@ -43,6 +44,20 @@ dotnet run --project src/Tideline.Cli -- demo ./demo-data --load --db "Data Sour
 ```
 
 The numbers come from a seed, so the same options always give the same files. Keep the folder outside the repository.
+
+Settings (the owner's menu entry, bottom left) is where the household is changed after the first setup: accounts and card terms, categories
+and tags, recurring items, rules (try one over a past period before saving it), the Imports page (send a CSV from a phone, see whether each
+account still agrees with the bank), people, sessions, API tokens, the audit log and backups.
+
+Backups and restore from the command line, any time the app is stopped or running:
+
+```bash
+dotnet run --project src/Tideline.Cli -- backup --db "Data Source=data/dev/tideline.db"            # dated copy plus the keys, 30 days kept, then checked
+dotnet run --project src/Tideline.Cli -- backup --verify data/dev/backups/tideline-20261025.db --db "Data Source=data/dev/tideline.db"
+dotnet run --project src/Tideline.Cli -- restore data/dev/backups/tideline-20261025.db --db "Data Source=restored/tideline.db"
+```
+
+A restore refuses to overwrite a database unless you add `--force`, and refuses a damaged copy.
 
 `tests/fixtures/household.json` shows the household file format with made-up data. `status` lists each
 account's ledger balance next to the bank's last balance; they should match to the cent.
