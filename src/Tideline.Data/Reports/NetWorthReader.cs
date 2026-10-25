@@ -150,6 +150,15 @@ public sealed class NetWorthReader(IDbConnection conn)
         if (first is null) return points;
 
         var month = first[..7];
+
+        // a loan, a house or a retirement account only counts from the day it has a figure, so the trend starts once every one of them does:
+        // before that it would swing by the whole value of whatever had not been entered yet
+        var firstFigures = conn.Query<string>("""
+            SELECT MIN(s.as_of_on) FROM balance_snapshots s JOIN accounts a ON a.id = s.account_id
+            WHERE a.kind IN ('loan', 'asset', 'retirement') AND s.source <> 'computed' GROUP BY s.account_id
+            """).ToList();
+        if (firstFigures.Count > 0 && string.CompareOrdinal(firstFigures.Max()![..7], month) > 0) month = firstFigures.Max()![..7];
+
         var current = today.ToString("yyyy-MM");
         var from = DebtCountdown.AddMonths(current, -35);
         if (string.CompareOrdinal(month, from) < 0) month = from;

@@ -299,6 +299,8 @@ export function NetWorth() {
         {nw.trend.length < 2 ? (
           <p className="muted">The trend appears once there are two months of history.</p>
         ) : (
+          <>
+            <p className="muted">It starts in the month every loan, asset and retirement account has a figure, so it does not swing by what has not been entered yet.</p>
           <div style={{ width: '100%', height: 240 }}>
             <ResponsiveContainer>
               <LineChart data={nw.trend.map((t) => ({ ...t, label: shortMonth(t.month) }))} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
@@ -310,6 +312,7 @@ export function NetWorth() {
               </LineChart>
             </ResponsiveContainer>
           </div>
+          </>
         )}
       </Card>
     </>

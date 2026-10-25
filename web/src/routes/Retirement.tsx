@@ -78,12 +78,21 @@ export function Retirement() {
           <Card title="What it means">
             <ul>
               <li>
-                {res.lastsPastPlan ? (
+                {res.lastsPastPlan || res.moneyLastsYears === null ? (
                   <>The money lasts past age {a.planToAge}.</>
                 ) : (
-                  <>
-                    The money lasts about <strong>{res.moneyLastsYears?.toFixed(1)} years</strong> after retirement, short of age {a.planToAge} if the shortfall is not closed.
-                  </>
+                  (() => {
+                    const last = r.people.filter((p) => p.isActive && p.retirementDate === r.retirementDate)[0]
+                    const endAge = last?.retireAge != null ? last.retireAge + res.moneyLastsYears : null
+                    const enough = endAge !== null && endAge >= a.planToAge
+                    return (
+                      <>
+                        The money lasts about <strong>{res.moneyLastsYears.toFixed(1)} years</strong> after retirement
+                        {endAge !== null && (enough ? `, to about age ${Math.floor(endAge)}: past the age ${a.planToAge} you plan to.` : `, to about age ${Math.floor(endAge)}: short of the age ${a.planToAge} you plan to.`)}
+                        {endAge === null && '.'}
+                      </>
+                    )
+                  })()
                 )}
               </li>
               <li>

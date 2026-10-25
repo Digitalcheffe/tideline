@@ -95,6 +95,20 @@ public sealed class Phase4ApiTests : IDisposable
     }
 
     [Fact]
+    public async Task The_trend_starts_once_every_loan_asset_and_retirement_account_has_a_figure()
+    {
+        var house = await NewAccount(new { name = "House", kind = "asset" });
+        var loan = await NewAccount(new { name = "Mortgage", kind = "loan" });
+        await Snapshot(loan, "2025-11-01", 20_000_000);   // owed from November...
+        await Snapshot(house, "2026-02-01", 30_000_000);  // ...but the house is only entered in February
+
+        var trend = (await Ok(HttpMethod.Get, "/api/v1/net-worth")).GetProperty("trend").EnumerateArray().ToList();
+
+        trend.First().GetProperty("month").GetString().Should().Be("2026-02", "before that the trend would swing by the whole value of the house");
+        trend.Select(t => t.GetProperty("netWorthCents").GetInt64()).Should().OnlyContain(v => v > -10_000_000);
+    }
+
+    [Fact]
     public async Task A_loan_whose_payment_does_not_cover_the_interest_says_so_instead_of_failing()
     {
         var loan = await NewAccount(new { name = "Hard loan", kind = "loan", loan = new { loanType = "personal", rateBps = 1200, paymentCents = 1_000 } });
