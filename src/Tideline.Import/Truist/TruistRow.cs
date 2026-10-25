@@ -17,9 +17,11 @@ public sealed record TruistRow(
     string CheckNumber,
     string SourceFile,
     int Occurrence,
-    string RawJson)
+    string RawJson,
+    string? ExternalIdOverride = null)
 {
-    public string ExternalId => ExternalIds.Truist(BankNumber, PostedOn, Description, AmountCents, Occurrence);
+    /// <summary>A Truist row has the id worked out from its content; a row from another door brings its own.</summary>
+    public string ExternalId => ExternalIdOverride ?? ExternalIds.Truist(BankNumber, PostedOn, Description, AmountCents, Occurrence);
 }
 
 public static class ExternalIds

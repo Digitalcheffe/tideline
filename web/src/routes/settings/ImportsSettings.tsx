@@ -5,6 +5,7 @@ import { get, upload } from '../../api'
 import { Badge, Card, Empty, ErrorBox, Loading } from '../../components'
 import { dollars } from '../../format'
 import { Problem, useAct, when } from './common'
+import { SimpleFinPanel } from './SimpleFinPanel'
 
 interface Batch {
   id: number
@@ -115,6 +116,8 @@ export function ImportsSettings() {
           </div>
         )}
       </Card>
+
+      <SimpleFinPanel />
 
       <Card title="Inbox folder">
         {!inbox.configured ? (

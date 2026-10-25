@@ -126,3 +126,13 @@ test.describe('notifications', () => {
     await page.getByRole('button', { name: 'Acknowledge' }).click()
   })
 })
+
+test.describe('simplefin', () => {
+  test('the Imports page offers SimpleFIN and says in words when a token is wrong', async ({ page }) => {
+    await page.goto('/settings/imports')
+    await expect(page.getByRole('heading', { name: 'SimpleFIN', exact: true })).toBeVisible()
+    await page.getByLabel('Setup token').fill('this is not a token')
+    await page.getByRole('button', { name: 'Connect' }).click()
+    await expect(page.getByRole('alert')).toContainText('does not look like a SimpleFIN setup token')
+  })
+})

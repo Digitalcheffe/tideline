@@ -8,6 +8,7 @@ using Tideline.Api;
 using Tideline.Api.Auth;
 using Tideline.Api.Endpoints;
 using Tideline.Data;
+using Tideline.Data.Security;
 using Tideline.Import;
 using Tideline.Notify;
 
@@ -81,6 +82,15 @@ builder.Services.AddSingleton(sp => new NotifyHost(sp.GetRequiredService<SqliteC
 if (!string.Equals(builder.Configuration["Notify:Enabled"], "false", StringComparison.OrdinalIgnoreCase))
     builder.Services.AddHostedService(sp => sp.GetRequiredService<NotifyHost>());
 
+// SimpleFIN: the second door in. SimpleFin:Enabled=false leaves the six-hourly schedule off (the tests drive it by hand).
+builder.Services.AddSingleton(_ => new Tideline.Import.SimpleFin.SimpleFinClient(new HttpClient { Timeout = TimeSpan.FromSeconds(60) }));
+builder.Services.AddSingleton(sp => new Tideline.Import.SimpleFin.SimpleFinSync(sp.GetRequiredService<SqliteConnectionFactory>(), sp.GetRequiredService<ImportPipeline>(),
+    sp.GetRequiredService<Tideline.Import.SimpleFin.SimpleFinClient>(), sp.GetRequiredService<ISecretProtector>(), sp.GetRequiredService<TimeProvider>(), d => sp.GetRequiredService<Clock>().LocalDate(d)));
+builder.Services.AddSingleton(sp => new Tideline.Import.SimpleFin.SimpleFinHost(sp.GetRequiredService<Tideline.Import.SimpleFin.SimpleFinSync>(), sp.GetRequiredService<TimeProvider>(),
+    () => sp.GetRequiredService<Clock>().LocalNow, sp.GetService<ILogger<Tideline.Import.SimpleFin.SimpleFinHost>>()));
+if (!string.Equals(builder.Configuration["SimpleFin:Enabled"], "false", StringComparison.OrdinalIgnoreCase))
+    builder.Services.AddHostedService(sp => sp.GetRequiredService<Tideline.Import.SimpleFin.SimpleFinHost>());
+
 var app = builder.Build();
 
 if (!string.Equals(app.Configuration["Database:AutoMigrate"], "false", StringComparison.OrdinalIgnoreCase))
@@ -115,6 +125,7 @@ api.MapDataEndpoints();
 api.MapPlanningEndpoints();
 api.MapFlagEndpoints();
 api.MapNotifyEndpoints();
+api.MapSimpleFinEndpoints();
 api.MapLookupEndpoints();
 api.MapLinesEndpoints();
 api.MapScreenEndpoints();

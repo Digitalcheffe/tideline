@@ -24,6 +24,24 @@ public sealed class TestClock(DateTimeOffset now) : TimeProvider
     public void Advance(TimeSpan by) => _now += by;
 }
 
+/// <summary>Stands in for SimpleFIN Bridge: answers the claim and the accounts requests with what the test sets, and remembers what it was asked.</summary>
+public sealed class FakeSimpleFin : HttpMessageHandler
+{
+    public const string Access = "https://demouser:demopass@bridge.example.test/simplefin";
+    public string AccountsJson { get; set; } = "{\"errlist\":[],\"accounts\":[]}";
+    public HttpStatusCode ClaimStatus { get; set; } = HttpStatusCode.OK;
+    public HttpStatusCode AccountsStatus { get; set; } = HttpStatusCode.OK;
+    public List<(HttpMethod Method, Uri Url, string? Auth)> Requests { get; } = [];
+
+    protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+    {
+        Requests.Add((request.Method, request.RequestUri!, request.Headers.Authorization?.ToString()));
+        if (request.Method == HttpMethod.Post)
+            return Task.FromResult(new HttpResponseMessage(ClaimStatus) { Content = new StringContent(ClaimStatus == HttpStatusCode.OK ? Access : "") });
+        return Task.FromResult(new HttpResponseMessage(AccountsStatus) { Content = new StringContent(AccountsJson) });
+    }
+}
+
 /// <summary>Stands in for a channel: remembers what it was asked to send, and can be told to fail.</summary>
 public sealed class RecordingSender(string kind) : IChannelSender
 {
@@ -68,6 +86,7 @@ public sealed class ApiFixture : IDisposable
     public HttpClient Anonymous { get; }
 
     public TestClock Clock { get; }
+    public FakeSimpleFin SimpleFin { get; } = new();
     public RecordingSender Webhook { get; } = new("webhook");
     public RecordingSender Email { get; } = new("email");
     public string OwnerSecret { get; }
@@ -93,12 +112,15 @@ public sealed class ApiFixture : IDisposable
             b.UseSetting("Database:ConnectionString", ConnectionString);
             b.UseSetting("Tideline:Timezone", "UTC");
             b.UseSetting("Notify:Enabled", "false"); // the tests run the schedule by hand
+            b.UseSetting("SimpleFin:Enabled", "false");
             b.UseSetting("Tideline:SecureCookie", "false"); // the test host is plain http; one test checks the real attributes
             b.UseSetting("Tideline:AuthRequestsPerMinute", "100000");
             b.UseSetting("Tideline:DataProtectionKeys", KeysFolder);
             b.ConfigureServices(s =>
             {
                 s.Replace(ServiceDescriptor.Singleton<TimeProvider>(clock));
+                s.RemoveAll<Tideline.Import.SimpleFin.SimpleFinClient>();
+                s.AddSingleton(new Tideline.Import.SimpleFin.SimpleFinClient(new HttpClient(SimpleFin)));
                 s.RemoveAll<IChannelSender>();
                 s.AddSingleton<IChannelSender>(Webhook);
                 s.AddSingleton<IChannelSender>(Email);

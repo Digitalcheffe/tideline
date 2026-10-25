@@ -20,7 +20,7 @@ public sealed class SecretBox(IDataProtectionProvider provider)
 }
 
 /// <summary>Seals notification channel settings (a webhook address, mail passwords) with the same keys, for a different purpose.</summary>
-public sealed class NotifySecrets(IDataProtectionProvider provider) : Tideline.Notify.ISecretProtector
+public sealed class NotifySecrets(IDataProtectionProvider provider) : Tideline.Data.Security.ISecretProtector
 {
     private readonly IDataProtector _protector = provider.CreateProtector("Tideline.Notify.v1");
 

@@ -2,15 +2,9 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Net.Mail;
 using System.Text.Json;
+using Tideline.Data.Security;
 
 namespace Tideline.Notify;
-
-/// <summary>Seals and opens the channel settings (a webhook address, mail passwords). The app supplies one backed by its Data Protection keys.</summary>
-public interface ISecretProtector
-{
-    string Protect(string plain);
-    string Unprotect(string sealedText);
-}
 
 /// <summary>One message, whatever it travels by. The webhook sends it as JSON; mail turns it into a subject and a body.</summary>
 public sealed record NotificationMessage(string Kind, string Severity, string Title, string Detail, string? Link, long? FlagId, DateTimeOffset At);

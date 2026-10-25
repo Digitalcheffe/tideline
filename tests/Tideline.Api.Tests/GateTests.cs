@@ -175,7 +175,7 @@ public sealed partial class GateTests(ITestOutputHelper output) : IDisposable
     private sealed record Case(string Key, Kind Kind, string Action, Func<Task> Act);
 
     /// <summary>The routes that change nothing, so they have nothing to audit.</summary>
-    private static readonly string[] ReadOnlyPosts = ["POST /rules/test", "POST /budgets/{year:int}/fill-from-averages", "POST /notify/test"];
+    private static readonly string[] ReadOnlyPosts = ["POST /rules/test", "POST /budgets/{year:int}/fill-from-averages", "POST /notify/test", "POST /imports/simplefin/dry-run"];
 
     private long Id(string table, string name) => _api.Scalar<long>($"SELECT id FROM {table} WHERE name = @name", new { name });
 
@@ -293,6 +293,16 @@ public sealed partial class GateTests(ITestOutputHelper output) : IDisposable
             new("PUT /notify/prefs", Kind.Update, "notify_prefs.updated", () => Ok(HttpMethod.Put, "/api/v1/notify/prefs", new { modes = new Dictionary<string, string> { ["new_debt"] = "off" } })),
             new("POST /notify/summary/send", Kind.Create, "summary.sent", () => Ok(HttpMethod.Post, "/api/v1/notify/summary/send", new { month = "2026-03" })),
             new("DELETE /notify/channels/{id:long}", Kind.Delete, "notify_channel.deleted", () => Ok(HttpMethod.Delete, $"/api/v1/notify/channels/{channel}")),
+
+            // SimpleFIN
+            new("POST /imports/simplefin/connect", Kind.Create, "simplefin.connected", () =>
+                Ok(HttpMethod.Post, "/api/v1/imports/simplefin/connect", new { setupToken = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes("https://bridge.example.test/simplefin/claim/gate")) }, HttpStatusCode.Created)),
+            new("POST /imports/simplefin/sync", Kind.Create, "simplefin.sync", async () =>
+            {
+                await Ok(HttpMethod.Patch, $"/api/v1/accounts/{account}", new { simplefinAccountId = "ACT-9", simplefinFromOn = "2026-04-01" });
+                await Ok(HttpMethod.Post, "/api/v1/imports/simplefin/sync", new { });
+            }),
+            new("DELETE /imports/simplefin", Kind.Update, "simplefin.disconnected", () => Ok(HttpMethod.Delete, "/api/v1/imports/simplefin")),
 
             // data in and out
             new("POST /backups", Kind.Create, "backup.created", () => Ok(HttpMethod.Post, "/api/v1/backups")),

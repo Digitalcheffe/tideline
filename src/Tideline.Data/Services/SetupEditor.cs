@@ -46,7 +46,10 @@ public sealed record AccountInput(
     LoanInput? Loan = null,
     RetirementInput? Retirement = null,
     int? InterestRateBps = null,
-    bool ClearRate = false);
+    bool ClearRate = false,
+    string? SimplefinAccountId = null,
+    string? SimplefinFromOn = null,
+    bool ClearSimplefin = false);
 
 public sealed record PatternInput(long FromAccountId, string? FromContains, long ToAccountId, string? ToContains, int? MaxDaysApart = null);
 
@@ -140,11 +143,14 @@ public sealed class SetupEditor(IDbConnection conn, TimeProvider clock, Actor? a
         public string? Notes { get; set; }
         public int SortOrder { get; set; }
         public int? InterestRateBps { get; set; }
+        public string? SimplefinAccountId { get; set; }
+        public DateOnly? SimplefinFromOn { get; set; }
     }
 
     private AccountRow? Account(long id, IDbTransaction tx) => conn.QuerySingleOrDefault<AccountRow>("""
         SELECT id AS Id, name AS Name, kind AS Kind, institution AS Institution, bank_number AS BankNumber, opening_balance_cents AS OpeningBalanceCents,
-               opening_on AS OpeningOn, is_in_spread AS IsInSpread, is_closed AS IsClosed, csv_until_on AS CsvUntilOn, notes AS Notes, sort_order AS SortOrder, interest_rate_bps AS InterestRateBps
+               opening_on AS OpeningOn, is_in_spread AS IsInSpread, is_closed AS IsClosed, csv_until_on AS CsvUntilOn, notes AS Notes, sort_order AS SortOrder, interest_rate_bps AS InterestRateBps,
+               simplefin_account_id AS SimplefinAccountId, simplefin_from_on AS SimplefinFromOn
         FROM accounts WHERE id = @id
         """, new { id }, tx);
 
@@ -159,7 +165,7 @@ public sealed class SetupEditor(IDbConnection conn, TimeProvider clock, Actor? a
             "SELECT account_type, employee_contribution_monthly_cents, employer_contribution_monthly_cents, is_included_in_goal, pension_annual_at_retirement_cents FROM retirement_terms WHERE account_id = @id", new { id }, tx);
         return new
         {
-            a.Name, a.Kind, a.Institution, a.BankNumber, a.OpeningBalanceCents, a.OpeningOn, a.IsInSpread, a.IsClosed, a.CsvUntilOn, a.Notes, a.SortOrder, a.InterestRateBps, card,
+            a.Name, a.Kind, a.Institution, a.BankNumber, a.OpeningBalanceCents, a.OpeningOn, a.IsInSpread, a.IsClosed, a.CsvUntilOn, a.Notes, a.SortOrder, a.InterestRateBps, a.SimplefinAccountId, a.SimplefinFromOn, card,
             loan = loan is { } l ? new { loanType = l.Type, rateBps = l.Rate, paymentCents = l.Payment, escrowCents = l.Escrow, paymentDay = l.Day, originalBalanceCents = l.Original, startOn = l.Start, termMonths = l.Term, paymentCategoryId = l.Category, securedAssetId = l.Secured } : null,
             retirement = retirement is { } r ? new { accountType = r.Type, employeeMonthlyCents = r.Employee, employerMonthlyCents = r.Employer, isIncludedInGoal = r.Included, pensionAnnualAtRetirementCents = r.Pension } : null,
         };
@@ -257,9 +263,16 @@ public sealed class SetupEditor(IDbConnection conn, TimeProvider clock, Actor? a
         if (opening is not null && openingOn is null) throw Bad("Say which day the opening balance is for.");
         var csvUntil = a.CsvUntilOn is null ? current.CsvUntilOn : Day(a.CsvUntilOn, "The CSV cutover date");
 
+        var sfin = a.ClearSimplefin ? null : Blank(a.SimplefinAccountId) ?? current.SimplefinAccountId;
+        var sfinFrom = a.ClearSimplefin ? null : a.SimplefinFromOn is null ? current.SimplefinFromOn : Day(a.SimplefinFromOn, "The SimpleFIN start date");
+        if (sfin is not null && conn.ExecuteScalar<long>("SELECT COUNT(*) FROM accounts WHERE simplefin_account_id = @sfin AND id <> @id", new { sfin, id }, tx) > 0)
+            throw Bad("That SimpleFIN account is already matched to another account.");
+        if (sfin is not null && sfinFrom is null) throw Bad("Say the day SimpleFIN takes over from the CSV files, so the two do not overlap.");
+
         conn.Execute("""
             UPDATE accounts SET name = @name, institution = @institution, bank_number = @bank, opening_balance_cents = @opening, opening_on = @openingOn,
-                is_in_spread = @inSpread, is_closed = @closed, sort_order = @sort, csv_until_on = @csvUntil, notes = @notes, interest_rate_bps = @rate
+                is_in_spread = @inSpread, is_closed = @closed, sort_order = @sort, csv_until_on = @csvUntil, notes = @notes, interest_rate_bps = @rate,
+                simplefin_account_id = @sfin, simplefin_from_on = @sfinFrom
             WHERE id = @id
             """, new
         {
@@ -267,6 +280,7 @@ public sealed class SetupEditor(IDbConnection conn, TimeProvider clock, Actor? a
             opening, openingOn, inSpread = (a.IsInSpread ?? current.IsInSpread) ? 1 : 0, closed = (a.IsClosed ?? current.IsClosed) ? 1 : 0,
             sort = a.SortOrder ?? current.SortOrder, csvUntil, notes = a.Notes is null ? current.Notes : Blank(a.Notes),
             rate = a.ClearRate ? null : RateOf(a.InterestRateBps) ?? current.InterestRateBps,
+            sfin = sfin, sfinFrom = sfinFrom,
         }, tx);
         if (a.Card is not null)
         {

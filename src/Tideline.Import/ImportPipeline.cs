@@ -104,7 +104,39 @@ public sealed class ImportPipeline(SqliteConnectionFactory factory, WriteGate ga
         }
     }
 
-    private ImportResult Run(IDbConnection conn, IDbTransaction tx, TruistFile file, Account account, FileCheckResult? check, string name, string sha)
+    /// <summary>
+    /// Rows from another door (SimpleFIN) through the same pipeline: drop what is already there, pair moves, rules, write, then the bank balance and
+    /// reconcile when the bank gave one. No file check, since there is no running balance per row.
+    /// </summary>
+    public async Task<ImportResult> ImportBankRowsAsync(ImportSource source, string label, long accountId, IReadOnlyList<TruistRow> rows, (DateOnly On, long Cents)? bankBalance, CancellationToken ct = default)
+    {
+        var sha = Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(string.Join('\n', rows.Select(r => r.ExternalId)))));
+        using var _ = await gate.EnterAsync(ct);
+        using var conn = factory.Open();
+
+        var account = new AccountRepository(conn, clock).All().FirstOrDefault(a => a.Id == accountId);
+        if (account is null) return RecordFailure(conn, label, sha, null, rows.Count, "There is no such account.", source);
+        if (account.Kind is AccountKind.Loan or AccountKind.Asset or AccountKind.Retirement)
+            return RecordFailure(conn, label, sha, account.Id, rows.Count, $"Account '{account.Name}' does not take bank lines.", source);
+
+        var file = new TruistFile(label, account.BankNumber ?? "", account.Kind == AccountKind.CreditCard ? TruistFormat.Card : TruistFormat.Deposit, rows);
+        using var tx = conn.BeginTransaction();
+        try
+        {
+            var result = Run(conn, tx, file, account, null, label, sha, source, bankBalance);
+            if (result.Succeeded) { tx.Commit(); return result; }
+            tx.Rollback();
+            return RecordFailure(conn, label, sha, account.Id, result.RowsRead, result.Error!, source);
+        }
+        catch
+        {
+            tx.Rollback();
+            throw;
+        }
+    }
+
+    private ImportResult Run(IDbConnection conn, IDbTransaction tx, TruistFile file, Account account, FileCheckResult? check, string name, string sha,
+        ImportSource source = ImportSource.Csv, (DateOnly On, long Cents)? bankBalance = null)
     {
         var accounts = new AccountRepository(conn, clock, tx);
         var categories = new CategoryRepository(conn, tx);
@@ -112,7 +144,7 @@ public sealed class ImportPipeline(SqliteConnectionFactory factory, WriteGate ga
         var ledger = new LedgerRepository(conn, clock, tx);
         var batches = new ImportBatchRepository(conn, clock, tx);
 
-        var batchId = batches.Start(ImportSource.Csv, name, sha, account.Id);
+        var batchId = batches.Start(source, name, sha, account.Id);
 
         // A failure rolls everything back (including this batch row); the caller then records the failure on its own.
         ImportResult Fail(string why) => new(name, ImportStatus.Failed, file.Rows.Count, 0, 0, 0, 0, 0, why);
@@ -122,7 +154,7 @@ public sealed class ImportPipeline(SqliteConnectionFactory factory, WriteGate ga
         var fresh = file.Rows.Where(r => !existing.Contains(r.ExternalId)).ToList();
 
         // 2. cutover: CSV rows after csv_until_on belong to SimpleFIN
-        if (account.CsvUntilOn is { } until && fresh.FirstOrDefault(r => r.PostedOn > until) is not null)
+        if (source == ImportSource.Csv && account.CsvUntilOn is { } until && fresh.FirstOrDefault(r => r.PostedOn > until) is not null)
         {
             var late = fresh.Count(r => r.PostedOn > until);
             return Fail($"{late} row(s) are dated after the CSV cutover on {until:yyyy-MM-dd}; SimpleFIN covers those days.");
@@ -191,7 +223,7 @@ public sealed class ImportPipeline(SqliteConnectionFactory factory, WriteGate ga
         for (var idx = 0; idx < fresh.Count; idx++)
         {
             var r = fresh[idx];
-            var line = new NewTransaction(account.Id, r.PostedOn, r.AmountCents, r.Description, r.ExternalId, ImportSource.Csv,
+            var line = new NewTransaction(account.Id, r.PostedOn, r.AmountCents, r.Description, r.ExternalId, source,
                 r.BankBalanceCents, r.CheckNumber.Length > 0 ? r.CheckNumber : null, batchId, r.RawJson);
 
             if (moveForNew.TryGetValue(idx, out var moveId))
@@ -220,7 +252,12 @@ public sealed class ImportPipeline(SqliteConnectionFactory factory, WriteGate ga
 
         // 6. bank balance snapshot and reconcile (deposit accounts)
         Reconciliation? reconciliation = null;
-        if (check is not null)
+        if (check is null && bankBalance is { } given)
+        {
+            new BalanceSnapshotRepository(conn, clock, tx).UpsertBank(account.Id, given.On, given.Cents);
+            reconciliation = new Reconciliation(account.Id, given.On, given.Cents, ledger.BalanceAsOf(account.Id, given.On));
+        }
+        else if (check is not null)
         {
             var lastDay = file.Rows.Max(r => r.PostedOn);
             var bank = file.Rows.Last(r => r.PostedOn == lastDay).BankBalanceCents!.Value;
@@ -247,10 +284,10 @@ public sealed class ImportPipeline(SqliteConnectionFactory factory, WriteGate ga
         return RecordFailure(conn, name, sha, accountId, rowsRead, error);
     }
 
-    private ImportResult RecordFailure(IDbConnection conn, string name, string sha, long? accountId, int rowsRead, string error)
+    private ImportResult RecordFailure(IDbConnection conn, string name, string sha, long? accountId, int rowsRead, string error, ImportSource source = ImportSource.Csv)
     {
         var batches = new ImportBatchRepository(conn, clock);
-        var id = batches.Start(ImportSource.Csv, name, sha, accountId);
+        var id = batches.Start(source, name, sha, accountId);
         batches.Finish(id, "failed", rowsRead, 0, 0, 0, error);
         return new ImportResult(name, ImportStatus.Failed, rowsRead, 0, 0, 0, 0, 0, error, id);
     }

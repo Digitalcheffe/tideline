@@ -51,6 +51,8 @@ public sealed class Clock(TidelineOptions options, TimeProvider time)
 
     public DateOnly Today => DateOnly.FromDateTime(LocalNow);
 
+    public DateOnly LocalDate(DateTimeOffset instant) => DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(instant, _zone).DateTime);
+
     /// <summary>The time on the household's clock right now.</summary>
     public DateTime LocalNow => TimeZoneInfo.ConvertTime(time.GetUtcNow(), _zone).DateTime;
 }

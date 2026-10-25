@@ -8,9 +8,9 @@ gives each line one meaning (income, bill, required, extra, one-time or savings)
 few things that need a person: a bill that did not get paid, a card balance carried over, a plan that
 is slipping.
 
-> **Status:** Phases 1 to 4 are built. Phases 1 to 3 (import, the screens with editing, sign-in and Settings) wait on checks against real
-> data and devices. Phase 4 adds Budget, Planning, Savings, Net worth with the loan countdown, and Retirement; its numbers match the
-> spec's test vectors to the cent, and the last check is entering your own loan, asset and retirement figures. Progress is tracked in the
+> **Status:** Phases 1 to 5 are built. Phases 1 to 4 wait on checks against your own data and devices. Phase 5 adds the flag evaluator, messages by
+> webhook or email with quiet hours, the monthly summary, and SimpleFIN as a second way in; the SimpleFIN client has only been tried against a stand-in for
+> the real service, so its first real check is the one-month dry run in Settings, Imports. Progress is tracked in the
 > [GitHub issues](https://github.com/Digitalcheffe/tideline/issues).
 
 ## Try it (Phase 1)
