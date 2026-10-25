@@ -1,0 +1,13 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\Tideline.Import\Tideline.Import.csproj" />
+    <ProjectReference Include="..\Tideline.Notify\Tideline.Notify.csproj" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+  </PropertyGroup>
+
+</Project>
+

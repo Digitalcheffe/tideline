@@ -1,0 +1,12 @@
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <ItemGroup>
+    <ProjectReference Include="..\Tideline.Import\Tideline.Import.csproj" />
+    <ProjectReference Include="..\Tideline.Notify\Tideline.Notify.csproj" />
+  </ItemGroup>
+
+  <PropertyGroup>
+  </PropertyGroup>
+
+</Project>
+
