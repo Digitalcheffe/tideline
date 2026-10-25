@@ -58,6 +58,9 @@ public sealed class ImportPipeline(SqliteConnectionFactory factory, WriteGate ga
             return await RecordFailureAsync(name, sha, null, 0, e.Message, ct);
         }
 
+        if (file.Rows.Count == 0)
+            return await RecordFailureAsync(name, sha, null, 0, $"{name} has no rows.", ct);
+
         using var _ = await gate.EnterAsync(ct);
         using var conn = factory.Open();
 
