@@ -8,9 +8,9 @@ gives each line one meaning (income, bill, required, extra, one-time or savings)
 few things that need a person: a bill that did not get paid, a card balance carried over, a plan that
 is slipping.
 
-> **Status:** Phase 1 (ledger and ingestion) is built and waiting for its gate: no screens yet, the
-> `tideline` command line is the way in. Progress is tracked in the
-> [GitHub issues](https://github.com/Digitalcheffe/tideline/issues).
+> **Status:** Phases 1 and 2 are built: import and the screens (Overview, Accounts, Cards, Bills, Required, Extra,
+> Income, Lines with editing and splits). Sign-in with MFA is Phase 3, so for now the app only answers the computer it runs
+> on. Progress is tracked in the [GitHub issues](https://github.com/Digitalcheffe/tideline/issues).
 
 ## Try it (Phase 1)
 
@@ -22,6 +22,16 @@ dotnet run --project src/Tideline.Cli -- setup my-household.json --db "Data Sour
 dotnet run --project src/Tideline.Cli -- import /path/to/exports --db "Data Source=/path/to/tideline.db"
 dotnet run --project src/Tideline.Cli -- status --db "Data Source=/path/to/tideline.db"
 ```
+
+Then start the app (the API on one port, the web app on another) and open http://localhost:5173:
+
+```bash
+dotnet run --project src/Tideline.Api --urls http://localhost:5130 -- "--Database:ConnectionString=Data Source=/path/to/tideline.db"
+npm --prefix web install
+npm --prefix web run dev
+```
+
+The period picker is in the top bar; every number is a link to the lines behind it. Tests: `dotnet test`, `npm --prefix web test`, and `npm --prefix web run e2e` (set `PW_CHANNEL=msedge` or `chrome` to use an installed browser).
 
 `tests/fixtures/household.json` shows the household file format with made-up data. `status` lists each
 account's ledger balance next to the bank's last balance; they should match to the cent.

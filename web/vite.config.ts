@@ -5,12 +5,12 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   plugins: [react()],
   server: {
-    port: 5173,
+    port: Number(process.env.WEB_PORT ?? 5173),
     proxy: {
-      '/api': 'http://localhost:5130',
-      '/health': 'http://localhost:5130',
+      '/api': `http://localhost:${process.env.API_PORT ?? 5130}`,
+      '/health': `http://localhost:${process.env.API_PORT ?? 5130}`,
     },
   },
   build: { outDir: 'dist', sourcemap: false },
-  test: { environment: 'node' },
+  test: { environment: 'node', exclude: ['e2e/**', 'node_modules/**'] },
 })
