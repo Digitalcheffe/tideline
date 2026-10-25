@@ -95,6 +95,7 @@ var api = app.MapGroup("/api/v1");
 api.MapAuthEndpoints();
 api.MapAdminEndpoints();
 api.MapSetupEndpoints();
+api.MapImportEndpoints();
 api.MapLookupEndpoints();
 api.MapLinesEndpoints();
 api.MapScreenEndpoints();

@@ -9,12 +9,14 @@ import { PeopleSettings } from './PeopleSettings'
 import { SessionsSettings } from './SessionsSettings'
 import { TokensSettings } from './TokensSettings'
 import { LogsSettings } from './LogsSettings'
+import { ImportsSettings } from './ImportsSettings'
 
 const TABS = [
   { to: 'accounts', label: 'Money accounts' },
   { to: 'categories', label: 'Categories and tags' },
   { to: 'recurring', label: 'Recurring' },
   { to: 'rules', label: 'Rules' },
+  { to: 'imports', label: 'Imports' },
   { to: 'people', label: 'People' },
   { to: 'sessions', label: 'Sessions' },
   { to: 'tokens', label: 'API tokens' },
@@ -50,6 +52,7 @@ export function Settings() {
         <Route path="categories" element={<CategoriesSettings />} />
         <Route path="recurring" element={<RecurringSettings />} />
         <Route path="rules" element={<RulesSettings />} />
+        <Route path="imports" element={<ImportsSettings />} />
         <Route path="people" element={<PeopleSettings />} />
         <Route path="sessions" element={<SessionsSettings />} />
         <Route path="tokens" element={<TokensSettings />} />

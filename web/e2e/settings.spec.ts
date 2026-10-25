@@ -75,6 +75,16 @@ test.describe.serial('settings', () => {
     await expect(page.getByLabel('New token')).toBeHidden()
   })
 
+  test('imports shows what came in, and a file that is not a bank export says why it was refused', async ({ page }) => {
+    await page.goto('/settings/imports')
+    await expect(page.getByRole('heading', { name: 'Recent imports' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Does the ledger agree with the bank?' })).toBeVisible()
+    await expect(page.getByRole('cell', { name: /acct_/ }).first()).toBeVisible()
+
+    await page.getByLabel('CSV file').setInputFiles({ name: 'notes.csv', mimeType: 'text/csv', buffer: Buffer.from('this,is,not\na,bank,file\n') })
+    await expect(page.getByText('notes.csv was not imported')).toBeVisible()
+  })
+
   test('sessions lists this one', async ({ page }) => {
     await page.goto('/settings/sessions')
     await expect(page.getByText('this one')).toBeVisible()

@@ -64,6 +64,18 @@ export async function send<T>(method: string, path: string, body?: unknown): Pro
   return json as T
 }
 
+/** Sends one file as a form. The anti-forgery token goes in the header like every other change. */
+export async function upload<T>(path: string, file: File): Promise<T> {
+  const form = new FormData()
+  form.append('file', file)
+  const response = await fetch(`/api/v1${path}`, { method: 'POST', headers: csrfToken ? { 'X-CSRF-Token': csrfToken } : {}, body: form })
+  if (response.status === 401) onUnauthorized?.()
+  const text = await response.text()
+  const json = text ? JSON.parse(text) : null
+  if (!response.ok) throw new ApiError(response.status, json?.detail ?? json?.title ?? response.statusText)
+  return json as T
+}
+
 /** Raw query string as built by a drill link, passed straight to /lines. */
 export function getLines(query: string): Promise<LinePage> {
   return fetch(`/api/v1/lines?${query}`).then(async (r) => {
