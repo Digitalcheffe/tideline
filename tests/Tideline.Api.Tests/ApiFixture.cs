@@ -1,3 +1,4 @@
+using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using Dapper;
@@ -82,6 +83,19 @@ public sealed class ApiFixture : IDisposable
         Assert.True(response.IsSuccessStatusCode, $"GET {url} -> {(int)response.StatusCode}: {body}");
         return JsonDocument.Parse(body).RootElement.Clone();
     }
+
+    public async Task<(HttpStatusCode Status, JsonElement Body)> Send(HttpMethod method, string url, object? body = null)
+    {
+        var request = new HttpRequestMessage(method, url);
+        if (body is not null) request.Content = JsonContent.Create(body);
+        var response = await Client.SendAsync(request);
+        var text = await response.Content.ReadAsStringAsync();
+        return (response.StatusCode, text.Length == 0 ? default : JsonDocument.Parse(text).RootElement.Clone());
+    }
+
+    public long IdOf(string description) => Scalar<long>("SELECT id FROM transactions WHERE original_description = @description", new { description });
+
+    public async Task<string> VersionOf(long id) => (await Get($"/api/v1/transactions/{id}")).GetProperty("version").GetString()!;
 
     /// <summary>The signed sum of the lines a drill-down opens, straight from /lines.</summary>
     public async Task<(long Count, long SumCents)> Drill(string? drill)

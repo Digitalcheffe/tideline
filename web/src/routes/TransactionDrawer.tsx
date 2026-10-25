@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom'
 import { get, type TransactionDetail } from '../api'
 import { Badge, ErrorBox, Loading, Money } from '../components'
 import { dateLabel, typeLabel } from '../format'
+import { EditPanel } from './EditPanel'
 
 /** The transaction drawer (docs/08-screens.md, "Lines"). Editing arrives with the splits editor. */
 export function TransactionDrawer({ id, onClose }: { id: number; onClose: () => void }) {
@@ -28,7 +29,7 @@ export function TransactionDrawer({ id, onClose }: { id: number; onClose: () => 
 
         {isLoading && <Loading what="the transaction" />}
         {error && <ErrorBox error={error} />}
-        {data && <Detail t={data} />}
+        {data && <Detail key={data.version} t={data} />}
       </aside>
     </>
   )
@@ -112,7 +113,9 @@ function Detail({ t }: { t: TransactionDetail }) {
         </dl>
       )}
 
-      <h3>Splits</h3>
+      {!t.moveId && <EditPanel t={t} />}
+
+      <h3>Splits as they stand</h3>
       {t.splits.length === 0 ? (
         <p className="muted">Not split.</p>
       ) : (

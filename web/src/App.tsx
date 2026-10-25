@@ -49,7 +49,7 @@ export default function App() {
           </NavLink>
           <nav className="nav" aria-label="Screens">
             {NAV.map((n) => (
-              <NavLink key={n.to} to={n.to + (n.to === '/lines' ? '' : location.search)} end={n.to === '/'} className={({ isActive }) => (isActive ? 'active' : '')}>
+              <NavLink key={n.to} to={n.to === '/lines' ? '/lines' : `${n.to}?from=${period.from}&to=${period.to}`} end={n.to === '/'} className={({ isActive }) => (isActive ? 'active' : '')}>
                 {n.label}
               </NavLink>
             ))}

@@ -36,6 +36,19 @@ export async function get<T>(path: string, params?: Record<string, string | unde
   return (await response.json()) as T
 }
 
+/** Writes: PATCH, PUT, POST, DELETE. Problems come back as readable messages. */
+export async function send<T>(method: string, path: string, body?: unknown): Promise<T> {
+  const response = await fetch(`/api/v1${path}`, {
+    method,
+    headers: body === undefined ? undefined : { 'Content-Type': 'application/json' },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  })
+  const text = await response.text()
+  const json = text ? JSON.parse(text) : null
+  if (!response.ok) throw new ApiError(response.status, json?.detail ?? json?.title ?? (json?.errors ? Object.values(json.errors).flat().join(' ') : response.statusText))
+  return json as T
+}
+
 /** Raw query string as built by a drill link, passed straight to /lines. */
 export function getLines(query: string): Promise<LinePage> {
   return fetch(`/api/v1/lines?${query}`).then(async (r) => {

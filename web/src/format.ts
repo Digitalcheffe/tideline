@@ -87,3 +87,13 @@ export function typeLabel(type: string | null | undefined): string {
 export function plural(n: number, one: string, many = `${one}s`): string {
   return `${n} ${n === 1 ? one : many}`
 }
+
+/** "10", "10.5", "$1,000.25" or "-4" to cents; null when it is not a plain money amount. */
+export function parseDollars(text: string): number | null {
+  const cleaned = text.trim().replace(/[$,\s]/g, '')
+  if (!/^-?\d+(\.\d{0,2})?$/.test(cleaned)) return null
+  const negative = cleaned.startsWith('-')
+  const [whole, frac = ''] = cleaned.replace('-', '').split('.')
+  const cents = Number(whole) * 100 + Number(frac.padEnd(2, '0'))
+  return negative ? -cents : cents
+}

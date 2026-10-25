@@ -1,14 +1,18 @@
+import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { get, type AccountsByMonth } from '../api'
 import { Badge, Card, Empty, ErrorBox, Loading, Money } from '../components'
 import { shortMonth } from '../format'
 import type { Period } from '../period'
+import { ManualEntry } from './ManualEntry'
 
 export function Accounts({ period }: { period: Period }) {
   const { data, error, isLoading } = useQuery({
     queryKey: ['accounts-by-month', period.year],
     queryFn: () => get<AccountsByMonth>('/accounts/by-month', { year: String(period.year) }),
   })
+
+  const [adding, setAdding] = useState<{ id: number; name: string } | null>(null)
 
   if (isLoading) return <Loading what="accounts" />
   if (error || !data) return <ErrorBox error={error} />
@@ -19,7 +23,7 @@ export function Accounts({ period }: { period: Period }) {
       <h1>Accounts by month, {data.year}</h1>
       <p className="muted">Each cell shows money in, money out and the balance at month end. Click a number to see its lines.</p>
       {data.accounts.map((a) => (
-        <Card key={a.accountId} title={a.name} aside={a.kind.replace('_', ' ')}>
+        <Card key={a.accountId} title={a.name} aside={<>{a.kind.replace('_', ' ')} <button className="btn" type="button" onClick={() => setAdding({ id: a.accountId, name: a.name })}>Add a line</button></>}>
           {!a.openingKnown && (
             <p>
               <Badge tone="warn">Opening balance unknown</Badge> <span className="muted">Balances count from the first import.</span>
@@ -67,6 +71,7 @@ export function Accounts({ period }: { period: Period }) {
           </div>
         </Card>
       ))}
+      {adding && <ManualEntry accountId={adding.id} accountName={adding.name} onClose={() => setAdding(null)} />}
     </>
   )
 }

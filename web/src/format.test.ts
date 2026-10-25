@@ -46,3 +46,20 @@ describe('helpers', () => {
     expect(typeLabel(null)).toBe('Move')
   })
 })
+
+import { parseDollars } from './format'
+
+describe('parseDollars', () => {
+  it('reads plain money amounts to cents', () => {
+    expect(parseDollars('10')).toBe(1000)
+    expect(parseDollars('10.5')).toBe(1050)
+    expect(parseDollars('$1,000.25')).toBe(100025)
+    expect(parseDollars('-4')).toBe(-400)
+    expect(parseDollars('.5')).toBeNull()
+  })
+  it('refuses anything else', () => {
+    expect(parseDollars('')).toBeNull()
+    expect(parseDollars('ten')).toBeNull()
+    expect(parseDollars('1.234')).toBeNull()
+  })
+})

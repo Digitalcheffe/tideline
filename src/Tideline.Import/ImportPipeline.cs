@@ -6,6 +6,7 @@ using Tideline.Core.Moves;
 using Tideline.Core.Rules;
 using Tideline.Data;
 using Tideline.Data.Repositories;
+using Tideline.Data.Services;
 using Tideline.Import.Truist;
 
 namespace Tideline.Import;
@@ -179,10 +180,7 @@ public sealed class ImportPipeline(SqliteConnectionFactory factory, WriteGate ga
         }
 
         // 5. rules on the new non-move rows, then write
-        var rules = new RuleRepository(conn, clock, tx).All();
-        var defaults = categories.DefaultTypes();
-        var uncategorized = categories.IdByName(UncategorizedName) ?? categories.Insert(UncategorizedName, LineType.Extra);
-        var reviewTag = tags.GetOrCreate(ReviewTagName);
+        var classifier = LineClassifier.Load(conn, clock, tx);
 
         var inserted = 0;
         var review = 0;
@@ -198,30 +196,18 @@ public sealed class ImportPipeline(SqliteConnectionFactory factory, WriteGate ga
             }
             else
             {
-                var decision = RulesEngine.Decide(new RuleLine(r.Description, r.AmountCents, file.BankNumber, account.Kind), rules,
-                    c => defaults.TryGetValue(c, out var t) ? t : LineType.Extra);
-                var tagIds = new List<long>(decision?.TagIds ?? []);
-                var categoryId = decision?.CategoryId;
-                var type = decision?.Type;
-
-                if (decision is null || type is null)
-                {
-                    categoryId ??= uncategorized;
-                    type ??= defaults.GetValueOrDefault(categoryId.Value, LineType.Extra);
-                    if (decision is null) tagIds.Add(reviewTag);
-                }
-
+                var c = classifier.Classify(new RuleLine(r.Description, r.AmountCents, file.BankNumber, account.Kind), r.Merchant);
                 line = line with
                 {
-                    Payee = decision?.Payee ?? PayeeCleaner.For(r.Merchant, r.Description),
-                    CategoryId = categoryId,
-                    Type = type,
-                    RecurringId = decision?.RecurringId,
-                    PlanId = decision?.PlanId,
-                    RuleId = decision?.Rule.Id,
-                    TagIds = tagIds,
+                    Payee = c.Payee,
+                    CategoryId = c.CategoryId,
+                    Type = c.Type,
+                    RecurringId = c.RecurringId,
+                    PlanId = c.PlanId,
+                    RuleId = c.RuleId,
+                    TagIds = c.TagIds,
                 };
-                if (tagIds.Contains(reviewTag)) review++;
+                if (c.TagIds.Contains(classifier.ReviewTagId)) review++;
             }
 
             ledger.Insert(line);

@@ -591,3 +591,45 @@ button.btn:disabled {
     margin-top: 0.4rem;
   }
 }
+
+/* ---- forms ---- */
+.form {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.form label {
+  display: grid;
+  gap: 0.2rem;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.form input,
+.form select,
+.form textarea {
+  color: var(--text);
+  font-size: 0.95rem;
+}
+
+.split-row {
+  display: grid;
+  grid-template-columns: 5.5rem 1fr 1fr;
+  gap: 0.4rem;
+  margin-bottom: 0.5rem;
+}
+
+.split-row input[placeholder="Note"] {
+  grid-column: 1 / 3;
+}
+
+.problem {
+  color: var(--bad);
+  background: var(--bad-bg);
+  border-radius: 8px;
+  padding: 0.4rem 0.6rem;
+}
+
+.neg {
+  color: var(--bad);
+}

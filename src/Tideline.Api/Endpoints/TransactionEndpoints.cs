@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Tideline.Data;
 using Tideline.Data.Repositories;
+using Tideline.Data.Services;
 
 namespace Tideline.Api.Endpoints;
 
@@ -48,6 +49,45 @@ public static class TransactionEndpoints
                 audit = t.Audit,
             });
         });
+
+        // docs/07-api.md, "Ledger": every edit is audited, sets is_manual_override, and is refused (409) if the line changed since it was read.
+        api.MapPatch("/transactions/{id:long}", (long id, EditRequest request, SqliteConnectionFactory factory, TimeProvider time) =>
+            Edit(factory, time, e => new { version = e.Update(id, request) }));
+
+        api.MapPost("/transactions/{id:long}/reset-to-rules", (long id, SqliteConnectionFactory factory, TimeProvider time) =>
+            Edit(factory, time, e => new { version = e.ResetToRules(id) }));
+
+        api.MapPut("/transactions/{id:long}/splits", (long id, SplitsRequest request, SqliteConnectionFactory factory, TimeProvider time) =>
+            Edit(factory, time, e => new { version = e.ReplaceSplits(id, request.Splits ?? [], request.Version) }));
+
+        api.MapPost("/transactions", (ManualEntry entry, SqliteConnectionFactory factory, TimeProvider time) =>
+            Edit(factory, time, e => new { id = e.CreateManual(entry) }, created: true));
+
+        api.MapDelete("/transactions/{id:long}", (long id, SqliteConnectionFactory factory, TimeProvider time) =>
+            Edit(factory, time, e => { e.DeleteManual(id); return new { deleted = true }; }));
+    }
+
+    public sealed record SplitsRequest(string? Version, IReadOnlyList<SplitInput>? Splits);
+
+    private static IResult Edit(SqliteConnectionFactory factory, TimeProvider time, Func<TransactionEditor, object> action, bool created = false)
+    {
+        try
+        {
+            using var conn = factory.Open();
+            var result = action(new TransactionEditor(conn, time));
+            return created ? Results.Json(result, statusCode: StatusCodes.Status201Created) : Results.Ok(result);
+        }
+        catch (EditException e)
+        {
+            var (status, title) = e.Kind switch
+            {
+                EditError.NotFound => (404, "Not found"),
+                EditError.Conflict => (409, "Conflict"),
+                EditError.Unprocessable => (422, "Cannot do that"),
+                _ => (400, "Check the request"),
+            };
+            return Results.Problem(title: title, detail: e.Message, statusCode: status);
+        }
     }
 
     private static object? ParseRaw(string? json)
