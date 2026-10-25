@@ -85,6 +85,17 @@ test.describe.serial('settings', () => {
     await expect(page.getByText('notes.csv was not imported')).toBeVisible()
   })
 
+  test('a backup is made from the page, checked, and listed; the export downloads', async ({ page }) => {
+    await page.goto('/settings/data')
+    await page.getByRole('button', { name: 'Back up now' }).click()
+    await expect(page.getByRole('status').filter({ hasText: 'Checked' })).toContainText('same')
+    await expect(page.getByRole('cell', { name: /^tideline-\d{8}\.db$/ })).toBeVisible()
+
+    const download = page.waitForEvent('download')
+    await page.getByRole('button', { name: 'Download the export' }).click()
+    expect((await download).suggestedFilename()).toMatch(/^tideline-export-\d{8}\.zip$/)
+  })
+
   test('sessions lists this one', async ({ page }) => {
     await page.goto('/settings/sessions')
     await expect(page.getByText('this one')).toBeVisible()

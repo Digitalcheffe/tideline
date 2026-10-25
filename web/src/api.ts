@@ -76,6 +76,23 @@ export async function upload<T>(path: string, file: File): Promise<T> {
   return json as T
 }
 
+/** A change that answers with a file (the export). Hands the browser the file to save. */
+export async function saveFile(path: string, fallbackName: string): Promise<void> {
+  const response = await fetch(`/api/v1${path}`, { method: 'POST', headers: csrfToken ? { 'X-CSRF-Token': csrfToken } : {} })
+  if (response.status === 401) onUnauthorized?.()
+  if (!response.ok) {
+    const problem = await response.json().catch(() => null)
+    throw new ApiError(response.status, problem?.detail ?? problem?.title ?? response.statusText)
+  }
+  const name = /filename="?([^";]+)"?/.exec(response.headers.get('Content-Disposition') ?? '')?.[1] ?? fallbackName
+  const url = URL.createObjectURL(await response.blob())
+  const a = document.createElement('a')
+  a.href = url
+  a.download = name
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
 /** Raw query string as built by a drill link, passed straight to /lines. */
 export function getLines(query: string): Promise<LinePage> {
   return fetch(`/api/v1/lines?${query}`).then(async (r) => {

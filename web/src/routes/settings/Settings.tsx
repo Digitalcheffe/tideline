@@ -10,6 +10,7 @@ import { SessionsSettings } from './SessionsSettings'
 import { TokensSettings } from './TokensSettings'
 import { LogsSettings } from './LogsSettings'
 import { ImportsSettings } from './ImportsSettings'
+import { DataSettings } from './DataSettings'
 
 const TABS = [
   { to: 'accounts', label: 'Money accounts' },
@@ -21,6 +22,7 @@ const TABS = [
   { to: 'sessions', label: 'Sessions' },
   { to: 'tokens', label: 'API tokens' },
   { to: 'logs', label: 'Logs' },
+  { to: 'data', label: 'Data' },
 ]
 
 /** Everything that sets the household up or guards it. Owners only: the server refuses everyone else too. */
@@ -57,6 +59,7 @@ export function Settings() {
         <Route path="sessions" element={<SessionsSettings />} />
         <Route path="tokens" element={<TokensSettings />} />
         <Route path="logs" element={<LogsSettings />} />
+        <Route path="data" element={<DataSettings />} />
         <Route path="*" element={<Navigate to="accounts" replace />} />
       </Routes>
     </>

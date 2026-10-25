@@ -20,6 +20,12 @@ public sealed class CliApp(TextWriter output, TimeProvider clock)
           status                          every account: ledger balance against the bank's last balance
           lines [--account 1234] [--random N | --take N]
                                           show ledger lines, to check a few against the bank
+          backup [--out dir] [--keys dir]
+                                          copy the database (and the keys folder) into dated files, keep 30 days, then check the copy
+          backup --verify <file> [--year 2026]
+                                          open a copy, run the integrity check and compare its spread with the live database
+          restore <file> [--keys-tar file --keys-dir dir] [--force] [--year 2026]
+                                          put a copy back as the database named by --db, then check it
           user <add|list|link|reset-mfa|role|deactivate>
                                           people who can sign in; `tideline user` shows the details
           demo <folder> [--lines 5000] [--seed 42] [--from 2025-01-01] [--to 2026-09-30] [--load]
@@ -65,6 +71,11 @@ public sealed class CliApp(TextWriter output, TimeProvider clock)
                     return Lines(connectionString, options);
                 case "user":
                     return UserCommands.Run(rest, options, connectionString, clock, output);
+                case "backup":
+                    return Backup(connectionString, options);
+                case "restore":
+                    if (rest.Count != 1) return Bad("restore needs one backup file: tideline restore backups/tideline-20261025.db --db \"Data Source=new.db\"");
+                    return Restore(rest[0], connectionString, options);
                 case "demo":
                     if (rest.Count != 1) return Bad("demo needs one folder: tideline demo ./demo-data");
                     return await DemoAsync(rest[0], options, connectionString);
@@ -77,6 +88,44 @@ public sealed class CliApp(TextWriter output, TimeProvider clock)
             output.WriteLine($"Error: {e.Message}");
             return 1;
         }
+    }
+
+    private static string BesideDatabase(string connectionString, string folder) =>
+        Path.Combine(Path.GetDirectoryName(Path.GetFullPath(new Microsoft.Data.Sqlite.SqliteConnectionStringBuilder(connectionString).DataSource))!, folder);
+
+    private int Backup(string connectionString, Dictionary<string, string?> options)
+    {
+        var year = options.TryGetValue("year", out var y) && int.TryParse(y, out var n) ? n : clock.GetUtcNow().Year;
+        if (options.TryGetValue("verify", out var file))
+        {
+            if (string.IsNullOrWhiteSpace(file)) return Bad("--verify needs a backup file.");
+            var check = Data.Services.BackupService.Verify(file, connectionString, year);
+            output.WriteLine(check.Message);
+            output.WriteLine($"{year} spread in the copy: in {Dollars(check.Backup.InCents)}, out {Dollars(check.Backup.OutCents)}, left over {Dollars(check.Backup.LeftOverCents)}");
+            return check.Ok ? 0 : 1;
+        }
+
+        var outDir = options.GetValueOrDefault("out") ?? BesideDatabase(connectionString, "backups");
+        var keys = options.GetValueOrDefault("keys") ?? BesideDatabase(connectionString, "keys");
+        var made = Data.Services.BackupService.Create(connectionString, outDir, keys, clock.GetUtcNow());
+        output.WriteLine($"Database copy: {made.DatabaseFile} ({made.Bytes / 1024} KB)");
+        output.WriteLine(made.KeysFile is null ? $"Keys: none found in {keys}, so nothing was copied." : $"Keys: {made.KeysFile}");
+        foreach (var gone in made.Removed) output.WriteLine($"Removed old copy {gone}");
+
+        var verified = Data.Services.BackupService.Verify(made.DatabaseFile, connectionString, year);
+        output.WriteLine(verified.Message);
+        return verified.Ok ? 0 : 1;
+    }
+
+    private int Restore(string file, string connectionString, Dictionary<string, string?> options)
+    {
+        var year = options.TryGetValue("year", out var y) && int.TryParse(y, out var n) ? n : clock.GetUtcNow().Year;
+        var result = Data.Services.BackupService.Restore(file, connectionString, options.GetValueOrDefault("keys-tar"), options.GetValueOrDefault("keys-dir"), options.ContainsKey("force"), year);
+        output.WriteLine($"Restored to {result.DatabaseFile}");
+        if (result.KeysDirectory is not null) output.WriteLine($"Keys restored to {result.KeysDirectory}");
+        output.WriteLine($"{year} spread after the restore: in {Dollars(result.Check.Backup.InCents)}, out {Dollars(result.Check.Backup.OutCents)}, left over {Dollars(result.Check.Backup.LeftOverCents)}");
+        output.WriteLine(result.Check.Ok ? "The restored database passes the integrity check." : result.Check.Message);
+        return result.Check.Ok ? 0 : 1;
     }
 
     private int Bad(string message)

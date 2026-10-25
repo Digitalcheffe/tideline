@@ -10,6 +10,9 @@ public sealed class TidelineOptions
     public string? InboxPath { get; set; }
     public int InboxIntervalSeconds { get; set; } = 300;
 
+    /// <summary>Where backups are written. Empty means a "backups" folder beside the database.</summary>
+    public string? BackupPath { get; set; }
+
     /// <summary>The address people use, put in setup links. In development that is the web app's port.</summary>
     public string PublicUrl { get; set; } = "http://localhost:5173";
 
