@@ -6,6 +6,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="Fido2" />
     <PackageReference Include="QRCoder" />
   </ItemGroup>
 

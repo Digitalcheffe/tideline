@@ -23,7 +23,7 @@ export default defineConfig({
   webServer: [
     {
       // the test pages are plain http, so the cookie is not marked Secure here (the API tests check the real attributes)
-      command: `dotnet run --project ../src/Tideline.Api --no-build --urls http://localhost:${API_PORT} -- "--Database:ConnectionString=Data Source=${E2E_DB}" --Tideline:SecureCookie=false --Tideline:AuthRequestsPerMinute=1000`,
+      command: `dotnet run --project ../src/Tideline.Api --no-build --urls http://localhost:${API_PORT} -- "--Database:ConnectionString=Data Source=${E2E_DB}" --Tideline:SecureCookie=false --Tideline:AuthRequestsPerMinute=1000 --Tideline:PublicUrl=http://localhost:${WEB_PORT}`,
       url: `http://localhost:${API_PORT}/health`,
       reuseExistingServer: false,
       timeout: 120_000,

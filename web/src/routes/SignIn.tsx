@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { ApiError, get, send, setCsrf, type Me } from '../api'
 import { Badge, Loading } from '../components'
+import { addPasskey, passkeysAvailable, signInWithPasskey } from '../webauthn'
 
 function Shell({ title, children }: { title: string; children: ReactNode }) {
   return (
@@ -84,46 +85,62 @@ export function MfaPage({ me }: { me: Me }) {
   const refresh = useRefreshMe()
   const [code, setCode] = useState('')
   const [useRecovery, setUseRecovery] = useState(false)
+  const hasPasskey = me.methods.includes('passkey') && passkeysAvailable()
+  const hasTotp = me.methods.includes('totp')
+  // someone with only a passkey sees the code boxes when they ask for a recovery code
+  const showCode = hasTotp || useRecovery || !hasPasskey
 
   const verify = useMutation({
     mutationFn: () => send('POST', '/auth/mfa/totp', useRecovery ? { recoveryCode: code } : { code }),
     onSuccess: refresh,
     onError: () => setCode(''),
   })
+  const passkey = useMutation({ mutationFn: () => signInWithPasskey(), onSuccess: refresh })
 
   return (
     <Shell title="Second step">
       <p>
-        Signed in as <strong>{me.user.displayName}</strong>. {useRecovery ? 'Type one of your recovery codes.' : 'Type the 6 digit code from your authenticator app.'}
+        Signed in as <strong>{me.user.displayName}</strong>.{' '}
+        {useRecovery ? 'Type one of your recovery codes.' : hasPasskey && !hasTotp ? 'Use your passkey to finish.' : hasTotp ? 'Type the 6 digit code from your authenticator app.' : ''}
       </p>
-      <form
-        className="form"
-        onSubmit={(e: FormEvent) => {
-          e.preventDefault()
-          verify.mutate()
-        }}
-      >
-        <label>
-          {useRecovery ? 'Recovery code' : 'Code'}
-          <input
-            type="text"
-            inputMode={useRecovery ? 'text' : 'numeric'}
-            autoComplete="one-time-code"
-            autoFocus
-            required
-            placeholder={useRecovery ? 'xxxxx-xxxxx' : '123456'}
-            value={code}
-            onChange={(e) => setCode(e.target.value)}
-          />
-        </label>
-        <button className="btn primary" type="submit" disabled={verify.isPending || code.trim() === ''}>
-          {verify.isPending ? 'Checking…' : 'Sign in'}
-        </button>
-        <Problem error={verify.error} />
-      </form>
+      {hasPasskey && !useRecovery && (
+        <p>
+          <button className="btn primary" type="button" disabled={passkey.isPending} onClick={() => passkey.mutate()}>
+            {passkey.isPending ? 'Waiting for your device…' : 'Use a passkey'}
+          </button>
+          <Problem error={passkey.error} />
+        </p>
+      )}
+      {showCode && (
+        <form
+          className="form"
+          onSubmit={(e: FormEvent) => {
+            e.preventDefault()
+            verify.mutate()
+          }}
+        >
+          <label>
+            {useRecovery ? 'Recovery code' : hasPasskey ? 'Or the code from your authenticator app' : 'Code'}
+            <input
+              type="text"
+              inputMode={useRecovery ? 'text' : 'numeric'}
+              autoComplete="one-time-code"
+              autoFocus={!hasPasskey}
+              required
+              placeholder={useRecovery ? 'xxxxx-xxxxx' : '123456'}
+              value={code}
+              onChange={(e) => setCode(e.target.value)}
+            />
+          </label>
+          <button className="btn primary" type="submit" disabled={verify.isPending || code.trim() === ''}>
+            {verify.isPending ? 'Checking…' : 'Sign in'}
+          </button>
+          <Problem error={verify.error} />
+        </form>
+      )}
       <p>
         <button className="linklike" type="button" onClick={() => { setUseRecovery(!useRecovery); setCode(''); verify.reset() }}>
-          {useRecovery ? 'Use the authenticator app instead' : 'Lost your phone? Use a recovery code'}
+          {useRecovery ? (hasPasskey ? 'Use my passkey instead' : 'Use the authenticator app instead') : 'Lost your phone? Use a recovery code'}
         </button>
       </p>
       <SignOutLink />
@@ -174,6 +191,10 @@ export function EnrollPage({ me }: { me: Me }) {
 
   const confirm = useMutation({
     mutationFn: () => send<{ recoveryCodes: string[] }>('POST', '/auth/enroll/totp/confirm', { code }),
+    onSuccess: (r) => setRecoveryCodes(r.recoveryCodes),
+  })
+  const passkey = useMutation({
+    mutationFn: () => addPasskey<{ recoveryCodes: string[] }>('Passkey'),
     onSuccess: (r) => setRecoveryCodes(r.recoveryCodes),
   })
 
@@ -234,6 +255,20 @@ export function EnrollPage({ me }: { me: Me }) {
             </button>
             <Problem error={confirm.error} />
           </form>
+        </>
+      )}
+      {passkeysAvailable() && (
+        <>
+          <h2>Or use a passkey</h2>
+          <p className="muted">
+            A passkey is a fingerprint, a face, a PIN or a security key on this device. It is used instead of the authenticator app, and it only works on this address.
+          </p>
+          <p>
+            <button className="btn" type="button" disabled={passkey.isPending} onClick={() => passkey.mutate()}>
+              {passkey.isPending ? 'Waiting for your device…' : 'Set up a passkey'}
+            </button>
+          </p>
+          <Problem error={passkey.error} />
         </>
       )}
       <SignOutLink />
