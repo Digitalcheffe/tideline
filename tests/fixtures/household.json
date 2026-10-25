@@ -3,7 +3,7 @@
   "accounts": [
     { "name": "Checking", "kind": "checking", "bankNumber": "1111" },
     { "name": "Savings", "kind": "savings", "bankNumber": "3333" },
-    { "name": "Card", "kind": "credit_card", "bankNumber": "2222" }
+    { "name": "Card", "kind": "credit_card", "bankNumber": "2222", "card": { "payInFull": true, "dueDay": 25 } }
   ],
   "categories": [
     { "name": "Salary", "defaultType": "income" },
@@ -12,12 +12,16 @@
     { "name": "Groceries", "defaultType": "required" },
     { "name": "Rent", "defaultType": "required" }
   ],
+  "recurring": [
+    { "name": "City Power", "category": "Utilities", "min": 100, "max": 130, "frequency": "monthly", "dueDay": 3, "firstDueOn": "2026-01-03" },
+    { "name": "Spotify", "category": "Subscriptions", "min": 9, "max": 12, "frequency": "monthly", "dueDay": 9, "firstDueOn": "2026-01-09" }
+  ],
   "rules": [
     { "name": "Income: payroll", "priority": 10,
       "when": { "direction": "in", "account_kind": ["checking", "savings"], "contains_any": ["PAYROLL"] },
       "set": { "category": "Salary", "payee": "Acme Corp" } },
-    { "name": "Bill: power", "priority": 20, "when": { "contains_any": ["CITY POWER"] }, "set": { "category": "Utilities", "payee": "City Power" } },
-    { "name": "Bill: Spotify", "priority": 30, "when": { "contains_any": ["SPOTIFY"] }, "set": { "category": "Subscriptions", "payee": "Spotify" } },
+    { "name": "Bill: power", "priority": 20, "when": { "contains_any": ["CITY POWER"] }, "set": { "category": "Utilities", "payee": "City Power", "recurring": "City Power" } },
+    { "name": "Bill: Spotify", "priority": 30, "when": { "contains_any": ["SPOTIFY"] }, "set": { "category": "Subscriptions", "payee": "Spotify", "recurring": "Spotify" } },
     { "name": "Rent check", "priority": 40, "when": { "starts_with": "Check #", "amount_min": 500, "amount_max": 500 }, "set": { "category": "Rent", "payee": "Landlord" } },
     { "name": "Groceries", "priority": 50, "when": { "contains_any": ["GROCERY"] }, "set": { "category": "Groceries" } }
   ],

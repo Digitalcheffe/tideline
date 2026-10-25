@@ -20,6 +20,7 @@ public static class HouseholdSetup
     {
         public List<AccountDef> Accounts { get; set; } = [];
         public List<CategoryDef> Categories { get; set; } = [];
+        public List<RecurringDef> Recurring { get; set; } = [];
         public List<RuleDef> Rules { get; set; } = [];
         public List<MovePatternDef> MovePatterns { get; set; } = [];
     }
@@ -34,12 +35,33 @@ public static class HouseholdSetup
         public string? OpeningOn { get; set; }
         public bool InSpread { get; set; } = true;
         public string? CsvUntilOn { get; set; }
+        public CardDef? Card { get; set; }
+    }
+
+    public sealed class CardDef
+    {
+        public bool PayInFull { get; set; } = true;
+        public int? StatementDay { get; set; }
+        public int? DueDay { get; set; }
     }
 
     public sealed class CategoryDef
     {
         public string Name { get; set; } = "";
         public string DefaultType { get; set; } = "extra";
+    }
+
+    public sealed class RecurringDef
+    {
+        public string Name { get; set; } = "";
+        public string Category { get; set; } = "";
+        public decimal Min { get; set; }
+        public decimal Max { get; set; }
+        public string Frequency { get; set; } = "monthly";
+        public int EveryN { get; set; } = 1;
+        public int DueDay { get; set; } = 1;
+        public string FirstDueOn { get; set; } = "";
+        public int GraceDays { get; set; } = 5;
     }
 
     public sealed class RuleDef
@@ -56,6 +78,7 @@ public static class HouseholdSetup
         public string? Category { get; set; }
         public string? Type { get; set; }
         public string? Payee { get; set; }
+        public string? Recurring { get; set; }
         public List<string> Tags { get; set; } = [];
     }
 
@@ -107,10 +130,12 @@ public static class HouseholdSetup
         {
             if (accounts.All().Any(x => x.Name == a.Name)) { log.Add($"account {a.Name}: already there"); continue; }
             var kind = ParseKind(a.Kind, a.Name);
-            accounts.Insert(new NewAccount(a.Name, kind, a.Institution, a.BankNumber,
+            var accountId = accounts.Insert(new NewAccount(a.Name, kind, a.Institution, a.BankNumber,
                 a.OpeningBalance is { } d ? (long)Math.Round(d * 100m, MidpointRounding.AwayFromZero) : null,
                 a.OpeningOn is { } on ? DateOnly.Parse(on) : null, a.InSpread,
                 a.CsvUntilOn is { } cu ? DateOnly.Parse(cu) : null));
+            if (a.Card is { } card)
+                new CardTermsRepository(conn, tx).Upsert(new CardTerms(accountId, card.PayInFull, card.StatementDay, card.DueDay, null));
             log.Add($"account {a.Name}: added");
         }
 
@@ -119,6 +144,21 @@ public static class HouseholdSetup
             if (categories.IdByName(c.Name) is not null) { log.Add($"category {c.Name}: already there"); continue; }
             categories.Insert(c.Name, ParseType(c.DefaultType, $"category {c.Name}"));
             log.Add($"category {c.Name}: added");
+        }
+
+        var recurringRepo = new RecurringRepository(conn, tx);
+        foreach (var r in h.Recurring)
+        {
+            if (recurringRepo.IdByName(r.Name) is not null) { log.Add($"recurring {r.Name}: already there"); continue; }
+            var categoryId = categories.IdByName(r.Category) ?? throw new InvalidDataException($"recurring {r.Name}: unknown category '{r.Category}'.");
+            var frequency = r.Frequency.Trim().ToLowerInvariant() switch
+            {
+                "monthly" => Frequency.Monthly,
+                "yearly" => Frequency.Yearly,
+                _ => throw new InvalidDataException($"recurring {r.Name}: frequency must be monthly or yearly."),
+            };
+            recurringRepo.Insert(new NewRecurring(r.Name, categoryId, Cents(r.Min), Cents(r.Max), frequency, r.DueDay, DateOnly.Parse(r.FirstDueOn), r.EveryN, r.GraceDays));
+            log.Add($"recurring {r.Name}: added");
         }
 
         var existingRules = rules.All().Select(r => r.Name).ToHashSet();
@@ -140,7 +180,11 @@ public static class HouseholdSetup
                 categoryId = categories.IdByName(cn) ?? throw new InvalidDataException($"rule {r.Name}: unknown category '{cn}'.");
             LineType? type = r.Set.Type is { } t ? ParseType(t, $"rule {r.Name}") : null;
 
-            rules.Insert(new NewRule(r.Name, r.Priority, conditions, categoryId, type, r.Set.Payee,
+            long? recurringId = null;
+            if (r.Set.Recurring is { } rn)
+                recurringId = recurringRepo.IdByName(rn) ?? throw new InvalidDataException($"rule {r.Name}: unknown recurring item '{rn}'.");
+
+            rules.Insert(new NewRule(r.Name, r.Priority, conditions, categoryId, type, r.Set.Payee, SetRecurringId: recurringId,
                 TagIds: r.Set.Tags.Select(tags.GetOrCreate).ToList(), IsActive: r.Active));
             log.Add($"rule {r.Name}: added");
         }
@@ -161,6 +205,8 @@ public static class HouseholdSetup
         tx.Commit();
         return log;
     }
+
+    private static long Cents(decimal dollars) => (long)Math.Round(dollars * 100m, MidpointRounding.AwayFromZero);
 
     private static AccountKind ParseKind(string text, string account) =>
         Enum.GetValues<AccountKind>().FirstOrDefault(k => k.ToDb() == text.Trim().ToLowerInvariant().Replace(' ', '_'), (AccountKind)(-1)) is var k && (int)k >= 0
