@@ -528,5 +528,39 @@ public sealed class SetupEditor(IDbConnection conn, TimeProvider clock, Actor? a
         return 0;
     });
 
+    public const string CardInterestCategoryKey = "card_interest_category_id";
+    public const string DebtWordsKey = "debt_words";
+
+    /// <summary>The category whose lines on a card mean interest or fees (null: not chosen), and the words that make a payment look like a new loan.</summary>
+    public static (long? CardInterestCategoryId, string DebtWords) NotifySettings(IDbConnection conn)
+    {
+        var settings = new SettingsRepository(conn, TimeProvider.System);
+        return (long.TryParse(settings.Get(CardInterestCategoryKey), out var id) ? id : null, settings.Get(DebtWordsKey) ?? string.Join(", ", DefaultDebtWords));
+    }
+
+    public static readonly string[] DefaultDebtWords = ["LOAN", "FINANCING", "FINANCE CO", "AFFIRM", "KLARNA", "AFTERPAY", "SYNCHRONY", "CREDIT ONE", "CAPITAL ONE", "LENDING"];
+
+    public void SetNotifySettings(long? cardInterestCategoryId, bool clearCardInterest, string? debtWords) => InTransaction((tx, audit) =>
+    {
+        var before = NotifySettings(conn);
+        var settings = new SettingsRepository(conn, clock, tx);
+        if (clearCardInterest) settings.Delete(CardInterestCategoryKey);
+        else if (cardInterestCategoryId is { } c)
+        {
+            if (!Exists("categories", c, tx)) throw Bad("That category does not exist.");
+            settings.Set(CardInterestCategoryKey, c.ToString(CultureInfo.InvariantCulture));
+        }
+        if (debtWords is not null)
+        {
+            var words = debtWords.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).Select(w => w.ToUpperInvariant()).Distinct().ToList();
+            if (words.Count == 0) settings.Delete(DebtWordsKey);
+            else if (words.Any(w => w.Length > 40) || words.Count > 50) throw Bad("Give up to 50 words or phrases, each 40 characters at most.");
+            else settings.Set(DebtWordsKey, string.Join(", ", words));
+        }
+        var after = NotifySettings(conn);
+        audit.Write("settings.updated", "setting", "notify", new { before.CardInterestCategoryId, before.DebtWords }, new { after.CardInterestCategoryId, after.DebtWords });
+        return 0;
+    });
+
     private static string? Blank(string? s) => string.IsNullOrWhiteSpace(s) ? null : s.Trim();
 }

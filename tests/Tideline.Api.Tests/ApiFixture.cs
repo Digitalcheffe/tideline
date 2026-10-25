@@ -12,6 +12,7 @@ using Tideline.Core.Security;
 using Tideline.Data;
 using Tideline.Data.Security;
 using Tideline.Import;
+using Tideline.Notify;
 
 namespace Tideline.Api.Tests;
 
@@ -21,6 +22,27 @@ public sealed class TestClock(DateTimeOffset now) : TimeProvider
     private DateTimeOffset _now = now;
     public override DateTimeOffset GetUtcNow() => _now;
     public void Advance(TimeSpan by) => _now += by;
+}
+
+/// <summary>Stands in for a channel: remembers what it was asked to send, and can be told to fail.</summary>
+public sealed class RecordingSender(string kind) : IChannelSender
+{
+    private readonly IChannelSender _real = kind == "webhook" ? new WebhookSender(new HttpClient()) : new SmtpSender();
+
+    public string Kind => kind;
+    public List<NotificationMessage> Sent { get; } = [];
+    public List<string> Configs { get; } = [];
+    public string? FailWith { get; set; }
+
+    public string? Check(string configJson) => _real.Check(configJson);
+
+    public Task SendAsync(string configJson, NotificationMessage message, CancellationToken ct)
+    {
+        if (FailWith is { } why) throw new InvalidOperationException(why);
+        Configs.Add(configJson);
+        Sent.Add(message);
+        return Task.CompletedTask;
+    }
 }
 
 /// <summary>
@@ -46,6 +68,8 @@ public sealed class ApiFixture : IDisposable
     public HttpClient Anonymous { get; }
 
     public TestClock Clock { get; }
+    public RecordingSender Webhook { get; } = new("webhook");
+    public RecordingSender Email { get; } = new("email");
     public string OwnerSecret { get; }
     public long OwnerId { get; }
     public string KeysFolder => Path.Combine(_dir, "keys");
@@ -68,10 +92,17 @@ public sealed class ApiFixture : IDisposable
         {
             b.UseSetting("Database:ConnectionString", ConnectionString);
             b.UseSetting("Tideline:Timezone", "UTC");
+            b.UseSetting("Notify:Enabled", "false"); // the tests run the schedule by hand
             b.UseSetting("Tideline:SecureCookie", "false"); // the test host is plain http; one test checks the real attributes
             b.UseSetting("Tideline:AuthRequestsPerMinute", "100000");
             b.UseSetting("Tideline:DataProtectionKeys", KeysFolder);
-            b.ConfigureServices(s => s.Replace(ServiceDescriptor.Singleton<TimeProvider>(clock)));
+            b.ConfigureServices(s =>
+            {
+                s.Replace(ServiceDescriptor.Singleton<TimeProvider>(clock));
+                s.RemoveAll<IChannelSender>();
+                s.AddSingleton<IChannelSender>(Webhook);
+                s.AddSingleton<IChannelSender>(Email);
+            });
         });
         Anonymous = _factory.CreateClient();
 

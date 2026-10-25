@@ -6,6 +6,7 @@ import { Badge, Card, ErrorBox, Loading, Money, ShareBar, TYPE_COLORS } from '..
 import { dollars, monthLabel, shortMonth } from '../format'
 import type { Period } from '../period'
 import { NetWorth } from './NetWorth'
+import { NeedsYou } from './NeedsYou'
 import { STATUS_LABEL, STATUS_TONE } from '../phase4'
 
 const ITEMS: { key: 'in' | 'bills' | 'required' | 'extra' | 'oneTime' | 'savings'; label: string }[] = [
@@ -141,17 +142,7 @@ export function Overview({ period }: { period: Period }) {
               ))
             )}
           </Card>
-          <Card title="Needs you">
-            {data.flags.alert + data.flags.warn + data.flags.info === 0 ? (
-              <p>
-                <Badge tone="good">All clear</Badge> <span className="muted">Nothing needs your attention.</span>
-              </p>
-            ) : (
-              <p>
-                <Badge tone="bad">{data.flags.alert} alerts</Badge> <Badge tone="warn">{data.flags.warn} warnings</Badge> <Badge tone="info">{data.flags.info} notes</Badge>
-              </p>
-            )}
-          </Card>
+          <NeedsYou data={data} />
         </div>
       </div>
         </>

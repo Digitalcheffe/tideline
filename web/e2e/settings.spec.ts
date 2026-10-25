@@ -101,3 +101,28 @@ test.describe.serial('settings', () => {
     await expect(page.getByText('this one')).toBeVisible()
   })
 })
+
+test.describe('notifications', () => {
+  test('a channel is added, what each kind does is changed, and the Overview lists what needs you', async ({ page }) => {
+    await page.goto('/settings/notifications')
+    await expect(page.getByRole('heading', { name: 'Where messages go' })).toBeVisible()
+    await page.getByRole('button', { name: 'Add a channel' }).click()
+    await page.getByLabel('Name', { exact: true }).fill('E2E hook')
+    await page.getByLabel('Webhook address').fill('https://hooks.example.test/e2e')
+    await page.getByRole('button', { name: 'Save', exact: true }).click()
+    await expect(page.getByText('posts to hooks.example.test')).toBeVisible()
+
+    await page.getByLabel('Spending is over a budget guideline').selectOption('immediate')
+    await expect(page.getByLabel('Spending is over a budget guideline')).toHaveValue('immediate')
+    await page.getByLabel('Spending is over a budget guideline').selectOption('summary')
+
+    await page.getByRole('button', { name: 'Check everything now' }).click()
+    await page.getByRole('button', { name: /Preview last month/ }).click()
+    await expect(page.locator('pre.preview')).toContainText(/all clear|need/)
+
+    await page.goto('/?from=2026-03-01&to=2026-03-31')
+    await expect(page.getByRole('heading', { name: 'Needs you' })).toBeVisible()
+    await page.getByRole('button', { name: 'Yes, I know about it' }).first().click()
+    await page.getByRole('button', { name: 'Acknowledge' }).click()
+  })
+})

@@ -175,7 +175,7 @@ public sealed partial class GateTests(ITestOutputHelper output) : IDisposable
     private sealed record Case(string Key, Kind Kind, string Action, Func<Task> Act);
 
     /// <summary>The routes that change nothing, so they have nothing to audit.</summary>
-    private static readonly string[] ReadOnlyPosts = ["POST /rules/test", "POST /budgets/{year:int}/fill-from-averages"];
+    private static readonly string[] ReadOnlyPosts = ["POST /rules/test", "POST /budgets/{year:int}/fill-from-averages", "POST /notify/test"];
 
     private long Id(string table, string name) => _api.Scalar<long>($"SELECT id FROM {table} WHERE name = @name", new { name });
 
@@ -200,7 +200,7 @@ public sealed partial class GateTests(ITestOutputHelper output) : IDisposable
             name, setType = "extra", conditions = new[] { new { field = "description", op = "contains_any", value = JsonSerializer.SerializeToElement(new[] { text }) } },
         };
 
-        long snapAccount = 0, snapshot = 0, person = 0, plan = 0, account = 0, category = 0, tag = 0, pattern = 0, recurring = 0, rule = 0, manual = 0, token = 0, invited = 0;
+        long channel = 0, snapAccount = 0, snapshot = 0, person = 0, plan = 0, account = 0, category = 0, tag = 0, pattern = 0, recurring = 0, rule = 0, manual = 0, token = 0, invited = 0;
 
         var m1 = _api.AddUser("m1@example.com", "M One", Tideline.Core.Security.Role.Member);
         var m2 = _api.AddUser("m2@example.com", "M Two", Tideline.Core.Security.Role.Member);
@@ -281,6 +281,18 @@ public sealed partial class GateTests(ITestOutputHelper output) : IDisposable
             new("POST /plans", Kind.Create, "plan.created", async () => plan = (await Ok(HttpMethod.Post, "/api/v1/plans", new { name = "Gate plan", targetCents = 1_000, targetOn = "2027-01-01" }, HttpStatusCode.Created)).GetProperty("id").GetInt64()),
             new("PATCH /plans/{id:long}", Kind.Update, "plan.updated", () => Ok(HttpMethod.Patch, $"/api/v1/plans/{plan}", new { targetCents = 2_000 })),
             new("PUT /budgets/{year:int}", Kind.Create, "budget.saved", () => Ok(HttpMethod.Put, "/api/v1/budgets/2026", new { expectedIncomeCents = 1 })),
+
+            // flags
+            new("POST /notify/evaluate", Kind.Event, "evaluator.run", () => Ok(HttpMethod.Post, "/api/v1/notify/evaluate")),
+            new("POST /flags/{id:long}/acknowledge", Kind.Update, "flag.acknowledged", async () =>
+                await Ok(HttpMethod.Post, $"/api/v1/flags/{(await Ok(HttpMethod.Get, "/api/v1/flags"))[0].GetProperty("id").GetInt64()}/acknowledge", new { note = "seen" })),
+
+            // notifications
+            new("POST /notify/channels", Kind.Create, "notify_channel.created", async () => channel = (await Ok(HttpMethod.Post, "/api/v1/notify/channels", new { kind = "webhook", name = "Gate", config = new { url = "https://hooks.example.test/x" } }, HttpStatusCode.Created)).GetProperty("id").GetInt64()),
+            new("PATCH /notify/channels/{id:long}", Kind.Update, "notify_channel.updated", () => Ok(HttpMethod.Patch, $"/api/v1/notify/channels/{channel}", new { name = "Gate 2" })),
+            new("PUT /notify/prefs", Kind.Update, "notify_prefs.updated", () => Ok(HttpMethod.Put, "/api/v1/notify/prefs", new { modes = new Dictionary<string, string> { ["new_debt"] = "off" } })),
+            new("POST /notify/summary/send", Kind.Create, "summary.sent", () => Ok(HttpMethod.Post, "/api/v1/notify/summary/send", new { month = "2026-03" })),
+            new("DELETE /notify/channels/{id:long}", Kind.Delete, "notify_channel.deleted", () => Ok(HttpMethod.Delete, $"/api/v1/notify/channels/{channel}")),
 
             // data in and out
             new("POST /backups", Kind.Create, "backup.created", () => Ok(HttpMethod.Post, "/api/v1/backups")),

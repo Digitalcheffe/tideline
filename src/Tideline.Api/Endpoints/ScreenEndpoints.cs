@@ -75,6 +75,8 @@ public static class ScreenEndpoints
             return new { month = g.Key, @in = s.InCents, bills = s.BillsCents, required = s.RequiredCents, extra = s.ExtraCents, oneTime = s.OneTimeCents, savings = s.SavingsCents, leftOver = s.LeftOverCents };
         }).ToList();
 
+        var open = new FlagRepository(conn, TimeProvider.System).Open();
+
         return Results.Ok(new
         {
             from,
@@ -91,7 +93,8 @@ public static class ScreenEndpoints
                 p.Id, p.Name, p.TargetCents, p.TargetOn, p.ActualCents, p.ExpectedCents, p.Status, p.MonthsLeft, p.NeededPerMonthCents,
                 trouble = p.Trouble is { } t ? new { t.Month, t.Status } : null,
             }),
-            flags = new { alert = 0, warn = 0, info = 0 },
+            flags = new { alert = open.Count(x => x.Severity == "alert"), warn = open.Count(x => x.Severity == "warn"), info = open.Count(x => x.Severity == "info") },
+            needsYou = open.Take(20).Select(FlagDto.From),
         });
     }
 
@@ -290,6 +293,7 @@ public static class ScreenEndpoints
 
         var threshold = Tideline.Data.Services.SetupEditor.OneTimeAttentionCents(conn);
         var attention = new LinesRepository(conn).Query(new LineFilter(start, end, [LineType.OneTime], MinCents: threshold, Sort: LineSort.DateDesc), 1, 50);
+        var acknowledged = conn.Query<long>("SELECT subject_id FROM flags WHERE kind = 'one_time_review' AND subject_type = 'transaction' AND acknowledged_at IS NOT NULL").ToHashSet();
 
         return Results.Ok(new
         {
@@ -303,7 +307,7 @@ public static class ScreenEndpoints
             {
                 thresholdCents = threshold,
                 drill = Drill.Range(start, end, ("type", "one_time"), ("minCents", threshold)),
-                items = attention.Items.Select(LineDto.From),
+                items = attention.Items.Where(i => !acknowledged.Contains(i.TransactionId)).Select(LineDto.From),
             },
         });
     }

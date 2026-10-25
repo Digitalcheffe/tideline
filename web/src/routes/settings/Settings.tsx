@@ -11,6 +11,7 @@ import { TokensSettings } from './TokensSettings'
 import { LogsSettings } from './LogsSettings'
 import { ImportsSettings } from './ImportsSettings'
 import { DataSettings } from './DataSettings'
+import { NotificationsSettings } from './NotificationsSettings'
 
 const TABS = [
   { to: 'accounts', label: 'Money accounts' },
@@ -21,6 +22,7 @@ const TABS = [
   { to: 'people', label: 'People' },
   { to: 'sessions', label: 'Sessions' },
   { to: 'tokens', label: 'API tokens' },
+  { to: 'notifications', label: 'Notifications' },
   { to: 'logs', label: 'Logs' },
   { to: 'data', label: 'Data' },
 ]
@@ -58,6 +60,7 @@ export function Settings() {
         <Route path="people" element={<PeopleSettings />} />
         <Route path="sessions" element={<SessionsSettings />} />
         <Route path="tokens" element={<TokensSettings />} />
+        <Route path="notifications" element={<NotificationsSettings />} />
         <Route path="logs" element={<LogsSettings />} />
         <Route path="data" element={<DataSettings />} />
         <Route path="*" element={<Navigate to="accounts" replace />} />

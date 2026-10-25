@@ -263,3 +263,41 @@ public class BudgetRulesTests
     public void Proposed_guidelines_round_up_to_ten_dollars(long twelveMonths, long expectedMonthly) =>
         BudgetRules.ProposedMonthly(twelveMonths).Should().Be(expectedMonthly);
 }
+
+public class FlagsCoreTests
+{
+    [Theory]
+    [InlineData(21, 0, true)]
+    [InlineData(23, 59, true)]
+    [InlineData(0, 0, true)]
+    [InlineData(6, 59, true)]
+    [InlineData(7, 0, false)]
+    [InlineData(14, 0, false)]
+    [InlineData(20, 59, false)]
+    public void Quiet_hours_from_nine_at_night_to_seven_in_the_morning_cross_midnight(int hour, int minute, bool quiet) =>
+        QuietHours.IsQuiet(new TimeOnly(hour, minute), new TimeOnly(21, 0), new TimeOnly(7, 0)).Should().Be(quiet);
+
+    [Fact]
+    public void A_window_within_one_day_and_an_empty_one_work_too()
+    {
+        QuietHours.IsQuiet(new TimeOnly(13, 0), new TimeOnly(12, 0), new TimeOnly(14, 0)).Should().BeTrue();
+        QuietHours.IsQuiet(new TimeOnly(15, 0), new TimeOnly(12, 0), new TimeOnly(14, 0)).Should().BeFalse();
+        QuietHours.IsQuiet(new TimeOnly(3, 0), new TimeOnly(7, 0), new TimeOnly(7, 0)).Should().BeFalse("no window, no quiet");
+    }
+
+    [Fact]
+    public void Every_kind_has_a_mode_and_the_urgent_ones_are_the_seven_in_the_spec()
+    {
+        FlagKinds.All.Should().HaveCount(16).And.OnlyHaveUniqueItems();
+        FlagKinds.All.Where(k => FlagKinds.DefaultMode(k) == NotifyMode.Immediate).Should().BeEquivalentTo(
+            "recurring_missing", "card_not_paid_in_full", "card_interest", "balance_mismatch", "import_failed", "new_debt", "plan_behind");
+        FlagKinds.All.Should().OnlyContain(k => FlagKinds.Describe(k) != k, "each has words a person can read");
+    }
+
+    [Fact]
+    public void A_flags_text_splits_into_a_title_and_a_detail()
+    {
+        FlagText.Split(FlagText.Join("Power not paid", "Expected $250.")).Should().Be(("Power not paid", "Expected $250."));
+        FlagText.Split("Only a title").Should().Be(("Only a title", ""));
+    }
+}

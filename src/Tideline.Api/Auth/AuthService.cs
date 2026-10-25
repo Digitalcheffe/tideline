@@ -19,6 +19,15 @@ public sealed class SecretBox(IDataProtectionProvider provider)
     public string Unprotect(string sealedText) => _protector.Unprotect(sealedText);
 }
 
+/// <summary>Seals notification channel settings (a webhook address, mail passwords) with the same keys, for a different purpose.</summary>
+public sealed class NotifySecrets(IDataProtectionProvider provider) : Tideline.Notify.ISecretProtector
+{
+    private readonly IDataProtector _protector = provider.CreateProtector("Tideline.Notify.v1");
+
+    public string Protect(string plain) => _protector.Protect(plain);
+    public string Unprotect(string sealedText) => _protector.Unprotect(sealedText);
+}
+
 /// <summary>Anti-forgery for cookie sessions: a token only this session can have been given (docs/09-security.md, "Sessions").</summary>
 public sealed class Csrf(IDataProtectionProvider provider)
 {

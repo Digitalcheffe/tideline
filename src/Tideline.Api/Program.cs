@@ -9,6 +9,7 @@ using Tideline.Api.Auth;
 using Tideline.Api.Endpoints;
 using Tideline.Data;
 using Tideline.Import;
+using Tideline.Notify;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -66,6 +67,20 @@ if (!string.IsNullOrWhiteSpace(options.InboxPath))
         TimeSpan.FromSeconds(Math.Max(10, options.InboxIntervalSeconds)), sp.GetService<ILogger<InboxWatcher>>()));
 }
 
+// flags, notifications and the monthly summary. Notify:Enabled=false leaves the schedule off (the tests drive it by hand).
+var notify = builder.Configuration.GetSection("Notify").Get<NotifyOptions>() ?? new NotifyOptions();
+builder.Services.AddSingleton(notify);
+builder.Services.AddSingleton<ISecretProtector, NotifySecrets>();
+builder.Services.AddSingleton<IChannelSender>(_ => new WebhookSender(new HttpClient { Timeout = TimeSpan.FromSeconds(20) }));
+builder.Services.AddSingleton<IChannelSender, SmtpSender>();
+builder.Services.AddSingleton<Notifier>();
+builder.Services.AddSingleton(_ => new Evaluator()); // every family; the constructor with a list is for tests
+builder.Services.AddSingleton(sp => new NotifyHost(sp.GetRequiredService<SqliteConnectionFactory>(), sp.GetRequiredService<Evaluator>(), sp.GetRequiredService<Notifier>(),
+    sp.GetRequiredService<TimeProvider>(), sp.GetRequiredService<NotifyOptions>(), () => sp.GetRequiredService<Clock>().LocalNow, () => sp.GetRequiredService<TidelineOptions>().PublicUrl,
+    f => Links.For(f.Kind, f.Period), sp.GetService<ILogger<NotifyHost>>()));
+if (!string.Equals(builder.Configuration["Notify:Enabled"], "false", StringComparison.OrdinalIgnoreCase))
+    builder.Services.AddHostedService(sp => sp.GetRequiredService<NotifyHost>());
+
 var app = builder.Build();
 
 if (!string.Equals(app.Configuration["Database:AutoMigrate"], "false", StringComparison.OrdinalIgnoreCase))
@@ -98,6 +113,8 @@ api.MapSetupEndpoints();
 api.MapImportEndpoints();
 api.MapDataEndpoints();
 api.MapPlanningEndpoints();
+api.MapFlagEndpoints();
+api.MapNotifyEndpoints();
 api.MapLookupEndpoints();
 api.MapLinesEndpoints();
 api.MapScreenEndpoints();

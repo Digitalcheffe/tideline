@@ -1007,3 +1007,27 @@ a.btn {
 .guide input {
   width: 8rem;
 }
+
+/* Flags */
+ul.flags {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+li.flag {
+  padding: 0.6rem 0;
+  border-bottom: 1px solid var(--border);
+}
+
+li.flag:last-child {
+  border-bottom: 0;
+}
+
+pre.preview {
+  white-space: pre-wrap;
+  background: var(--surface-2);
+  border-radius: 8px;
+  padding: 0.7rem 0.9rem;
+  font: inherit;
+}

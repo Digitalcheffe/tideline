@@ -9,7 +9,7 @@ namespace Tideline.Api.Endpoints;
 public static class SetupEndpoints
 {
     public sealed record MergeRequest(long IntoId);
-    public sealed record SettingsRequest(long? OneTimeAttentionCents);
+    public sealed record SettingsRequest(long? OneTimeAttentionCents, long? CardInterestCategoryId = null, bool ClearCardInterestCategory = false, string? DebtWords = null);
     public sealed record ReorderRequest(IReadOnlyList<long>? Ids);
     public sealed record RuleTestRequest(RuleInput? Rule, long? RuleId, string? From, string? To);
     public sealed record PeriodRequest(string? From, string? To);
@@ -81,13 +81,17 @@ public static class SetupEndpoints
         api.MapGet("/settings", (SqliteConnectionFactory f) =>
         {
             using var conn = f.Open();
-            return Results.Ok(new { oneTimeAttentionCents = SetupEditor.OneTimeAttentionCents(conn) });
+            var (interest, words) = SetupEditor.NotifySettings(conn);
+            return Results.Ok(new { oneTimeAttentionCents = SetupEditor.OneTimeAttentionCents(conn), cardInterestCategoryId = interest, debtWords = words });
         });
         api.MapPut("/settings", (SettingsRequest request, HttpContext http, SqliteConnectionFactory f, TimeProvider t) =>
             Edits.Run(http, f, t, (c, clock, who) =>
             {
                 if (request.OneTimeAttentionCents is { } cents) new SetupEditor(c, clock, who).SetOneTimeAttention(cents);
-                return new { oneTimeAttentionCents = SetupEditor.OneTimeAttentionCents(c) };
+                if (request.CardInterestCategoryId is not null || request.ClearCardInterestCategory || request.DebtWords is not null)
+                    new SetupEditor(c, clock, who).SetNotifySettings(request.CardInterestCategoryId, request.ClearCardInterestCategory, request.DebtWords);
+                var (interest, words) = SetupEditor.NotifySettings(c);
+                return new { oneTimeAttentionCents = SetupEditor.OneTimeAttentionCents(c), cardInterestCategoryId = interest, debtWords = words };
             }));
     }
 

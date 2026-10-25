@@ -49,7 +49,10 @@ public sealed class Clock(TidelineOptions options, TimeProvider time)
         catch (Exception e) when (e is TimeZoneNotFoundException or InvalidTimeZoneException) { return TimeZoneInfo.Utc; }
     }
 
-    public DateOnly Today => DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(time.GetUtcNow(), _zone).DateTime);
+    public DateOnly Today => DateOnly.FromDateTime(LocalNow);
+
+    /// <summary>The time on the household's clock right now.</summary>
+    public DateTime LocalNow => TimeZoneInfo.ConvertTime(time.GetUtcNow(), _zone).DateTime;
 }
 
 /// <summary>Builds the query string of a drill-down link (docs/07-api.md, "Drill-down contract").</summary>

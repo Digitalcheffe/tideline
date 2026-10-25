@@ -183,6 +183,20 @@ export interface CategoryInfo {
 
 // ---- screens ---------------------------------------------------------------------------------------------
 
+export interface FlagItem {
+  id: number
+  kind: string
+  severity: 'alert' | 'warn' | 'info'
+  title: string
+  detail: string
+  period: string
+  link: string
+  createdAt: string
+  acknowledged: boolean
+  ackNote: string | null
+  resolved: boolean
+}
+
 export interface Overview {
   from: string
   to: string
@@ -199,6 +213,7 @@ export interface Overview {
   months: { month: string; in: number; bills: number; required: number; extra: number; oneTime: number; savings: number; leftOver: number }[]
   plans: { id: number; name: string; targetCents: number; targetOn: string; actualCents: number; expectedCents: number; status: 'on_track' | 'wavered' | 'behind' | 'done'; monthsLeft: number; neededPerMonthCents: number; trouble: { month: string; status: string } | null }[]
   flags: { alert: number; warn: number; info: number }
+  needsYou: FlagItem[]
 }
 
 export interface AccountsByMonth {
