@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { get, send } from '../../api'
 import { Badge, Card, ErrorBox, Loading } from '../../components'
@@ -75,8 +76,16 @@ export function describe(c: Condition): string {
 export function RulesSettings() {
   const rules = useQuery({ queryKey: ['settings', 'rules'], queryFn: () => get<RuleRow[]>('/rules') })
   const categories = useQuery({ queryKey: ['categories'], queryFn: () => get<Named[]>('/categories') })
-  const [editing, setEditing] = useState<RuleRow | 'new' | null>(null)
+  const [params, setParams] = useSearchParams()
+  const [editing, setEditing] = useState<RuleRow | 'new' | null>(params.get('new') ? 'new' : null)
   const move = useAct()
+
+  // "Create rule from this line" in the ledger arrives here with the line's words and what was picked already filled in
+  const prefill = editing === 'new' && params.get('new') ? params : null
+  const closeForm = () => {
+    setEditing(null)
+    if (params.get('new')) setParams({}, { replace: true })
+  }
 
   if (rules.isLoading || categories.isLoading) return <Loading what="rules" />
   if (rules.error || !rules.data || !categories.data) return <ErrorBox error={rules.error ?? categories.error} />
@@ -91,7 +100,9 @@ export function RulesSettings() {
 
   return (
     <>
-      {editing && <RuleForm key={editing === 'new' ? 'new' : editing.id} rule={editing === 'new' ? null : editing} categories={categories.data} onClose={() => setEditing(null)} />}
+      {editing && (
+        <RuleForm key={editing === 'new' ? 'new' : editing.id} rule={editing === 'new' ? null : editing} prefill={prefill} categories={categories.data} onClose={closeForm} />
+      )}
       <Card
         title="Rules"
         aside={
@@ -196,15 +207,17 @@ function toCondition(row: Row): Condition | string {
   }
 }
 
-function RuleForm({ rule, categories, onClose }: { rule: RuleRow | null; categories: Named[]; onClose: () => void }) {
+function RuleForm({ rule, prefill, categories, onClose }: { rule: RuleRow | null; prefill: URLSearchParams | null; categories: Named[]; onClose: () => void }) {
   const { run, error, busy } = useAct(onClose)
-  const [name, setName] = useState(rule?.name ?? '')
+  const [name, setName] = useState(rule?.name ?? (prefill?.get('contains') ? `Lines like ${prefill.get('contains')!.slice(0, 40)}` : ''))
   const [active, setActive] = useState(rule?.isActive ?? true)
-  const [categoryId, setCategoryId] = useState(rule?.setCategoryId?.toString() ?? '')
-  const [type, setType] = useState(rule?.setType ?? '')
-  const [payee, setPayee] = useState(rule?.setPayee ?? '')
-  const [tags, setTags] = useState(rule?.tags.join(', ') ?? '')
-  const [rows, setRows] = useState<Row[]>(rule?.conditions.map((c) => ({ key: keyOf(c), text: textOf(c) })) ?? [{ key: 'contains', text: '' }])
+  const [categoryId, setCategoryId] = useState(rule?.setCategoryId?.toString() ?? prefill?.get('category') ?? '')
+  const [type, setType] = useState(rule?.setType ?? prefill?.get('type') ?? '')
+  const [payee, setPayee] = useState(rule?.setPayee ?? prefill?.get('payee') ?? '')
+  const [tags, setTags] = useState(rule?.tags.join(', ') ?? prefill?.get('tags') ?? '')
+  const [rows, setRows] = useState<Row[]>(
+    rule?.conditions.map((c) => ({ key: keyOf(c), text: textOf(c) })) ?? [{ key: 'contains', text: prefill?.get('contains') ?? '' }],
+  )
   const [from, setFrom] = useState(() => new Date(Date.now() - 90 * 86400000).toISOString().slice(0, 10))
   const [to, setTo] = useState(() => new Date().toISOString().slice(0, 10))
   const [result, setResult] = useState<TestResult | null>(null)

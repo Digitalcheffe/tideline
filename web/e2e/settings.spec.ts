@@ -47,6 +47,15 @@ test.describe.serial('settings', () => {
     await expect(page.getByText('the description contains MYSTERY')).toBeVisible()
   })
 
+  test('"Create rule from this" in the ledger opens a rule with the line already filled in', async ({ page }) => {
+    await page.goto('/lines?from=2026-03-01&to=2026-03-31&q=MYSTERY')
+    await page.getByText(/MYSTERY VENDOR/).first().click()
+    await page.getByRole('link', { name: 'Create rule from this' }).click()
+    await expect(page).toHaveURL(/\/settings\/rules/)
+    await expect(page.getByLabel('Value')).toHaveValue(/MYSTERY/)
+    await expect(page.getByLabel('Name')).toHaveValue(/Lines like MYSTERY/)
+  })
+
   test('inviting someone gives a setup link once, and a token is shown once', async ({ page }) => {
     await page.goto('/settings/people')
     await page.getByRole('button', { name: 'Invite someone' }).click()

@@ -1,5 +1,7 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMe } from '../auth'
 import { get, send, type CategoryInfo, type TransactionDetail } from '../api'
 import { Badge } from '../components'
 import { dollars, parseDollars, typeLabel } from '../format'
@@ -28,6 +30,7 @@ function useRefresh() {
 function MeaningForm({ t }: { t: TransactionDetail }) {
   const categories = useCategories()
   const refresh = useRefresh()
+  const isOwner = useMe().user.role === 'owner'
 
   const [categoryId, setCategoryId] = useState<string>(t.categoryId ? String(t.categoryId) : '')
   const [type, setType] = useState(t.type ?? 'extra')
@@ -107,9 +110,22 @@ function MeaningForm({ t }: { t: TransactionDetail }) {
             Reset to rules
           </button>
         )}
-        <button className="btn" type="button" disabled title="Rules are managed in Settings, which arrives in Phase 3">
-          Create rule from this
-        </button>
+        {isOwner && (
+          <Link
+            className="btn"
+            title="Start a rule from this line and what you have picked above"
+            to={`/settings/rules?${new URLSearchParams({
+              new: '1',
+              contains: t.bank.description,
+              ...(categoryId ? { category: categoryId } : {}),
+              type,
+              ...(payee ? { payee } : {}),
+              ...(tags.trim() ? { tags } : {}),
+            }).toString()}`}
+          >
+            Create rule from this
+          </Link>
+        )}
       </div>
       {save.isSuccess && <p><Badge tone="good">Saved</Badge> <span className="muted">This line is now marked as set by you.</span></p>}
       {(save.error || reset.error) && <p className="problem" role="alert">{String((save.error ?? reset.error)?.message)}</p>}
