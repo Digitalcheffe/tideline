@@ -163,6 +163,54 @@ public sealed class EditingTests : IDisposable
         t.GetProperty("tags").EnumerateArray().Select(x => x.GetString()).Should().Equal("review");
     }
 
+    // ---- bulk ---------------------------------------------------------------------------------------------
+
+    [Fact]
+    public async Task Several_lines_can_be_fixed_at_once_and_each_change_is_audited()
+    {
+        var ids = new[] { "MYSTERY VENDOR 9", "COFFEE SHOP", "INTEREST PAID" }.Select(_api.IdOf).ToArray();
+        var groceries = Category("Groceries");
+
+        var (status, body) = await _api.Send(HttpMethod.Post, "/api/v1/transactions/bulk",
+            new { ids, set = new { categoryId = groceries, type = "required", addTags = new[] { "Fixed", "checked" }, removeTags = new[] { "review" } } });
+
+        status.Should().Be(HttpStatusCode.OK);
+        body.GetProperty("updated").GetInt32().Should().Be(3);
+        foreach (var id in ids)
+        {
+            var t = await _api.Get($"/api/v1/transactions/{id}");
+            t.GetProperty("categoryName").GetString().Should().Be("Groceries");
+            t.GetProperty("type").GetString().Should().Be("required");
+            t.GetProperty("tags").EnumerateArray().Select(x => x.GetString()).Should().Equal("checked", "fixed");
+            t.GetProperty("isManualOverride").GetBoolean().Should().BeTrue();
+            t.GetProperty("audit")[0].GetProperty("action").GetString().Should().Be("transaction.update");
+        }
+        (await _api.Get($"/api/v1/lines?{March}&review=true")).GetProperty("total").GetInt64().Should().Be(0, "the review tag was removed from all three");
+    }
+
+    [Fact]
+    public async Task Bulk_edit_skips_transfers_counts_unknown_lines_and_changes_nothing_when_the_request_is_bad()
+    {
+        var mystery = _api.IdOf("MYSTERY VENDOR 9");
+        var transfer = _api.IdOf("TRANSFER TO SAVINGS");
+
+        var (_, body) = await _api.Send(HttpMethod.Post, "/api/v1/transactions/bulk",
+            new { ids = new[] { mystery, transfer, 999999 }, set = new { type = "one_time" } });
+        body.GetProperty("updated").GetInt32().Should().Be(1);
+        body.GetProperty("skippedTransfers").GetInt32().Should().Be(1);
+        body.GetProperty("notFound").GetInt32().Should().Be(1);
+
+        var other = _api.IdOf("COFFEE SHOP");
+        var bad = await _api.Send(HttpMethod.Post, "/api/v1/transactions/bulk", new { ids = new[] { other }, set = new { categoryId = 424242 } });
+        bad.Status.Should().Be(HttpStatusCode.BadRequest);
+        (await _api.Get($"/api/v1/transactions/{other}")).GetProperty("isManualOverride").GetBoolean().Should().BeFalse();
+
+        (await _api.Send(HttpMethod.Post, "/api/v1/transactions/bulk", new { ids = new long[0], set = new { type = "extra" } })).Status.Should().Be(HttpStatusCode.BadRequest);
+        (await _api.Send(HttpMethod.Post, "/api/v1/transactions/bulk", new { ids = new[] { other }, set = new { } })).Status.Should().Be(HttpStatusCode.BadRequest);
+        (await _api.Send(HttpMethod.Post, "/api/v1/transactions/bulk", new { ids = Enumerable.Range(1, 501).Select(i => (long)i).ToArray(), set = new { type = "extra" } })).Status
+            .Should().Be(HttpStatusCode.BadRequest);
+    }
+
     // ---- splits --------------------------------------------------------------------------------------------
 
     [Fact]

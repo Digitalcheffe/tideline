@@ -734,3 +734,36 @@ button.btn:disabled {
 .neg {
   color: var(--bad);
 }
+
+/* ---- ledger: pick-to-filter and bulk edit ---- */
+button.pick {
+  all: unset;
+  cursor: pointer;
+  border-bottom: 1px dotted var(--muted);
+}
+
+button.pick:hover,
+button.pick:focus-visible {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+button.pick .badge {
+  margin-right: 0.15rem;
+}
+
+tr.selected {
+  background: var(--info-bg);
+}
+
+.bulkbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.6rem;
+  margin-bottom: 0.6rem;
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+}

@@ -1,8 +1,10 @@
-import { useQuery } from '@tanstack/react-query'
+import { useEffect, useState } from 'react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useSearchParams } from 'react-router-dom'
-import { getLines, get, type AccountInfo, type CategoryInfo } from '../api'
+import { getLines, get, send, type AccountInfo, type CategoryInfo } from '../api'
 import { Badge, Card, Empty, ErrorBox, Loading, Money } from '../components'
 import { dateLabel, dollars, typeLabel } from '../format'
+import { usePeriod } from '../period'
 import { TransactionDrawer } from './TransactionDrawer'
 
 const SORTS: { key: string; label: string }[] = [
@@ -12,21 +14,36 @@ const SORTS: { key: string; label: string }[] = [
   { key: 'amount_asc', label: 'Largest out first' },
 ]
 
-/** The drill-down view: every number on every screen opens here (docs/08-screens.md, "Lines"). */
+/**
+ * The ledger: every line, for the period in the menu. It is also the drill-down view that every number on every screen
+ * opens (docs/08-screens.md, "Lines"), so the filters live in the URL.
+ */
 export function Lines() {
   const [params, setParams] = useSearchParams()
+  const period = usePeriod()
   const open = params.get('tx')
   const apiParams = new URLSearchParams(params)
   apiParams.delete('tx')
-
-  const hasRange = apiParams.has('from') && apiParams.has('to')
+  // no period in the address means the one in the menu (this month)
+  if (!apiParams.has('from')) apiParams.set('from', period.from)
+  if (!apiParams.has('to')) apiParams.set('to', period.to)
   const page = Number(apiParams.get('page') ?? '1') || 1
 
   const lines = useQuery({
     queryKey: ['lines', apiParams.toString()],
     queryFn: () => getLines(apiParams.toString()),
-    enabled: hasRange,
   })
+  const [selected, setSelected] = useState<Set<number>>(new Set())
+  const queryKey = apiParams.toString()
+  useEffect(() => setSelected(new Set()), [queryKey])
+  const toggle = (id: number) =>
+    setSelected((prev) => {
+      const n = new Set(prev)
+      if (n.has(id)) n.delete(id)
+      else n.add(id)
+      return n
+    })
+
   const accounts = useQuery({ queryKey: ['accounts'], queryFn: () => get<AccountInfo[]>('/accounts') })
   const categories = useQuery({ queryKey: ['categories'], queryFn: () => get<CategoryInfo[]>('/categories') })
 
@@ -38,18 +55,14 @@ export function Lines() {
     setParams(next)
   }
 
-  if (!hasRange)
-    return (
-      <>
-        <h1>Lines</h1>
-        <Empty>
-          Open this page from a number on another screen, or pick a period:{' '}
-          <button className="btn" onClick={() => { const n = new Date(); const y = n.getFullYear(); const m = String(n.getMonth() + 1).padStart(2, '0'); const last = new Date(y, n.getMonth() + 1, 0).getDate(); setParams({ from: `${y}-${m}-01`, to: `${y}-${m}-${last}` }) }}>
-            This month
-          </button>
-        </Empty>
-      </>
-    )
+  const filterKeys = ['type', 'category', 'account', 'tag', 'review', 'recurring', 'direction', 'q', 'minCents', 'maxCents', 'move']
+  const filtersActive = filterKeys.some((k) => apiParams.has(k))
+  const clearFilters = () => {
+    const next = new URLSearchParams(params)
+    filterKeys.forEach((k) => next.delete(k))
+    next.delete('page')
+    setParams(next)
+  }
 
   const chips: string[] = []
   const accountName = (id: string) => accounts.data?.find((a) => String(a.id) === id)?.name ?? `account ${id}`
@@ -70,13 +83,53 @@ export function Lines() {
 
   return (
     <>
-      <h1>Lines</h1>
+      <h1>Ledger</h1>
       <div className="chips" aria-label="Filters">
         {chips.map((c) => (
           <span className="chip" key={c}>
             {c}
           </span>
         ))}
+      </div>
+
+      <div className="toolbar">
+        <select aria-label="Account" value={apiParams.get('account') ?? ''} onChange={(e) => set('account', e.target.value)}>
+          <option value="">All accounts</option>
+          {accounts.data?.map((a) => (
+            <option key={a.id} value={a.id}>
+              {a.name}
+            </option>
+          ))}
+        </select>
+        <select aria-label="Category" value={apiParams.get('category') ?? ''} onChange={(e) => set('category', e.target.value)}>
+          <option value="">All categories</option>
+          {categories.data?.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.name}
+            </option>
+          ))}
+        </select>
+        <select aria-label="Type" value={apiParams.get('type') ?? ''} onChange={(e) => set('type', e.target.value)}>
+          <option value="">All types</option>
+          {['income', 'bill', 'required', 'extra', 'one_time', 'savings'].map((t) => (
+            <option key={t} value={t}>
+              {typeLabel(t)}
+            </option>
+          ))}
+        </select>
+        <select aria-label="Direction" value={apiParams.get('direction') ?? ''} onChange={(e) => set('direction', e.target.value)}>
+          <option value="">In and out</option>
+          <option value="in">Money in</option>
+          <option value="out">Money out</option>
+        </select>
+        <label>
+          <input type="checkbox" checked={apiParams.get('review') === 'true'} onChange={(e) => set('review', e.target.checked ? 'true' : null)} /> To review
+        </label>
+        {filtersActive && (
+          <button className="btn" type="button" onClick={clearFilters}>
+            Clear filters
+          </button>
+        )}
       </div>
 
       <div className="toolbar">
@@ -106,11 +159,22 @@ export function Lines() {
         {lines.isLoading && <Loading what="lines" />}
         {lines.error && <ErrorBox error={lines.error} />}
         {lines.data && lines.data.items.length === 0 && <Empty>No lines match.</Empty>}
+        {selected.size > 0 && categories.data && (
+          <BulkBar ids={[...selected]} categories={categories.data} onDone={() => setSelected(new Set())} />
+        )}
         {lines.data && lines.data.items.length > 0 && (
           <div className="table-wrap">
             <table>
               <thead>
                 <tr>
+                  <th style={{ width: '1.5rem' }}>
+                    <input
+                      type="checkbox"
+                      aria-label="Select all lines on this page"
+                      checked={lines.data.items.filter((l) => l.type).every((l) => selected.has(l.transactionId))}
+                      onChange={(e) => setSelected(e.target.checked ? new Set(lines.data!.items.filter((l) => l.type).map((l) => l.transactionId)) : new Set())}
+                    />
+                  </th>
                   <th>Date</th>
                   <th>Account</th>
                   <th>Description</th>
@@ -122,31 +186,50 @@ export function Lines() {
                 {lines.data.items.map((l) => (
                   <tr
                     key={`${l.transactionId}-${l.splitLineId ?? 'r'}`}
-                    className="clickable"
+                    className={`clickable ${selected.has(l.transactionId) ? 'selected' : ''}`}
                     tabIndex={0}
                     onClick={() => set('tx', String(l.transactionId))}
                     onKeyDown={(e) => e.key === 'Enter' && set('tx', String(l.transactionId))}
                   >
+                    <td onClick={(e) => e.stopPropagation()}>
+                      {l.type && <input type="checkbox" aria-label={`Select ${l.description}`} checked={selected.has(l.transactionId)} onChange={() => toggle(l.transactionId)} />}
+                    </td>
                     <td>{dateLabel(l.postedOn)}</td>
-                    <td>{l.accountName}</td>
+                    <td>
+                      <Pick onPick={() => set('account', String(l.accountId))} title={`Only ${l.accountName}`}>
+                        {l.accountName}
+                      </Pick>
+                    </td>
                     <td>
                       {l.description}
-                      {l.payee && l.payee !== l.description && <span className="cell-note">{l.payee}</span>}
+                      {l.payee && l.payee !== l.description && (
+                        <span className="cell-note">
+                          <Pick onPick={() => set('q', l.payee)} title={`Search for ${l.payee}`}>
+                            {l.payee}
+                          </Pick>
+                        </span>
+                      )}
                       {l.isSplitPart && <Badge tone="info">Split part</Badge>}
                     </td>
                     <td>
                       {l.type ? (
                         <>
-                          {typeLabel(l.type)}
-                          <span className="cell-note">{l.categoryName ?? 'No category'}</span>
+                          <Pick onPick={() => set('type', l.type)} title="Only this type">
+                            {typeLabel(l.type)}
+                          </Pick>
+                          <span className="cell-note">
+                            <Pick onPick={() => set('category', String(l.categoryId ?? 0))} title="Only this category">
+                              {l.categoryName ?? 'No category'}
+                            </Pick>
+                          </span>
                         </>
                       ) : (
                         <Badge tone="muted">Transfer</Badge>
                       )}
                       {l.tags.map((t) => (
-                        <Badge key={t} tone={t === 'review' ? 'warn' : 'muted'}>
-                          {t}
-                        </Badge>
+                        <Pick key={t} onPick={() => set('tag', t)} title={`Only lines tagged ${t}`}>
+                          <Badge tone={t === 'review' ? 'warn' : 'muted'}>{t}</Badge>
+                        </Pick>
                       ))}
                     </td>
                     <td className="num">
@@ -175,5 +258,98 @@ export function Lines() {
 
       {open && <TransactionDrawer id={Number(open)} onClose={() => set('tx', null)} />}
     </>
+  )
+}
+
+/** Click a value in a row to show only lines like it. */
+function Pick({ onPick, title, children }: { onPick: () => void; title: string; children: React.ReactNode }) {
+  return (
+    <button
+      type="button"
+      className="pick"
+      title={title}
+      onClick={(e) => {
+        e.stopPropagation()
+        onPick()
+      }}
+    >
+      {children}
+    </button>
+  )
+}
+
+/** Change several lines at once: the quick way to fix a pile of tags or categories. */
+function BulkBar({ ids, categories, onDone }: { ids: number[]; categories: CategoryInfo[]; onDone: () => void }) {
+  const client = useQueryClient()
+  const [categoryId, setCategoryId] = useState('')
+  const [type, setType] = useState('')
+  const [addTags, setAddTags] = useState('')
+  const [removeTags, setRemoveTags] = useState('')
+
+  const words = (text: string) => text.split(',').map((x) => x.trim()).filter(Boolean)
+  const nothing = !categoryId && !type && words(addTags).length === 0 && words(removeTags).length === 0
+
+  const apply = useMutation({
+    mutationFn: () =>
+      send<{ updated: number; skippedTransfers: number; notFound: number }>('POST', '/transactions/bulk', {
+        ids,
+        set: {
+          categoryId: categoryId ? Number(categoryId) : undefined,
+          type: type || undefined,
+          addTags: words(addTags),
+          removeTags: words(removeTags),
+        },
+      }),
+    onSuccess: () => {
+      client.invalidateQueries()
+      onDone()
+    },
+  })
+
+  const pickCategory = (value: string) => {
+    setCategoryId(value)
+    const chosen = categories.find((c) => String(c.id) === value)
+    if (chosen && !type) setType(chosen.type)
+  }
+
+  return (
+    <form
+      className="bulkbar"
+      onSubmit={(e) => {
+        e.preventDefault()
+        apply.mutate()
+      }}
+    >
+      <strong>{ids.length} selected</strong>
+      <select aria-label="Set category" value={categoryId} onChange={(e) => pickCategory(e.target.value)}>
+        <option value="">Category: no change</option>
+        {categories.map((c) => (
+          <option key={c.id} value={c.id}>
+            {c.name}
+          </option>
+        ))}
+      </select>
+      <select aria-label="Set type" value={type} onChange={(e) => setType(e.target.value)}>
+        <option value="">Type: no change</option>
+        {['income', 'bill', 'required', 'extra', 'one_time', 'savings'].map((t) => (
+          <option key={t} value={t}>
+            {typeLabel(t)}
+          </option>
+        ))}
+      </select>
+      <input type="text" placeholder="Add tags" aria-label="Add tags" value={addTags} onChange={(e) => setAddTags(e.target.value)} />
+      <input type="text" placeholder="Remove tags" aria-label="Remove tags" value={removeTags} onChange={(e) => setRemoveTags(e.target.value)} />
+      <button className="btn primary" type="submit" disabled={nothing || apply.isPending}>
+        {apply.isPending ? 'Saving…' : 'Apply'}
+      </button>
+      <button className="btn" type="button" onClick={onDone}>
+        Clear selection
+      </button>
+      {apply.error && (
+        <span className="problem" role="alert">
+          {apply.error.message}
+        </span>
+      )}
+    </form>
   )
 }

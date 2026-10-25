@@ -60,12 +60,17 @@ public static class TransactionEndpoints
         api.MapPut("/transactions/{id:long}/splits", (long id, SplitsRequest request, SqliteConnectionFactory factory, TimeProvider time) =>
             Edit(factory, time, e => new { version = e.ReplaceSplits(id, request.Splits ?? [], request.Version) }));
 
+        api.MapPost("/transactions/bulk", (BulkRequest request, SqliteConnectionFactory factory, TimeProvider time) =>
+            Edit(factory, time, e => e.BulkUpdate(request.Ids ?? [], request.Set ?? new BulkChange())));
+
         api.MapPost("/transactions", (ManualEntry entry, SqliteConnectionFactory factory, TimeProvider time) =>
             Edit(factory, time, e => new { id = e.CreateManual(entry) }, created: true));
 
         api.MapDelete("/transactions/{id:long}", (long id, SqliteConnectionFactory factory, TimeProvider time) =>
             Edit(factory, time, e => { e.DeleteManual(id); return new { deleted = true }; }));
     }
+
+    public sealed record BulkRequest(IReadOnlyList<long>? Ids, BulkChange? Set);
 
     public sealed record SplitsRequest(string? Version, IReadOnlyList<SplitInput>? Splits);
 

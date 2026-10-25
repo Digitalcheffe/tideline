@@ -33,11 +33,11 @@ const GROUPS: { title: string; items: { to: string; label: string }[] }[] = [
       { to: '/retirement', label: 'Retirement' },
     ],
   },
-  { title: 'Detail', items: [{ to: '/lines', label: 'Lines' }] },
+  { title: 'Detail', items: [{ to: '/lines', label: 'Ledger' }] },
 ]
 
 // screens where the period picker does nothing, so it is not shown
-const NO_PERIOD = ['/lines', '/savings', '/planning', '/budget', '/retirement', '/settings', '/recommendations']
+const NO_PERIOD = ['/savings', '/planning', '/budget', '/retirement', '/settings', '/recommendations']
 
 function Logo() {
   return (
@@ -57,7 +57,7 @@ export default function App() {
   // the menu closes when you pick a screen
   useEffect(() => setMenuOpen(false), [location.pathname])
 
-  const link = (to: string) => (to === '/lines' || to === '/settings' ? to : `${to}?from=${period.from}&to=${period.to}`)
+  const link = (to: string) => (to === '/settings' ? to : `${to}?from=${period.from}&to=${period.to}`)
   const periodLabel = wholeMonth(period.from, period.to)
     ? monthLabel(period.from.slice(0, 7))
     : wholeYear(period.from, period.to)

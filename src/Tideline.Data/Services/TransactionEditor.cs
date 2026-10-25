@@ -27,6 +27,11 @@ public sealed record EditRequest(
     long? RecurringId = null,
     long? PlanId = null);
 
+/// <summary>One change applied to many lines at once (docs/07-api.md, POST /transactions/bulk). Null parts are left alone.</summary>
+public sealed record BulkChange(long? CategoryId = null, string? Type = null, IReadOnlyList<string>? AddTags = null, IReadOnlyList<string>? RemoveTags = null);
+
+public sealed record BulkResult(int Updated, int SkippedTransfers, int NotFound);
+
 public sealed record SplitInput(long AmountCents, long CategoryId, string Type, IReadOnlyList<string>? Tags = null, string? Note = null);
 
 public sealed record ManualEntry(
@@ -173,6 +178,59 @@ public sealed class TransactionEditor(IDbConnection conn, TimeProvider clock)
         var version = NewVersion(id, tx);
         tx.Commit();
         return version;
+    }
+
+    // ---- bulk ----------------------------------------------------------------------------------------------
+
+    public const int MaxBulk = 500;
+
+    /// <summary>
+    /// Apply one change to many lines in one database transaction: either every line changes or none does. Transfers have no
+    /// category or type, so they are skipped and counted. Each line gets its own audit entry, and is marked as set by hand.
+    /// </summary>
+    public BulkResult BulkUpdate(IReadOnlyList<long> ids, BulkChange change)
+    {
+        TypeHandlers.EnsureRegistered();
+        if (ids.Count == 0) throw new EditException(EditError.Invalid, "Pick at least one line.");
+        if (ids.Count > MaxBulk) throw new EditException(EditError.Invalid, $"Change {MaxBulk} lines or fewer at a time.");
+        if (change.CategoryId is null && change.Type is null && (change.AddTags?.Count ?? 0) == 0 && (change.RemoveTags?.Count ?? 0) == 0)
+            throw new EditException(EditError.Invalid, "Say what to change: a category, a type, or tags to add or remove.");
+
+        using var tx = conn.BeginTransaction();
+
+        LineType? type = change.Type is null ? null : ParseType(change.Type);
+        if (change.CategoryId is { } cat and > 0) RequireCategory(cat, tx);
+        var add = change.AddTags is null ? [] : TagIds(change.AddTags, tx);
+        var remove = (change.RemoveTags ?? []).Select(NormalizeTag).Distinct().ToList();
+        var audit = new AuditWriter(conn, clock, tx);
+
+        int updated = 0, skipped = 0, missing = 0;
+        foreach (var id in ids.Distinct())
+        {
+            var c = conn.QuerySingleOrDefault<Current>("SELECT id AS Id, move_id AS MoveId FROM transactions WHERE id = @id", new { id }, tx);
+            if (c is null) { missing++; continue; }
+            if (c.MoveId is not null) { skipped++; continue; }
+
+            var before = Snapshot(id, tx);
+            conn.Execute("""
+                UPDATE transactions SET category_id = COALESCE(@category, category_id), type = COALESCE(@type, type),
+                    is_manual_override = 1, updated_at = @now
+                WHERE id = @id
+                """, new { id, category = change.CategoryId is { } k and > 0 ? k : (long?)null, type = type?.ToDb(), now = clock.GetUtcNow() }, tx);
+            foreach (var t in add)
+            {
+                if (conn.ExecuteScalar<long>("SELECT COUNT(*) FROM transaction_tags WHERE transaction_id = @id AND tag_id = @t", new { id, t }, tx) == 0)
+                    conn.Execute("INSERT INTO transaction_tags (transaction_id, tag_id) VALUES (@id, @t)", new { id, t }, tx);
+            }
+            foreach (var name in remove)
+                conn.Execute("DELETE FROM transaction_tags WHERE transaction_id = @id AND tag_id IN (SELECT id FROM tags WHERE name = @name)", new { id, name }, tx);
+
+            audit.Write("transaction.update", "transaction", id, before, Snapshot(id, tx));
+            updated++;
+        }
+
+        tx.Commit();
+        return new BulkResult(updated, skipped, missing);
     }
 
     // ---- reset to rules --------------------------------------------------------------------------------------

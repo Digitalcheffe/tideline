@@ -96,6 +96,47 @@ test.describe.serial('smoke', () => {
     await expect(menu).toBeHidden()
   })
 
+  test('the Ledger has its own tab, shows the period in the menu, and filters by account', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 800 })
+    await page.goto(`/?${MARCH}`)
+
+    await page.getByRole('complementary', { name: 'Menu' }).getByRole('link', { name: 'Ledger' }).click()
+    await expect(page.getByRole('heading', { name: 'Ledger', level: 1 })).toBeVisible()
+
+    const count = page.getByRole('heading', { level: 2 }).filter({ hasText: /^\d+ lines?$/ })
+    await expect(count).toBeVisible()
+    const all = await count.textContent()
+    await expect(page.getByText('PAYROLL ACME CORP')).toBeVisible()
+
+    await page.getByLabel('Account', { exact: true }).selectOption({ label: 'Card' })
+    await expect(page.getByText('GROCERY STORE #12').first()).toBeVisible()
+    await expect(page.getByText('PAYROLL ACME CORP')).toBeHidden()
+    expect(await count.textContent()).not.toBe(all)
+
+    await page.getByRole('button', { name: 'Clear filters' }).click()
+    await expect(page.getByText('PAYROLL ACME CORP')).toBeVisible()
+    await expect(count).toHaveText(all!)
+  })
+
+  test('in the Ledger, clicking a tag filters by it and several lines can be fixed at once', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 800 })
+    await page.goto(`/lines?${MARCH}`)
+
+    await page.getByRole('button', { name: 'review', exact: true }).first().click()
+    await expect(page).toHaveURL(/tag=review/)
+    await expect(page.getByText('MYSTERY VENDOR 9')).toBeVisible()
+
+    await page.getByLabel('Select all lines on this page').check()
+    await expect(page.getByText(/\d+ selected/)).toBeVisible()
+    await page.getByLabel('Add tags').fill('checked')
+    await page.getByLabel('Remove tags').fill('review')
+    await page.getByRole('button', { name: 'Apply' }).click()
+
+    await expect(page.getByText('No lines match.')).toBeVisible()
+    await page.goto(`/lines?${MARCH}&tag=checked`)
+    await expect(page.getByText('MYSTERY VENDOR 9')).toBeVisible()
+  })
+
   test('the phone layout has no sideways scrolling on the Overview', async ({ page }) => {
     await page.setViewportSize({ width: 375, height: 812 })
     await page.goto(`/?${MARCH}`)

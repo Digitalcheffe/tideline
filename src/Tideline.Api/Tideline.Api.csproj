@@ -5,6 +5,10 @@
     <ProjectReference Include="..\Tideline.Notify\Tideline.Notify.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <PackageReference Include="QRCoder" />
+  </ItemGroup>
+
   <PropertyGroup>
   </PropertyGroup>
 
