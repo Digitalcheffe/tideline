@@ -82,23 +82,24 @@ h2 {
   margin: 0;
 }
 
-/* ---- shell ---- */
-.topbar {
-  position: sticky;
-  top: 0;
-  z-index: 5;
-  background: var(--surface);
-  border-bottom: 1px solid var(--border);
+/* ---- shell: menu on the left ---- */
+.shell {
+  display: grid;
+  grid-template-columns: 232px minmax(0, 1fr);
+  min-height: 100vh;
 }
 
-.topbar-inner {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 0.6rem 16px;
+.sidebar {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  padding: 14px 12px;
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.5rem 1rem;
+  flex-direction: column;
+  gap: 14px;
 }
 
 .brand {
@@ -109,6 +110,7 @@ h2 {
   font-size: 1.1rem;
   color: var(--text);
   text-decoration: none;
+  padding: 0 0.3rem;
 }
 
 .brand svg {
@@ -116,52 +118,97 @@ h2 {
   height: 26px;
 }
 
-.nav {
-  display: flex;
-  gap: 0.15rem;
-  overflow-x: auto;
+.sidebar nav {
   flex: 1 1 auto;
-  scrollbar-width: thin;
 }
 
-.nav a {
-  white-space: nowrap;
-  padding: 0.4rem 0.7rem;
+.nav-group + .nav-group {
+  margin-top: 14px;
+}
+
+.nav-title {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  padding: 0 0.6rem 0.25rem;
+}
+
+.sidebar a:not(.brand) {
+  display: block;
+  padding: 0.4rem 0.6rem;
   border-radius: 8px;
   color: var(--muted);
   text-decoration: none;
   font-weight: 500;
 }
 
-.nav a:hover {
+.sidebar a:not(.brand):hover {
   background: var(--surface-2);
   color: var(--text);
 }
 
-.nav a.active {
+.sidebar a.active {
   background: var(--accent);
   color: var(--accent-text);
 }
 
+.nav-foot {
+  border-top: 1px solid var(--border);
+  padding-top: 10px;
+}
+
+.content {
+  min-width: 0;
+}
+
+.mobilebar,
+.menu-scrim {
+  display: none;
+}
+
+.hamburger {
+  display: inline-flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 4px;
+  width: 2.2rem;
+  height: 2.2rem;
+  padding: 0 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  cursor: pointer;
+}
+
+.hamburger span {
+  display: block;
+  height: 2px;
+  background: var(--text);
+  border-radius: 1px;
+}
+
+/* the period picker lives at the top of the menu */
 .period {
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
+  flex-direction: column;
+  align-items: stretch;
   gap: 0.5rem;
 }
 
 .seg {
-  display: inline-flex;
+  display: flex;
   border: 1px solid var(--border);
   border-radius: 8px;
   overflow: hidden;
 }
 
 .seg button {
+  flex: 1;
   border: 0;
   background: transparent;
   color: var(--muted);
-  padding: 0.35rem 0.7rem;
+  padding: 0.35rem 0.4rem;
   font: inherit;
   cursor: pointer;
 }
@@ -173,7 +220,7 @@ h2 {
 }
 
 .stepper {
-  display: inline-flex;
+  display: flex;
   align-items: center;
   gap: 0.3rem;
 }
@@ -187,9 +234,12 @@ h2 {
   height: 2rem;
   font-size: 1.1rem;
   cursor: pointer;
+  flex: none;
 }
 
 .stepper input {
+  flex: 1;
+  min-width: 0;
   font: inherit;
   padding: 0.3rem 0.4rem;
   border: 1px solid var(--border);
@@ -199,9 +249,63 @@ h2 {
 }
 
 .year {
-  min-width: 3.5rem;
+  flex: 1;
   text-align: center;
   font-weight: 600;
+}
+
+@media (max-width: 899px) {
+  .shell {
+    display: block;
+  }
+
+  .mobilebar {
+    display: flex;
+    position: sticky;
+    top: 0;
+    z-index: 12;
+    align-items: center;
+    gap: 0.75rem;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 0.5rem 16px;
+  }
+
+  .mobile-period {
+    margin-left: auto;
+    font-size: 0.85rem;
+  }
+
+  .desktop-only {
+    display: none;
+  }
+
+  .sidebar {
+    position: fixed;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    height: auto;
+    width: min(280px, 85vw);
+    z-index: 22;
+    transform: translateX(-100%);
+    visibility: hidden;
+    transition: transform 0.18s ease, visibility 0.18s;
+  }
+
+  .sidebar.open {
+    transform: none;
+    visibility: visible;
+    box-shadow: 4px 0 16px rgb(0 0 0 / 25%);
+  }
+
+  .menu-scrim {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgb(0 0 0 / 40%);
+    z-index: 21;
+  }
 }
 
 main {
@@ -581,9 +685,6 @@ button.btn:disabled {
 }
 
 @media (max-width: 640px) {
-  .topbar-inner {
-    padding: 0.5rem 16px;
-  }
   .kv {
     grid-template-columns: 1fr;
   }

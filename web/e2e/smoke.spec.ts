@@ -66,6 +66,36 @@ test.describe.serial('smoke', () => {
     await expect(spread).toContainText('$960.36') // Left over, unchanged
   })
 
+  test('the menu is on the left on a wide screen and keeps the chosen period when you move between screens', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 800 })
+    await page.goto(`/?${MARCH}`)
+
+    const menu = page.getByRole('complementary', { name: 'Menu' })
+    const box = await menu.boundingBox()
+    expect(box!.x).toBe(0)
+    expect(box!.width).toBeLessThan(300)
+    await expect(menu.getByRole('link', { name: 'Bills' })).toBeVisible()
+    await expect(page.getByLabel('Month', { exact: true })).toHaveValue('2026-03')
+
+    await menu.getByRole('link', { name: 'Required' }).click()
+    await expect(page).toHaveURL(/\/required\?from=2026-03-01&to=2026-03-31/)
+    await expect(page.getByRole('heading', { name: 'Required', level: 1 })).toBeVisible()
+  })
+
+  test('on a phone the menu opens from the button and closes when you pick a screen', async ({ page }) => {
+    await page.setViewportSize({ width: 375, height: 812 })
+    await page.goto(`/?${MARCH}`)
+    const menu = page.getByRole('complementary', { name: 'Menu' })
+    await expect(menu).toBeHidden()
+
+    await page.getByRole('button', { name: 'Menu' }).click()
+    await expect(menu).toBeVisible()
+    await menu.getByRole('link', { name: 'Income' }).click()
+
+    await expect(page.getByRole('heading', { name: /^Income/ })).toBeVisible()
+    await expect(menu).toBeHidden()
+  })
+
   test('the phone layout has no sideways scrolling on the Overview', async ({ page }) => {
     await page.setViewportSize({ width: 375, height: 812 })
     await page.goto(`/?${MARCH}`)
