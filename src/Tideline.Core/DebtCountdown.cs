@@ -1,11 +1,12 @@
 namespace Tideline.Core;
 
 /// <param name="PaysOff">False when the payment does not even cover the interest, so the balance never goes down.</param>
-/// <param name="MonthsLeft">Fractional months until the balance reaches zero.</param>
+/// <param name="MonthsLeft">Fractional months until the balance reaches zero; null when it never does.</param>
 /// <param name="PayoffMonth">'YYYY-MM' of the last payment, or null when the loan never pays off.</param>
-public sealed record Payoff(bool PaysOff, double MonthsLeft, long InterestLeftCents, string? PayoffMonth);
+public sealed record Payoff(bool PaysOff, double? MonthsLeft, long InterestLeftCents, string? PayoffMonth);
 
-public sealed record ExtraPaymentEffect(Payoff Without, Payoff With, double MonthsSaved, long InterestSavedCents);
+/// <param name="MonthsSaved">Null when the extra turns a loan that never pays off into one that does.</param>
+public sealed record ExtraPaymentEffect(Payoff Without, Payoff With, double? MonthsSaved, long InterestSavedCents);
 
 /// <summary>Loans (docs/04-domain-rules.md, "Debt countdown"). The payment is principal and interest only: escrow is not principal.</summary>
 public static class DebtCountdown
@@ -16,7 +17,7 @@ public static class DebtCountdown
     public static Payoff Compute(long balanceCents, int rateBps, long paymentCents, string thisMonth)
     {
         if (balanceCents <= 0) return new Payoff(true, 0, 0, thisMonth);
-        if (paymentCents <= 0) return new Payoff(false, double.PositiveInfinity, 0, null);
+        if (paymentCents <= 0) return new Payoff(false, null, 0, null);
 
         var r = MonthlyRate(rateBps);
         double months;
@@ -27,7 +28,7 @@ public static class DebtCountdown
         else
         {
             var interestOnly = balanceCents * r;
-            if (paymentCents <= interestOnly) return new Payoff(false, double.PositiveInfinity, 0, null);
+            if (paymentCents <= interestOnly) return new Payoff(false, null, 0, null);
             months = -Math.Log(1 - interestOnly / paymentCents) / Math.Log(1 + r);
         }
 
@@ -40,7 +41,7 @@ public static class DebtCountdown
     {
         var without = Compute(balanceCents, rateBps, paymentCents, thisMonth);
         var with = Compute(balanceCents, rateBps, paymentCents + extraCents, thisMonth);
-        var saved = without.PaysOff && with.PaysOff ? without.MonthsLeft - with.MonthsLeft : with.PaysOff ? double.PositiveInfinity : 0;
+        double? saved = without.PaysOff && with.PaysOff ? without.MonthsLeft - with.MonthsLeft : null;
         return new ExtraPaymentEffect(without, with, saved, without.PaysOff && with.PaysOff ? without.InterestLeftCents - with.InterestLeftCents : 0);
     }
 

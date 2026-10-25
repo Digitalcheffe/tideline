@@ -197,7 +197,7 @@ export interface Overview {
     leftOver: Figure
   }
   months: { month: string; in: number; bills: number; required: number; extra: number; oneTime: number; savings: number; leftOver: number }[]
-  plans: unknown[]
+  plans: { id: number; name: string; targetCents: number; targetOn: string; actualCents: number; expectedCents: number; status: 'on_track' | 'wavered' | 'behind' | 'done'; monthsLeft: number; neededPerMonthCents: number; trouble: { month: string; status: string } | null }[]
   flags: { alert: number; warn: number; info: number }
 }
 

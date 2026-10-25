@@ -4,6 +4,10 @@ import { get, send } from '../../api'
 import { Badge, Card, ErrorBox, Loading } from '../../components'
 import { dollars, parseDollars } from '../../format'
 import { Panel, Problem, centsText, useAct } from './common'
+import {
+  LoanFields, RetirementFields, bpsOf, loanBody, loanFrom, loanProblem, percentText, retirementBody, retirementFrom, retirementProblem, validPercent,
+  type LoanStored, type LoanTerms, type RetirementStored, type RetirementTerms,
+} from './TermsFields'
 
 interface AccountRow {
   id: number
@@ -18,6 +22,9 @@ interface AccountRow {
   csvUntilOn: string | null
   notes: string | null
   lineCount: number
+  interestRateBps: number | null
+  loan: LoanStored | null
+  retirement: RetirementStored | null
   card: { isPayInFull: boolean; statementDay: number | null; dueDay: number | null; creditLimitCents: number | null } | null
 }
 
@@ -53,7 +60,7 @@ export function AccountsSettings() {
 
   return (
     <>
-      {editing && <AccountForm key={editing === 'new' ? 'new' : editing.id} account={editing === 'new' ? null : editing} onClose={() => setEditing(null)} />}
+      {editing && <AccountForm key={editing === 'new' ? 'new' : editing.id} account={editing === 'new' ? null : editing} all={accounts.data} onClose={() => setEditing(null)} />}
       <Card
         title="Money accounts"
         aside={
@@ -159,8 +166,12 @@ export function AccountsSettings() {
   )
 }
 
-function AccountForm({ account, onClose }: { account: AccountRow | null; onClose: () => void }) {
+function AccountForm({ account, all, onClose }: { account: AccountRow | null; all: AccountRow[]; onClose: () => void }) {
   const { run, error, busy } = useAct(onClose)
+  const categories = useQuery({ queryKey: ['categories'], queryFn: () => get<{ id: number; name: string }[]>('/categories') })
+  const [loan, setLoan] = useState<LoanTerms>(() => loanFrom(account?.loan))
+  const [retire, setRetire] = useState<RetirementTerms>(() => retirementFrom(account?.retirement))
+  const [rate, setRate] = useState(percentText(account?.interestRateBps))
   const [name, setName] = useState(account?.name ?? '')
   const [kind, setKind] = useState(account?.kind ?? 'checking')
   const [institution, setInstitution] = useState(account?.institution ?? '')
@@ -187,7 +198,13 @@ function AccountForm({ account, onClose }: { account: AccountRow | null; onClose
           ? 'Say which day the opening balance was true.'
           : limitCents === null && limit.trim() !== ''
             ? 'The credit limit is not a money amount.'
-            : null
+            : kind === 'loan'
+              ? loanProblem(loan)
+              : kind === 'retirement'
+                ? retirementProblem(retire)
+                : kind === 'savings' && !validPercent(rate)
+                  ? 'The interest rate is not a percentage.'
+                  : null
 
   const save = () => {
     const card =
@@ -212,6 +229,10 @@ function AccountForm({ account, onClose }: { account: AccountRow | null; onClose
       isClosed: closed,
       notes: notes.trim() || null,
       card,
+      loan: kind === 'loan' ? loanBody(loan) : undefined,
+      retirement: kind === 'retirement' ? retirementBody(retire) : undefined,
+      interestRateBps: kind === 'savings' ? bpsOf(rate) : undefined,
+      clearRate: kind === 'savings' && rate.trim() === '' && account?.interestRateBps != null,
     }
     return run(() => (account ? send('PATCH', `/accounts/${account.id}`, body) : send('POST', '/accounts', body)))
   }
@@ -280,6 +301,21 @@ function AccountForm({ account, onClose }: { account: AccountRow | null; onClose
             </label>
           </>
         )}
+        {kind === 'savings' && (
+          <label>
+            Interest it pays, % a year (used for the Savings projections)
+            <input value={rate} inputMode="decimal" onChange={(e) => setRate(e.target.value)} />
+          </label>
+        )}
+        {kind === 'loan' && (
+          <LoanFields
+            value={loan}
+            onChange={setLoan}
+            categories={categories.data ?? []}
+            assets={all.filter((a) => a.kind === 'asset' && a.id !== account?.id)}
+          />
+        )}
+        {kind === 'retirement' && <RetirementFields value={retire} onChange={setRetire} />}
         <label>
           <span>
             <input type="checkbox" checked={inSpread} onChange={(e) => setInSpread(e.target.checked)} /> Counts in the spread

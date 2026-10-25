@@ -37,11 +37,14 @@ function MeaningForm({ t }: { t: TransactionDetail }) {
   const [payee, setPayee] = useState(t.payee ?? '')
   const [tags, setTags] = useState(t.tags.join(', '))
   const [notes, setNotes] = useState(t.notes ?? '')
+  const [planId, setPlanId] = useState(t.planId ? String(t.planId) : '')
+  const plans = useQuery({ queryKey: ['plans-pick'], queryFn: () => get<{ id: number; name: string; lifecycle: string }[]>('/plans') })
 
   const save = useMutation({
     mutationFn: () =>
       send('PATCH', `/transactions/${t.id}`, {
         version: t.version,
+        planId: planId ? Number(planId) : 0,
         categoryId: categoryId ? Number(categoryId) : 0,
         type,
         payee,
@@ -96,6 +99,19 @@ function MeaningForm({ t }: { t: TransactionDetail }) {
           Tags <span className="muted">(separate with commas)</span>
           <input type="text" value={tags} onChange={(e) => setTags(e.target.value)} />
         </label>
+        {((plans.data?.length ?? 0) > 0 || planId !== '') && (
+          <label>
+            Plan this counts toward
+            <select value={planId} onChange={(e) => setPlanId(e.target.value)}>
+              <option value="">None</option>
+              {plans.data?.filter((p) => p.lifecycle === 'active' || String(p.id) === planId).map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
         <label>
           Notes
           <textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />

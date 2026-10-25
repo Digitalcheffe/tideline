@@ -1,9 +1,12 @@
 import { useQuery } from '@tanstack/react-query'
+import { Link, useSearchParams } from 'react-router-dom'
 import { Bar, CartesianGrid, ComposedChart, Legend, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { get, type Overview as OverviewData } from '../api'
 import { Badge, Card, ErrorBox, Loading, Money, ShareBar, TYPE_COLORS } from '../components'
-import { dollars, shortMonth } from '../format'
+import { dollars, monthLabel, shortMonth } from '../format'
 import type { Period } from '../period'
+import { NetWorth } from './NetWorth'
+import { STATUS_LABEL, STATUS_TONE } from '../phase4'
 
 const ITEMS: { key: 'in' | 'bills' | 'required' | 'extra' | 'oneTime' | 'savings'; label: string }[] = [
   { key: 'in', label: 'In' },
@@ -15,6 +18,14 @@ const ITEMS: { key: 'in' | 'bills' | 'required' | 'extra' | 'oneTime' | 'savings
 ]
 
 export function Overview({ period }: { period: Period }) {
+  const [params, setParams] = useSearchParams()
+  const tab = params.get('tab') === 'networth' ? 'networth' : 'overview'
+  const choose = (next: string) => {
+    const p = new URLSearchParams(params)
+    if (next === 'overview') p.delete('tab')
+    else p.set('tab', next)
+    setParams(p)
+  }
   const { data, error, isLoading } = useQuery({
     queryKey: ['overview', period.from, period.to],
     queryFn: () => get<OverviewData>('/overview', { from: period.from, to: period.to }),
@@ -32,13 +43,18 @@ export function Overview({ period }: { period: Period }) {
     <>
       <h1>Overview</h1>
       <div className="seg" role="tablist" style={{ marginBottom: 12 }}>
-        <button type="button" className="on" role="tab" aria-selected>
+        <button type="button" className={tab === 'overview' ? 'on' : ''} role="tab" aria-selected={tab === 'overview'} onClick={() => choose('overview')}>
           Overview
         </button>
-        <button type="button" role="tab" aria-selected={false} disabled title="Net worth arrives in Phase 4">
+        <button type="button" className={tab === 'networth' ? 'on' : ''} role="tab" aria-selected={tab === 'networth'} onClick={() => choose('networth')}>
           Net worth
         </button>
       </div>
+
+      {tab === 'networth' ? (
+        <NetWorth />
+      ) : (
+        <>
 
       <Card title="Where the money went" aside={`${data.from} to ${data.to}`}>
         {!hasData ? (
@@ -106,8 +122,24 @@ export function Overview({ period }: { period: Period }) {
         </Card>
 
         <div>
-          <Card title="Plans">
-            <p className="muted">No trackable plans yet. Planning arrives in Phase 4.</p>
+          <Card title="Plans" aside={<Link to="/planning">All plans</Link>}>
+            {data.plans.length === 0 ? (
+              <p className="muted">No trackable plans yet. Make one on the Planning screen.</p>
+            ) : (
+              data.plans.map((p) => (
+                <div key={p.id} className="plan-row">
+                  <div className="plan-head">
+                    <Link to="/planning">{p.name}</Link>{' '}
+                    <Badge tone={STATUS_TONE[p.status]}>{STATUS_LABEL[p.status]}</Badge>
+                  </div>
+                  <progress max={p.targetCents} value={Math.min(Math.max(p.actualCents, 0), p.targetCents)} aria-label={`${p.name}: ${dollars(p.actualCents)} of ${dollars(p.targetCents)}`} />
+                  <div className="muted">
+                    {dollars(p.actualCents)} of {dollars(p.targetCents)}
+                    {p.trouble ? ', ' + (p.trouble.status === 'behind' ? 'behind' : 'wavered') + ' in ' + monthLabel(p.trouble.month) : ''}
+                  </div>
+                </div>
+              ))
+            )}
           </Card>
           <Card title="Needs you">
             {data.flags.alert + data.flags.warn + data.flags.info === 0 ? (
@@ -122,6 +154,8 @@ export function Overview({ period }: { period: Period }) {
           </Card>
         </div>
       </div>
+        </>
+      )}
     </>
   )
 }

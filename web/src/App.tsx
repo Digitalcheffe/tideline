@@ -12,6 +12,10 @@ import { Income } from './routes/Income'
 import { Lines } from './routes/Lines'
 import { Coming } from './routes/Coming'
 import { Settings } from './routes/settings/Settings'
+import { Budget } from './routes/Budget'
+import { Planning } from './routes/Planning'
+import { Retirement } from './routes/Retirement'
+import { Savings } from './routes/Savings'
 import { ThemeToggle } from './theme'
 
 const GROUPS: { title: string; items: { to: string; label: string }[] }[] = [
@@ -40,7 +44,7 @@ const GROUPS: { title: string; items: { to: string; label: string }[] }[] = [
 ]
 
 // screens where the period picker does nothing, so it is not shown
-const NO_PERIOD = ['/savings', '/planning', '/budget', '/retirement', '/settings', '/recommendations']
+const NO_PERIOD = ['/savings', '/planning', '/retirement', '/settings', '/recommendations']
 
 function Logo() {
   return (
@@ -150,10 +154,10 @@ function Shell() {
             <Route path="/extra" element={<TypeScreen type="extra" title="Extra" period={period} />} />
             <Route path="/income" element={<Income period={period} />} />
             <Route path="/lines" element={<Lines />} />
-            <Route path="/savings" element={<Coming title="Savings" phase="Phase 4" />} />
-            <Route path="/planning" element={<Coming title="Planning" phase="Phase 4" />} />
-            <Route path="/budget" element={<Coming title="Budget" phase="Phase 4" />} />
-            <Route path="/retirement" element={<Coming title="Retirement" phase="Phase 4" />} />
+            <Route path="/savings" element={<Savings />} />
+            <Route path="/planning" element={<Planning />} />
+            <Route path="/budget" element={<Budget period={period} />} />
+            <Route path="/retirement" element={<Retirement />} />
             <Route path="/recommendations" element={<Coming title="Recommendations" phase="a later phase" />} />
             <Route path="/settings/*" element={<Settings />} />
             <Route path="*" element={<Coming title="Not found" phase="" />} />

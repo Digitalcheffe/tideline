@@ -11,7 +11,7 @@ public class DebtCountdownTests
         var p = DebtCountdown.Compute(2_000_000, 500, 56_900, "2026-10");
 
         p.PaysOff.Should().BeTrue();
-        Math.Round(p.MonthsLeft, 2).Should().Be(38.09);
+        Math.Round(p.MonthsLeft!.Value, 2).Should().Be(38.09);
         p.InterestLeftCents.Should().Be(167_038);
         p.PayoffMonth.Should().Be("2030-01", "this month plus 39, the whole months it takes");
     }
@@ -21,7 +21,7 @@ public class DebtCountdownTests
     {
         var p = DebtCountdown.Compute(2_000_000, 500, 66_900, "2026-10");
 
-        Math.Round(p.MonthsLeft, 2).Should().Be(31.99);
+        Math.Round(p.MonthsLeft!.Value, 2).Should().Be(31.99);
         p.InterestLeftCents.Should().Be(140_429);
     }
 
@@ -30,7 +30,7 @@ public class DebtCountdownTests
     {
         var effect = DebtCountdown.WithExtra(2_000_000, 500, 56_900, 10_000, "2026-10");
 
-        Math.Round(effect.MonthsSaved, 2).Should().Be(6.09);
+        Math.Round(effect.MonthsSaved!.Value, 2).Should().Be(6.09);
         effect.InterestSavedCents.Should().Be(167_038 - 140_429);
     }
 

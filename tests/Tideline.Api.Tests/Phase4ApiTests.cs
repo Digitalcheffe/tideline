@@ -95,6 +95,21 @@ public sealed class Phase4ApiTests : IDisposable
     }
 
     [Fact]
+    public async Task A_loan_whose_payment_does_not_cover_the_interest_says_so_instead_of_failing()
+    {
+        var loan = await NewAccount(new { name = "Hard loan", kind = "loan", loan = new { loanType = "personal", rateBps = 1200, paymentCents = 1_000 } });
+        await Snapshot(loan, "2026-03-01", 1_000_000);
+
+        var l = (await Ok(HttpMethod.Get, "/api/v1/net-worth")).GetProperty("loans")[0];
+
+        l.GetProperty("payoff").GetProperty("paysOff").GetBoolean().Should().BeFalse();
+        l.GetProperty("payoff").GetProperty("payoffMonth").ValueKind.Should().Be(JsonValueKind.Null);
+        var effect = await Ok(HttpMethod.Get, $"/api/v1/loans/{loan}/countdown?extraCents=50000");
+        effect.GetProperty("with").GetProperty("paysOff").GetBoolean().Should().BeTrue();
+        effect.GetProperty("monthsSaved").ValueKind.Should().Be(JsonValueKind.Null);
+    }
+
+    [Fact]
     public async Task An_old_estimate_is_stale_and_every_figure_has_its_date()
     {
         var house = await NewAccount(new { name = "House", kind = "asset" });

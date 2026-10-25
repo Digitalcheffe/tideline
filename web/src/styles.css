@@ -942,3 +942,68 @@ a.btn {
   flex: 1;
   font-size: 0.8rem;
 }
+
+/* Phase 4 */
+.big {
+  font-size: 1.6rem;
+  font-weight: 650;
+}
+
+.grid.cols-4 {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+@media (max-width: 900px) {
+  .grid.cols-4 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.banner {
+  margin: 0 0 12px;
+  padding: 0.5rem 0.8rem;
+  border-radius: 8px;
+  background: var(--info-bg);
+  color: var(--info);
+}
+
+.plan-row {
+  padding: 0.6rem 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.plan-row:last-child {
+  border-bottom: 0;
+}
+
+.plan-row progress {
+  width: 100%;
+  height: 0.7rem;
+  accent-color: var(--accent);
+}
+
+.loan {
+  padding: 0.5rem 0 0.8rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.loan:last-child {
+  border-bottom: 0;
+}
+
+.slider {
+  display: block;
+}
+
+.slider input {
+  width: 100%;
+}
+
+.guide {
+  display: flex;
+  gap: 0.4rem;
+}
+
+.guide input {
+  width: 8rem;
+}

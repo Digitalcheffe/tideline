@@ -8,9 +8,10 @@ gives each line one meaning (income, bill, required, extra, one-time or savings)
 few things that need a person: a bill that did not get paid, a card balance carried over, a plan that
 is slipping.
 
-> **Status:** Phases 1 and 2 are built (import, and the screens with editing and splits). Phase 3 is built and waiting for a check on
-> real devices: sign-in with a mandatory second step, Settings (accounts, categories and tags, recurring, rules with a try-first
-> test, imports, people, sessions, API tokens, logs, backups and export). Progress is tracked in the [GitHub issues](https://github.com/Digitalcheffe/tideline/issues).
+> **Status:** Phases 1 to 4 are built. Phases 1 to 3 (import, the screens with editing, sign-in and Settings) wait on checks against real
+> data and devices. Phase 4 adds Budget, Planning, Savings, Net worth with the loan countdown, and Retirement; its numbers match the
+> spec's test vectors to the cent, and the last check is entering your own loan, asset and retirement figures. Progress is tracked in the
+> [GitHub issues](https://github.com/Digitalcheffe/tideline/issues).
 
 ## Try it (Phase 1)
 

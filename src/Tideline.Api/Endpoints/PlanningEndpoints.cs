@@ -27,7 +27,7 @@ public static class PlanningEndpoints
                 {
                     extraCents = extraCents ?? 0,
                     without = Describe(effect.Without), with = Describe(effect.With),
-                    monthsSaved = double.IsInfinity(effect.MonthsSaved) ? (double?)null : Math.Round(effect.MonthsSaved, 2), interestSavedCents = effect.InterestSavedCents,
+                    monthsSaved = effect.MonthsSaved is { } saved ? Math.Round(saved, 2) : (double?)null, interestSavedCents = effect.InterestSavedCents,
                 })
                 : Results.Problem(title: "Not enough to work with", detail: "Enter the balance, the rate and the monthly payment for this loan first.", statusCode: 422);
         });
@@ -140,6 +140,6 @@ public static class PlanningEndpoints
 
     private static object Describe(Tideline.Core.Payoff p) => new
     {
-        paysOff = p.PaysOff, monthsLeft = p.PaysOff ? Math.Round(p.MonthsLeft, 2) : (double?)null, interestLeftCents = p.InterestLeftCents, payoffMonth = p.PayoffMonth,
+        paysOff = p.PaysOff, monthsLeft = p.MonthsLeft is { } months ? Math.Round(months, 2) : (double?)null, interestLeftCents = p.InterestLeftCents, payoffMonth = p.PayoffMonth,
     };
 }
