@@ -1,0 +1,127 @@
+import { useQuery } from '@tanstack/react-query'
+import { Bar, CartesianGrid, ComposedChart, Legend, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
+import { get, type Overview as OverviewData } from '../api'
+import { Badge, Card, ErrorBox, Loading, Money, ShareBar, TYPE_COLORS } from '../components'
+import { dollars, shortMonth } from '../format'
+import type { Period } from '../period'
+
+const ITEMS: { key: 'in' | 'bills' | 'required' | 'extra' | 'oneTime' | 'savings'; label: string }[] = [
+  { key: 'in', label: 'In' },
+  { key: 'bills', label: 'Bills' },
+  { key: 'required', label: 'Required' },
+  { key: 'extra', label: 'Extra' },
+  { key: 'oneTime', label: 'One-time' },
+  { key: 'savings', label: 'Savings' },
+]
+
+export function Overview({ period }: { period: Period }) {
+  const { data, error, isLoading } = useQuery({
+    queryKey: ['overview', period.from, period.to],
+    queryFn: () => get<OverviewData>('/overview', { from: period.from, to: period.to }),
+  })
+
+  if (isLoading) return <Loading what="the overview" />
+  if (error || !data) return <ErrorBox error={error} />
+
+  const s = data.spread
+  const out = ITEMS.filter((i) => i.key !== 'in')
+  const chart = data.months.map((m) => ({ ...m, label: shortMonth(m.month) }))
+  const hasData = s.in.cents !== 0 || s.out.cents !== 0
+
+  return (
+    <>
+      <h1>Overview</h1>
+      <div className="seg" role="tablist" style={{ marginBottom: 12 }}>
+        <button type="button" className="on" role="tab" aria-selected>
+          Overview
+        </button>
+        <button type="button" role="tab" aria-selected={false} disabled title="Net worth arrives in Phase 4">
+          Net worth
+        </button>
+      </div>
+
+      <Card title="Where the money went" aside={`${data.from} to ${data.to}`}>
+        {!hasData ? (
+          <p className="muted">Nothing in this period yet. Import a bank export, or pick another period.</p>
+        ) : (
+          <>
+            <ShareBar
+              parts={[
+                ...out.map((i) => ({ key: i.key, label: i.label, cents: s[i.key].cents })),
+                { key: 'leftOver', label: 'Left over', cents: s.leftOver.cents },
+              ]}
+            />
+            <div className="spread">
+              <div className="spread-item" style={{ ['--c' as string]: TYPE_COLORS.in }}>
+                <div className="label">In</div>
+                <div className="value">
+                  <Money cents={s.in.cents} drill={s.in.drill} />
+                </div>
+              </div>
+              {out.map((i) => (
+                <div className="spread-item" key={i.key} style={{ ['--c' as string]: TYPE_COLORS[i.key] }}>
+                  <div className="label">{i.label}</div>
+                  <div className="value">
+                    <Money cents={s[i.key].cents} drill={s[i.key].drill} />
+                  </div>
+                </div>
+              ))}
+              <div className="spread-item" style={{ ['--c' as string]: TYPE_COLORS.leftOver }}>
+                <div className="label">Left over</div>
+                <div className="value">
+                  <Money cents={s.leftOver.cents} />
+                </div>
+              </div>
+            </div>
+            <p className="equation">
+              In {dollars(s.in.cents)} = {out.map((i) => `${i.label} ${dollars(s[i.key].cents)}`).join(' + ')} + Left over {dollars(s.leftOver.cents)}
+            </p>
+          </>
+        )}
+      </Card>
+
+      <div className="grid cols-2" style={{ marginTop: 12 }}>
+        <Card title="Monthly spread" aside="Stacked by type; In is the line">
+          {chart.length === 0 ? (
+            <p className="muted">No months with data yet.</p>
+          ) : (
+            <div style={{ width: '100%', height: 260 }}>
+              <ResponsiveContainer>
+                <ComposedChart data={chart} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                  <XAxis dataKey="label" stroke="var(--muted)" />
+                  <YAxis stroke="var(--muted)" tickFormatter={(v: number) => `$${Math.round(v / 100).toLocaleString('en-US')}`} width={64} />
+                  <Tooltip formatter={(v) => dollars(Number(v))} contentStyle={{ background: 'var(--surface)', border: '1px solid var(--border)' }} />
+                  <Legend />
+                  <Bar dataKey="bills" name="Bills" stackId="s" fill={TYPE_COLORS.bills} />
+                  <Bar dataKey="required" name="Required" stackId="s" fill={TYPE_COLORS.required} />
+                  <Bar dataKey="extra" name="Extra" stackId="s" fill={TYPE_COLORS.extra} />
+                  <Bar dataKey="oneTime" name="One-time" stackId="s" fill={TYPE_COLORS.oneTime} />
+                  <Bar dataKey="savings" name="Savings" stackId="s" fill={TYPE_COLORS.savings} />
+                  <Line dataKey="in" name="In" stroke={TYPE_COLORS.in} strokeWidth={2} dot />
+                </ComposedChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+        </Card>
+
+        <div>
+          <Card title="Plans">
+            <p className="muted">No trackable plans yet. Planning arrives in Phase 4.</p>
+          </Card>
+          <Card title="Needs you">
+            {data.flags.alert + data.flags.warn + data.flags.info === 0 ? (
+              <p>
+                <Badge tone="good">All clear</Badge> <span className="muted">Nothing needs your attention.</span>
+              </p>
+            ) : (
+              <p>
+                <Badge tone="bad">{data.flags.alert} alerts</Badge> <Badge tone="warn">{data.flags.warn} warnings</Badge> <Badge tone="info">{data.flags.info} notes</Badge>
+              </p>
+            )}
+          </Card>
+        </div>
+      </div>
+    </>
+  )
+}
