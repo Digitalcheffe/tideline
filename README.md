@@ -8,7 +8,8 @@ gives each line one meaning (income, bill, required, extra, one-time or savings)
 few things that need a person: a bill that did not get paid, a card balance carried over, a plan that
 is slipping.
 
-> **Status:** Phases 1 to 5 are built. Phases 1 to 4 wait on checks against your own data and devices. Phase 5 adds the flag evaluator, messages by
+> **Status:** Phases 1 to 6 are built. Phases 1 to 5 wait on checks against your own data and devices. Phase 6 adds asset ledgers (link a repair or a set
+> of tires to the house or car, see equity and what was put in) and recommendations (suggestions that show while something is flagged). Phase 5 adds the flag evaluator, messages by
 > webhook or email with quiet hours, the monthly summary, and SimpleFIN as a second way in; the SimpleFIN client has only been tried against a stand-in for
 > the real service, so its first real check is the one-month dry run in Settings, Imports. Progress is tracked in the
 > [GitHub issues](https://github.com/Digitalcheffe/tideline/issues).
@@ -90,7 +91,7 @@ account's ledger balance next to the bank's last balance; they should match to t
 3. **Settings and security:** users with mandatory MFA, categories, rules, imports, audit and system logs, backups.
 4. **Budget, planning, savings, net worth, retirement.**
 5. **Notifications and SimpleFIN:** alerts, monthly summary, automatic sync.
-6. **Later:** asset ledgers and recommendations.
+6. **Asset ledgers and recommendations.**
 
 Each phase ends with a gate that is checked against real bank numbers before the next one starts.
 

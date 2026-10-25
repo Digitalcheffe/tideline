@@ -251,7 +251,7 @@ CREATE TABLE transactions (
     move_id             INTEGER REFERENCES moves(id),
     recurring_id        INTEGER REFERENCES recurring(id),
     plan_id             INTEGER REFERENCES plans(id),
-    asset_account_id    INTEGER REFERENCES accounts(id),   -- reserved for asset ledgers (deferred)
+    asset_account_id    INTEGER REFERENCES accounts(id),   -- the asset (house, car) this line was spent on
     rule_id             INTEGER REFERENCES rules(id),      -- rule that last set category/type, NULL = by hand
     is_manual_override  INTEGER NOT NULL DEFAULT 0,        -- 1 = a person set it; rules never overwrite
     is_pending          INTEGER NOT NULL DEFAULT 0,

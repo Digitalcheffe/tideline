@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useMe } from '../auth'
-import { get, send, type CategoryInfo, type TransactionDetail } from '../api'
+import { get, send, type AccountInfo, type CategoryInfo, type TransactionDetail } from '../api'
 import { Badge } from '../components'
 import { dollars, parseDollars, typeLabel } from '../format'
 
@@ -39,12 +39,16 @@ function MeaningForm({ t }: { t: TransactionDetail }) {
   const [notes, setNotes] = useState(t.notes ?? '')
   const [planId, setPlanId] = useState(t.planId ? String(t.planId) : '')
   const plans = useQuery({ queryKey: ['plans-pick'], queryFn: () => get<{ id: number; name: string; lifecycle: string }[]>('/plans') })
+  const [assetId, setAssetId] = useState<string>(t.asset ? String(t.asset.id) : '')
+  const assets = useQuery({ queryKey: ['accounts'], queryFn: () => get<AccountInfo[]>('/accounts') })
+  const assetChoices = assets.data?.filter((a) => a.kind === 'asset') ?? []
 
   const save = useMutation({
     mutationFn: () =>
       send('PATCH', `/transactions/${t.id}`, {
         version: t.version,
         planId: planId ? Number(planId) : 0,
+        assetId: assetId ? Number(assetId) : 0,
         categoryId: categoryId ? Number(categoryId) : 0,
         type,
         payee,
@@ -107,6 +111,19 @@ function MeaningForm({ t }: { t: TransactionDetail }) {
               {plans.data?.filter((p) => p.lifecycle === 'active' || String(p.id) === planId).map((p) => (
                 <option key={p.id} value={p.id}>
                   {p.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+        {(assetChoices.length > 0 || assetId !== '') && (
+          <label>
+            Asset this was spent on
+            <select value={assetId} onChange={(e) => setAssetId(e.target.value)}>
+              <option value="">None</option>
+              {assetChoices.map((a) => (
+                <option key={a.id} value={a.id}>
+                  {a.name}
                 </option>
               ))}
             </select>

@@ -158,6 +158,7 @@ export interface TransactionDetail {
   rule: { id: number; name: string } | null
   recurring: { id: number; name: string } | null
   planId: number | null
+  asset: { id: number; name: string } | null
   moveId: number | null
   movePartner: { transactionId: number; accountName: string; postedOn: string; amountCents: number; description: string } | null
   splits: { id: number; amountCents: number; categoryId: number; categoryName: string; type: string; note: string | null; tags: string[] }[]

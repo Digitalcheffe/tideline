@@ -126,6 +126,14 @@ function Detail({ t }: { t: TransactionDetail }) {
               <dd>{t.recurring.name}</dd>
             </>
           )}
+          {t.asset && (
+            <>
+              <dt>Asset</dt>
+              <dd>
+                <Link to="/assets">{t.asset.name}</Link>
+              </dd>
+            </>
+          )}
           <dt>Set by</dt>
           <dd>
             {t.isManualOverride ? (

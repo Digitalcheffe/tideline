@@ -55,7 +55,7 @@ export function Lines() {
     setParams(next)
   }
 
-  const filterKeys = ['type', 'category', 'account', 'tag', 'review', 'recurring', 'direction', 'q', 'minCents', 'maxCents', 'move']
+  const filterKeys = ['type', 'category', 'account', 'asset', 'tag', 'review', 'recurring', 'direction', 'q', 'minCents', 'maxCents', 'move']
   const filtersActive = filterKeys.some((k) => apiParams.has(k))
   const clearFilters = () => {
     const next = new URLSearchParams(params)
@@ -71,6 +71,7 @@ export function Lines() {
   if (apiParams.get('type')) chips.push(apiParams.get('type')!.split(',').map(typeLabel).join(' or '))
   if (apiParams.get('category')) chips.push(apiParams.get('category')!.split(',').map(categoryName).join(', '))
   if (apiParams.get('account')) chips.push(apiParams.get('account')!.split(',').map(accountName).join(', '))
+  if (apiParams.get('asset')) chips.push(`spent on ${accountName(apiParams.get('asset')!)}`)
   if (apiParams.get('tag')) chips.push(`tagged ${apiParams.get('tag')}`)
   if (apiParams.get('review') === 'true') chips.push('to review')
   if (apiParams.get('recurring')) chips.push(apiParams.get('recurring') === 'none' ? 'not a recurring item' : apiParams.get('recurring') === 'other' ? 'not in a bill row' : 'one recurring item')
@@ -285,9 +286,11 @@ function BulkBar({ ids, categories, onDone }: { ids: number[]; categories: Categ
   const [type, setType] = useState('')
   const [addTags, setAddTags] = useState('')
   const [removeTags, setRemoveTags] = useState('')
+  const [assetId, setAssetId] = useState('')
+  const assetChoices = useQuery({ queryKey: ['accounts'], queryFn: () => get<AccountInfo[]>('/accounts') }).data?.filter((a) => a.kind === 'asset') ?? []
 
   const words = (text: string) => text.split(',').map((x) => x.trim()).filter(Boolean)
-  const nothing = !categoryId && !type && words(addTags).length === 0 && words(removeTags).length === 0
+  const nothing = !categoryId && !type && !assetId && words(addTags).length === 0 && words(removeTags).length === 0
 
   const apply = useMutation({
     mutationFn: () =>
@@ -296,6 +299,7 @@ function BulkBar({ ids, categories, onDone }: { ids: number[]; categories: Categ
         set: {
           categoryId: categoryId ? Number(categoryId) : undefined,
           type: type || undefined,
+          assetId: assetId ? Number(assetId) : undefined,
           addTags: words(addTags),
           removeTags: words(removeTags),
         },
@@ -345,6 +349,17 @@ function BulkBar({ ids, categories, onDone }: { ids: number[]; categories: Categ
           </option>
         ))}
       </select>
+      {assetChoices.length > 0 && (
+        <select aria-label="Set asset" value={assetId} onChange={(e) => setAssetId(e.target.value)}>
+          <option value="">Asset: no change</option>
+          <option value="0">Asset: none</option>
+          {assetChoices.map((a) => (
+            <option key={a.id} value={a.id}>
+              {a.name}
+            </option>
+          ))}
+        </select>
+      )}
       <input type="text" placeholder="Add tags" aria-label="Add tags" value={addTags} onChange={(e) => setAddTags(e.target.value)} />
       <input type="text" placeholder="Remove tags" aria-label="Remove tags" value={removeTags} onChange={(e) => setRemoveTags(e.target.value)} />
       <button className="btn primary" type="submit" disabled={nothing || apply.isPending}>

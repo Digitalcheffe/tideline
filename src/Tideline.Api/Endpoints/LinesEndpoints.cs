@@ -123,12 +123,13 @@ public static class LineFilterParser
         var min = OneLong("minCents");
         var max = OneLong("maxCents");
         var plan = OneLong("plan");
+        var asset = OneLong("asset");
 
         if (errs.Count > 0) return false;
 
         filter = new LineFilter(from!.Value, to!.Value, types, categories, List("tag"), accounts, recurring, recurringNone, plan, move,
             string.Equals(q["review"].ToString(), "true", StringComparison.OrdinalIgnoreCase),
-            q["q"].ToString() is { Length: > 0 } text ? text : null, min, max, sort, direction, recurringOther);
+            q["q"].ToString() is { Length: > 0 } text ? text : null, min, max, sort, direction, recurringOther, asset);
         return true;
     }
 }

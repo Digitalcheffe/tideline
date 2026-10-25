@@ -200,7 +200,7 @@ public sealed partial class GateTests(ITestOutputHelper output) : IDisposable
             name, setType = "extra", conditions = new[] { new { field = "description", op = "contains_any", value = JsonSerializer.SerializeToElement(new[] { text }) } },
         };
 
-        long channel = 0, snapAccount = 0, snapshot = 0, person = 0, plan = 0, account = 0, category = 0, tag = 0, pattern = 0, recurring = 0, rule = 0, manual = 0, token = 0, invited = 0, move = 0;
+        long channel = 0, snapAccount = 0, snapshot = 0, person = 0, plan = 0, account = 0, category = 0, tag = 0, pattern = 0, recurring = 0, rule = 0, manual = 0, token = 0, invited = 0, move = 0, suggestion = 0;
 
         var m1 = _api.AddUser("m1@example.com", "M One", Tideline.Core.Security.Role.Member);
         var m2 = _api.AddUser("m2@example.com", "M Two", Tideline.Core.Security.Role.Member);
@@ -247,6 +247,16 @@ public sealed partial class GateTests(ITestOutputHelper output) : IDisposable
                 await Ok(HttpMethod.Post, "/api/v1/rules/reorder", new { ids = (await _api.Get("/api/v1/rules")).EnumerateArray().Select(r => r.GetProperty("id").GetInt64()).Reverse().ToArray() })),
             new("POST /rules/{id:long}/apply", Kind.Update, "rule.apply", () => Ok(HttpMethod.Post, $"/api/v1/rules/{rule}/apply", new { from = "2026-03-01", to = "2026-03-31" })),
             new("DELETE /rules/{id:long}", Kind.Delete, "rule.deleted", () => Ok(HttpMethod.Delete, $"/api/v1/rules/{rule}")),
+
+            // suggestions on flags
+            new("POST /recommendation-rules", Kind.Create, "recommendation_rule.created", async () => suggestion = (await Ok(HttpMethod.Post, "/api/v1/recommendation-rules", new { name = "Gate suggestion", flagKind = "review_needed", suggestion = "Look at them." }, HttpStatusCode.Created)).GetProperty("id").GetInt64()),
+            new("PATCH /recommendation-rules/{id:long}", Kind.Update, "recommendation_rule.updated", () => Ok(HttpMethod.Patch, $"/api/v1/recommendation-rules/{suggestion}", new { suggestion = "Look at them soon." })),
+            new("POST /recommendations/dismiss", Kind.Update, "recommendation.dismissed", async () =>
+            {
+                _api.Execute("INSERT INTO flags (kind, subject_type, subject_id, period, severity, message, created_at) VALUES ('review_needed', 'category', 1, '2026-03', 'info', 'Lines to review', '2026-04-01T00:00:00Z')");
+                await Ok(HttpMethod.Post, "/api/v1/recommendations/dismiss", new { ruleId = suggestion, flagId = _api.Scalar<long>("SELECT MAX(id) FROM flags") });
+            }),
+            new("DELETE /recommendation-rules/{id:long}", Kind.Delete, "recommendation_rule.deleted", () => Ok(HttpMethod.Delete, $"/api/v1/recommendation-rules/{suggestion}")),
 
             // lines
             new("POST /transactions", Kind.Create, "transaction.create", async () => manual = (await Ok(HttpMethod.Post, "/api/v1/transactions", new { accountId = checking, postedOn = "2026-03-20", amountCents = -1234, description = "GATE CASH", categoryId = groceries, type = "extra" }, HttpStatusCode.Created)).GetProperty("id").GetInt64()),

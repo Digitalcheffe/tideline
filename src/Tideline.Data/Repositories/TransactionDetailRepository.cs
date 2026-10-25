@@ -34,6 +34,8 @@ public sealed record TransactionDetail(
     long? RecurringId,
     string? RecurringName,
     long? PlanId,
+    long? AssetId,
+    string? AssetName,
     long? MoveId,
     MovePartner? MovePartner,
     IReadOnlyList<SplitDetail> Splits,
@@ -67,6 +69,8 @@ public sealed class TransactionDetailRepository(IDbConnection conn, IDbTransacti
         public long? RecurringId { get; set; }
         public string? RecurringName { get; set; }
         public long? PlanId { get; set; }
+        public long? AssetId { get; set; }
+        public string? AssetName { get; set; }
         public long? MoveId { get; set; }
         public string UpdatedAt { get; set; } = "";
     }
@@ -110,10 +114,11 @@ public sealed class TransactionDetailRepository(IDbConnection conn, IDbTransacti
                    t.external_id AS ExternalId, t.source AS Source, t.raw_json AS RawJson, t.payee AS Payee,
                    t.category_id AS CategoryId, c.name AS CategoryName, t.type AS Type, t.notes AS Notes,
                    t.is_manual_override AS IsManualOverride, t.rule_id AS RuleId, r.name AS RuleName,
-                   t.recurring_id AS RecurringId, rc.name AS RecurringName, t.plan_id AS PlanId, t.move_id AS MoveId,
+                   t.recurring_id AS RecurringId, rc.name AS RecurringName, t.plan_id AS PlanId, t.asset_account_id AS AssetId, aa.name AS AssetName, t.move_id AS MoveId,
                    t.updated_at AS UpdatedAt
             FROM transactions t
             JOIN accounts a ON a.id = t.account_id
+            LEFT JOIN accounts aa ON aa.id = t.asset_account_id
             LEFT JOIN categories c ON c.id = t.category_id
             LEFT JOIN rules r ON r.id = t.rule_id
             LEFT JOIN recurring rc ON rc.id = t.recurring_id
@@ -157,7 +162,7 @@ public sealed class TransactionDetailRepository(IDbConnection conn, IDbTransacti
 
         return new TransactionDetail(t.Id, t.AccountId, t.AccountName, t.PostedOn, t.AmountCents, t.OriginalDescription, t.BankBalanceCents,
             t.CheckNumber, t.ExternalId, t.Source, t.RawJson, t.Payee, t.CategoryId, t.CategoryName, t.Type, tags, t.Notes, t.IsManualOverride,
-            t.RuleId, t.RuleName, t.RecurringId, t.RecurringName, t.PlanId, t.MoveId, partner, splits,
+            t.RuleId, t.RuleName, t.RecurringId, t.RecurringName, t.PlanId, t.AssetId, t.AssetName, t.MoveId, partner, splits,
             t.AmountCents - splits.Sum(s => s.AmountCents), Services.TransactionVersion.Of(conn, id, tx), audit);
     }
 }

@@ -29,7 +29,8 @@ public sealed record LineFilter(
     long? MaxCents = null,
     LineSort Sort = LineSort.DateDesc,
     LineDirection Direction = LineDirection.Any,
-    bool RecurringOutsideBills = false);
+    bool RecurringOutsideBills = false,
+    long? AssetId = null);
 
 public sealed record LineItem(
     long TransactionId,
@@ -126,6 +127,7 @@ public sealed class LinesRepository(IDbConnection conn, IDbTransaction? tx = nul
         if (f.RecurringNone) where.Append(" AND e.recurring_id IS NULL");
         if (f.RecurringOutsideBills) where.Append($" AND ({EffectiveSql.OutsideBillRows})");
         if (f.PlanId is { } p) { where.Append(" AND e.plan_id = @plan"); args.Add("plan", p); }
+        if (f.AssetId is { } asset) { where.Append(" AND e.asset_account_id = @asset"); args.Add("asset", asset); }
         if (f.Direction == LineDirection.In) where.Append(" AND e.amount_cents > 0");
         if (f.Direction == LineDirection.Out) where.Append(" AND e.amount_cents < 0");
         if (f.MinCents is { } min) { where.Append(" AND ABS(e.amount_cents) >= @min"); args.Add("min", min); }

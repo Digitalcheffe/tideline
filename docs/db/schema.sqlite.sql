@@ -272,7 +272,7 @@ CREATE TABLE transactions (
     move_id             INTEGER REFERENCES moves(id),
     recurring_id        INTEGER REFERENCES recurring(id),
     plan_id             INTEGER REFERENCES plans(id),
-    asset_account_id    INTEGER REFERENCES accounts(id),   -- reserved for asset ledgers (deferred)
+    asset_account_id    INTEGER REFERENCES accounts(id),   -- the asset (house, car) this line was spent on
     rule_id             INTEGER REFERENCES rules(id),      -- rule that last set category/type, NULL = by hand
     is_manual_override  INTEGER NOT NULL DEFAULT 0,        -- 1 = a person set it; rules never overwrite
     is_pending          INTEGER NOT NULL DEFAULT 0,
@@ -478,3 +478,26 @@ BEGIN SELECT RAISE(ABORT, 'bank fields are read-only'); END;
 CREATE TRIGGER tr_tx_no_delete_imported BEFORE DELETE ON transactions
 WHEN OLD.source <> 'manual'
 BEGIN SELECT RAISE(ABORT, 'imported transactions cannot be deleted'); END;
+
+-- ---------------------------------------------------------------- recommendations (migration M0005, which also adds starter rows)
+CREATE TABLE recommendation_rules (
+    id              INTEGER PRIMARY KEY,
+    name            VARCHAR(100) NOT NULL UNIQUE,
+    flag_kind       VARCHAR(40) NOT NULL,                  -- a kind from docs/04-domain-rules.md, "Flags"
+    min_severity    VARCHAR(8) NOT NULL DEFAULT 'info' CHECK (min_severity IN ('info','warn','alert')),
+    contains        VARCHAR(100),                          -- optional: the flag's text has to contain this
+    suggestion      VARCHAR(600) NOT NULL,
+    is_active       INTEGER NOT NULL DEFAULT 1,
+    sort_order      INTEGER NOT NULL DEFAULT 0,
+    created_at      VARCHAR(32) NOT NULL,
+    updated_at      VARCHAR(32) NOT NULL
+);
+CREATE INDEX ix_reco_rules_kind ON recommendation_rules(flag_kind);
+
+CREATE TABLE recommendation_dismissals (
+    rule_id         INTEGER NOT NULL REFERENCES recommendation_rules(id),
+    flag_id         INTEGER NOT NULL REFERENCES flags(id),
+    dismissed_at    VARCHAR(32) NOT NULL,
+    dismissed_by    INTEGER REFERENCES users(id),
+    PRIMARY KEY (rule_id, flag_id)
+);

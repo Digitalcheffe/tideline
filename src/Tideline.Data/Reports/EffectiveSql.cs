@@ -12,7 +12,7 @@ namespace Tideline.Data.Reports;
 internal static class EffectiveSql
 {
     public const string Columns =
-        "transaction_id, split_line_id, account_id, posted_on, amount_cents, category_id, type, payee, description, notes, recurring_id, plan_id, move_id, is_split_part";
+        "transaction_id, split_line_id, account_id, posted_on, amount_cents, category_id, type, payee, description, notes, recurring_id, plan_id, move_id, is_split_part, asset_account_id";
 
     /// <summary>A line the Bills grid has no row for: no recurring item, or an item whose category is not a bill.</summary>
     public const string OutsideBillRows =
@@ -25,25 +25,26 @@ internal static class EffectiveSql
         effective AS (
             SELECT t.id AS transaction_id, NULL AS split_line_id, t.account_id, t.posted_on,
                    t.amount_cents - COALESCE(ss.s, 0) AS amount_cents, t.category_id, t.type, t.payee,
-                   t.original_description AS description, t.notes, t.recurring_id, t.plan_id, NULL AS move_id, 0 AS is_split_part
+                   t.original_description AS description, t.notes, t.recurring_id, t.plan_id, NULL AS move_id, 0 AS is_split_part,
+                   t.asset_account_id
             FROM transactions t LEFT JOIN split_sums ss ON ss.transaction_id = t.id
             WHERE t.move_id IS NULL AND t.amount_cents - COALESCE(ss.s, 0) <> 0
             UNION ALL
             SELECT sl.transaction_id, sl.id, t.account_id, t.posted_on, sl.amount_cents, sl.category_id, sl.type, t.payee,
-                   t.original_description, COALESCE(sl.note, t.notes), t.recurring_id, t.plan_id, NULL, 1
+                   t.original_description, COALESCE(sl.note, t.notes), t.recurring_id, t.plan_id, NULL, 1, t.asset_account_id
             FROM split_lines sl JOIN transactions t ON t.id = sl.transaction_id
         ),
         savings_legs AS (
             SELECT t.id AS transaction_id, NULL AS split_line_id, t.account_id, t.posted_on, t.amount_cents,
                    NULL AS category_id, 'savings' AS type, t.payee, t.original_description AS description, t.notes,
-                   NULL AS recurring_id, t.plan_id, t.move_id, 0 AS is_split_part
+                   NULL AS recurring_id, t.plan_id, t.move_id, 0 AS is_split_part, NULL AS asset_account_id
             FROM transactions t JOIN moves m ON m.id = t.move_id JOIN accounts a ON a.id = t.account_id
             WHERE m.counts_as = 'savings' AND a.kind <> 'savings'
         ),
         move_legs AS (
             SELECT t.id AS transaction_id, NULL AS split_line_id, t.account_id, t.posted_on, t.amount_cents,
                    NULL AS category_id, NULL AS type, t.payee, t.original_description AS description, t.notes,
-                   NULL AS recurring_id, t.plan_id, t.move_id, 0 AS is_split_part
+                   NULL AS recurring_id, t.plan_id, t.move_id, 0 AS is_split_part, NULL AS asset_account_id
             FROM transactions t WHERE t.move_id IS NOT NULL
         )
         """;

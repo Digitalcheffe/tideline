@@ -42,6 +42,7 @@ public static class TransactionEndpoints
                 rule = t.RuleId is null ? null : new { id = t.RuleId, name = t.RuleName },
                 recurring = t.RecurringId is null ? null : new { id = t.RecurringId, name = t.RecurringName },
                 t.PlanId,
+                asset = t.AssetId is null ? null : new { id = t.AssetId, name = t.AssetName },
                 t.MoveId,
                 t.MovePartner,
                 t.Splits,

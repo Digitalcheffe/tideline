@@ -14,6 +14,8 @@ public sealed record LoanView(
 
 public sealed record EquityView(long AssetId, string AssetName, long AssetCents, string? AssetAsOf, bool AssetStale, long LoanId, string LoanName, long LoanCents, long EquityCents);
 
+public sealed record AssetFigure(long Cents, string AsOf, string Source, bool Stale);
+
 public sealed record NetWorthPoint(string Month, long AssetsCents, long LiabilitiesCents, long NetWorthCents);
 
 public sealed record NetWorthView(
@@ -176,6 +178,10 @@ public sealed class NetWorthReader(IDbConnection conn)
         }
         return points;
     }
+
+    /// <summary>The latest figure for a loan, asset or retirement account on or before a day: what it is worth (or what is owed) and as of when.</summary>
+    public AssetFigure? Figure(long accountId, DateOnly today) =>
+        Latest(accountId, today) is { } s ? new AssetFigure(s.Cents, s.AsOn.ToString("yyyy-MM-dd"), s.Source, IsStale(s, today)) : null;
 
     /// <summary>The countdown for one loan with an extra amount each month: months and interest saved.</summary>
     public ExtraPaymentEffect? Countdown(long loanAccountId, long extraCents, DateOnly today)

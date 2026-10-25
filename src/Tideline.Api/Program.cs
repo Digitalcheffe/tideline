@@ -134,6 +134,8 @@ api.MapSetupEndpoints();
 api.MapImportEndpoints();
 api.MapDataEndpoints();
 api.MapPlanningEndpoints();
+api.MapAssetEndpoints();
+api.MapRecommendationEndpoints();
 api.MapFlagEndpoints();
 api.MapNotifyEndpoints();
 api.MapSimpleFinEndpoints();

@@ -147,9 +147,11 @@ test.describe.serial('smoke', () => {
         headers: { 'X-CSRF-Token': csrf },
         data: { accountId: accounts.find((a) => a.name === account)!.id, postedOn: '2026-03-22', amountCents: cents, description, categoryId: categories[0].id, type: 'extra' },
       })
+    const added: number[] = []
     for (const [account, cents, description] of [['Checking', -7700, 'PAIR ME OUT'], ['Savings', 7700, 'PAIR ME IN']] as const) {
       const response = await add(account, cents, description)
       expect(response.ok(), await response.text()).toBeTruthy()
+      added.push((await response.json()).id)
     }
 
     await page.goto(`/lines?${MARCH}&q=PAIR ME`)
@@ -162,6 +164,9 @@ test.describe.serial('smoke', () => {
     await page.getByRole('button', { name: 'Not a transfer: unpair' }).click()
     await expect(page.getByText('Everything on this account that day')).toBeVisible()
     await expect(page.getByText('Set by')).toBeVisible()
+
+    // lines added by hand move the account balances the Imports page checks against the bank: take them away again
+    for (const id of added) await page.request.delete(`/api/v1/transactions/${id}`, { headers: { 'X-CSRF-Token': csrf } })
   })
 
   test('the phone layout has no sideways scrolling on the Overview', async ({ page }) => {

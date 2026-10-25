@@ -18,6 +18,8 @@ const Settings = lazy(() => import('./routes/settings/Settings').then((m) => ({ 
 const Budget = lazy(() => import('./routes/Budget').then((m) => ({ default: m.Budget })))
 const Planning = lazy(() => import('./routes/Planning').then((m) => ({ default: m.Planning })))
 const Retirement = lazy(() => import('./routes/Retirement').then((m) => ({ default: m.Retirement })))
+const Recommendations = lazy(() => import('./routes/Recommendations').then((m) => ({ default: m.Recommendations })))
+const Assets = lazy(() => import('./routes/Assets').then((m) => ({ default: m.Assets })))
 const Savings = lazy(() => import('./routes/Savings').then((m) => ({ default: m.Savings })))
 
 const GROUPS: { title: string; items: { to: string; label: string }[] }[] = [
@@ -37,16 +39,18 @@ const GROUPS: { title: string; items: { to: string; label: string }[] }[] = [
     title: 'Looking ahead',
     items: [
       { to: '/savings', label: 'Savings' },
+      { to: '/assets', label: 'Assets' },
       { to: '/planning', label: 'Planning' },
       { to: '/budget', label: 'Budget' },
       { to: '/retirement', label: 'Retirement' },
+      { to: '/recommendations', label: 'Recommendations' },
     ],
   },
   { title: 'Detail', items: [{ to: '/lines', label: 'Ledger' }] },
 ]
 
 // screens where the period picker does nothing, so it is not shown
-const NO_PERIOD = ['/savings', '/planning', '/retirement', '/settings', '/recommendations']
+const NO_PERIOD = ['/savings', '/assets', '/planning', '/retirement', '/settings', '/recommendations']
 
 function Logo() {
   return (
@@ -158,10 +162,11 @@ function Shell() {
             <Route path="/income" element={<Income period={period} />} />
             <Route path="/lines" element={<Lines />} />
             <Route path="/savings" element={<Savings />} />
+            <Route path="/assets" element={<Assets />} />
             <Route path="/planning" element={<Planning />} />
             <Route path="/budget" element={<Budget period={period} />} />
             <Route path="/retirement" element={<Retirement />} />
-            <Route path="/recommendations" element={<Coming title="Recommendations" phase="a later phase" />} />
+            <Route path="/recommendations" element={<Recommendations />} />
             <Route path="/settings/*" element={<Settings />} />
             <Route path="*" element={<Coming title="Not found" phase="" />} />
           </Routes>

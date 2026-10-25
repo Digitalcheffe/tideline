@@ -48,3 +48,9 @@ public class M0004_AccountNumbers : ScriptMigration
 {
     protected override string ScriptName => "M0004_AccountNumbers";
 }
+
+[Migration(5, "Recommendations: suggestion rules on flags, and the ones a person has dismissed")]
+public class M0005_Recommendations : ScriptMigration
+{
+    protected override string ScriptName => "M0005_Recommendations";
+}

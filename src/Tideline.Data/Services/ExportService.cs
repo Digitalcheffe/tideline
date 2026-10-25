@@ -40,6 +40,8 @@ public static class ExportService
         ["budget_lines"] = "*",
         ["retirement_goal"] = "*",
         ["flags"] = "*",
+        ["recommendation_rules"] = "*",
+        ["recommendation_dismissals"] = "*",
         ["audit_log"] = "*",
         ["system_events"] = "*",
     };
