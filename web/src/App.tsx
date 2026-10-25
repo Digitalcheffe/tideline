@@ -11,6 +11,7 @@ import { TypeScreen } from './routes/TypeScreen'
 import { Income } from './routes/Income'
 import { Lines } from './routes/Lines'
 import { Coming } from './routes/Coming'
+import { Settings } from './routes/settings/Settings'
 
 const GROUPS: { title: string; items: { to: string; label: string }[] }[] = [
   {
@@ -63,7 +64,7 @@ function Shell() {
   const period = usePeriod()
   const location = useLocation()
   const [menuOpen, setMenuOpen] = useState(false)
-  const showPeriod = !NO_PERIOD.includes(location.pathname)
+  const showPeriod = !NO_PERIOD.some((p) => location.pathname === p || location.pathname.startsWith(`${p}/`))
 
   // the menu closes when you pick a screen
   useEffect(() => setMenuOpen(false), [location.pathname])
@@ -152,7 +153,7 @@ function Shell() {
             <Route path="/budget" element={<Coming title="Budget" phase="Phase 4" />} />
             <Route path="/retirement" element={<Coming title="Retirement" phase="Phase 4" />} />
             <Route path="/recommendations" element={<Coming title="Recommendations" phase="a later phase" />} />
-            <Route path="/settings" element={<Coming title="Settings" phase="Phase 3" />} />
+            <Route path="/settings/*" element={<Settings />} />
             <Route path="*" element={<Coming title="Not found" phase="" />} />
           </Routes>
         </main>

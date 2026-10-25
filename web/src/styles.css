@@ -856,3 +856,58 @@ button.linklike {
   font-size: 0.85rem;
   font-weight: 600;
 }
+
+/* Settings */
+.subnav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  margin-bottom: 1rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.subnav a {
+  padding: 0.45rem 0.8rem;
+  border-radius: 8px 8px 0 0;
+  color: var(--muted);
+  text-decoration: none;
+}
+
+.subnav a.active {
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-bottom-color: var(--surface);
+  margin-bottom: -1px;
+  font-weight: 600;
+}
+
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
+  padding: 0.9rem 1rem;
+  margin-bottom: 1rem;
+  box-shadow: var(--shadow);
+}
+
+.panel fieldset {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  margin: 0.5rem 0;
+}
+
+.panel .split-row {
+  display: flex;
+  gap: 0.4rem;
+  margin-bottom: 0.4rem;
+}
+
+.panel .split-row input {
+  flex: 1;
+}
+
+a.btn {
+  text-decoration: none;
+  display: inline-block;
+}
