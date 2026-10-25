@@ -123,16 +123,20 @@ public sealed class SimpleFinSync(SqliteConnectionFactory factory, ImportPipelin
         var response = await Fetch(() => client.GetAccountsAsync(access, null, null, balancesOnly: true, ct));
 
         using var db = factory.Open();
-        var ours = db.Query<(long Id, string Name, string? Bank, string? Remote)>("SELECT id, name, bank_number, simplefin_account_id FROM accounts WHERE is_closed = 0").ToList();
+        var ours = db.Query<(long Id, string Name, string? Bank, string? Remote)>("SELECT id, name, bank_number_hash, simplefin_account_id FROM accounts WHERE is_closed = 0").ToList();
         return response.Accounts.Select(a =>
         {
             var mapped = ours.FirstOrDefault(o => o.Remote == a.Id);
             var suggestion = mapped.Id != 0 ? (long?)null : ours.FirstOrDefault(o => o.Remote is null && (
-                (o.Bank is { Length: > 0 } && a.Name.Contains(o.Bank, StringComparison.OrdinalIgnoreCase)) ||
+                (o.Bank is { Length: > 0 } && DigitRuns(a.Name).Any(d => AccountNumbers.Keys.Hash(d) == o.Bank)) ||
                 a.Name.Contains(o.Name, StringComparison.OrdinalIgnoreCase))).Id;
             return new RemoteAccount(a.Id, a.Name, a.Organization, a.BalanceCents, mapped.Id != 0 ? mapped.Id : null, mapped.Id != 0 ? mapped.Name : null, suggestion is 0 ? null : suggestion);
         }).ToList();
     }
+
+    /// <summary>Every run of exactly four digits in a name such as "Everyday Checking 1111". Account numbers are only ever compared as keyed hashes.</summary>
+    private static IEnumerable<string> DigitRuns(string name) =>
+        System.Text.RegularExpressions.Regex.Matches(name, @"(?<!d)d{4}(?!d)").Select(m => m.Value);
 
     private static async Task<SfResponse> Fetch(Func<Task<SfResponse>> call)
     {
@@ -143,7 +147,7 @@ public sealed class SimpleFinSync(SqliteConnectionFactory factory, ImportPipelin
     // ---- syncing --------------------------------------------------------------------------------------------------------
 
     private List<Mapped> MappedAccounts(IDbConnection conn) => conn.Query<Mapped>("""
-        SELECT id AS Id, name AS Name, bank_number AS BankNumber, kind AS Kind, simplefin_account_id AS RemoteId, simplefin_from_on AS FromOn
+        SELECT id AS Id, name AS Name, bank_number_hash AS BankNumber, kind AS Kind, simplefin_account_id AS RemoteId, simplefin_from_on AS FromOn
         FROM accounts WHERE simplefin_account_id IS NOT NULL AND is_closed = 0
         """).ToList();
 

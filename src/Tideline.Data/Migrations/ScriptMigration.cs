@@ -42,3 +42,9 @@ public class M0003_AccountRate : ScriptMigration
 {
     protected override string ScriptName => "M0003_AccountRate";
 }
+
+[Migration(4, "Account numbers: a keyed hash and a sealed last 4 instead of digits in plain text")]
+public class M0004_AccountNumbers : ScriptMigration
+{
+    protected override string ScriptName => "M0004_AccountNumbers";
+}

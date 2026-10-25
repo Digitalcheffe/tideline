@@ -64,7 +64,7 @@ public sealed class SetupTests : IDisposable
     {
         await Refused(HttpMethod.Post, "/api/v1/accounts", new { name = "", kind = "checking" }, HttpStatusCode.BadRequest, "name");
         await Refused(HttpMethod.Post, "/api/v1/accounts", new { name = "X", kind = "boat" }, HttpStatusCode.BadRequest, "kind");
-        await Refused(HttpMethod.Post, "/api/v1/accounts", new { name = "X", kind = "checking", bankNumber = "123456789" }, HttpStatusCode.BadRequest, "8 at most");
+        await Refused(HttpMethod.Post, "/api/v1/accounts", new { name = "X", kind = "checking", bankNumber = "123" }, HttpStatusCode.BadRequest, "last 4 digits");
         await Refused(HttpMethod.Post, "/api/v1/accounts", new { name = "X", kind = "checking", openingBalanceCents = 5000 }, HttpStatusCode.BadRequest, "which day");
         await Refused(HttpMethod.Post, "/api/v1/accounts", new { name = "X", kind = "checking", openingBalanceCents = 5000, openingOn = "March" }, HttpStatusCode.BadRequest, "date");
         await Refused(HttpMethod.Post, "/api/v1/accounts", new { name = "X", kind = "credit_card", card = new { dueDay = 40 } }, HttpStatusCode.BadRequest, "due day");

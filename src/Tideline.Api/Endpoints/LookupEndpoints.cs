@@ -1,5 +1,6 @@
 using Dapper;
 using Tideline.Data;
+using Tideline.Data.Security;
 
 namespace Tideline.Api.Endpoints;
 
@@ -22,12 +23,12 @@ public static class LookupEndpoints
 
             return Results.Ok(conn.Query<(long Id, string Name, string Kind, string? Institution, string? BankNumber, long? Opening, DateOnly? OpeningOn, bool InSpread, bool Closed,
                     DateOnly? CsvUntil, string? Notes, int Sort, int? Rate, string? SfinId, DateOnly? SfinFrom, long Lines)>("""
-                SELECT a.id, a.name, a.kind, a.institution, a.bank_number, a.opening_balance_cents, a.opening_on, a.is_in_spread, a.is_closed, a.csv_until_on, a.notes, a.sort_order, a.interest_rate_bps, a.simplefin_account_id, a.simplefin_from_on,
+                SELECT a.id, a.name, a.kind, a.institution, a.bank_number_enc, a.opening_balance_cents, a.opening_on, a.is_in_spread, a.is_closed, a.csv_until_on, a.notes, a.sort_order, a.interest_rate_bps, a.simplefin_account_id, a.simplefin_from_on,
                        (SELECT COUNT(*) FROM transactions t WHERE t.account_id = a.id)
                 FROM accounts a ORDER BY a.sort_order, a.id
                 """).Select(a => new
             {
-                a.Id, a.Name, kind = a.Kind, a.Institution, a.BankNumber,
+                a.Id, a.Name, kind = a.Kind, a.Institution, bankNumberMask = AccountNumbers.MaskFrom(a.BankNumber),
                 openingBalanceCents = a.Opening, openingOn = a.OpeningOn, isInSpread = a.InSpread, isClosed = a.Closed, csvUntilOn = a.CsvUntil, a.Notes, sortOrder = a.Sort, interestRateBps = a.Rate, simplefinAccountId = a.SfinId, simplefinFromOn = a.SfinFrom, lineCount = a.Lines,
                 loan = loans.TryGetValue(a.Id, out var l) ? new { loanType = l.Type, rateBps = l.Rate, paymentCents = l.Payment, escrowCents = l.Escrow, paymentDay = l.Day, originalBalanceCents = l.Original, startOn = l.Start, termMonths = l.Term, paymentCategoryId = l.Category, securedAssetId = l.Secured } : null,
                 retirement = retirement.TryGetValue(a.Id, out var rt) ? new { accountType = rt.Type, employeeMonthlyCents = rt.Employee, employerMonthlyCents = rt.Employer, isIncludedInGoal = rt.Included, pensionAnnualAtRetirementCents = rt.Pension } : null,

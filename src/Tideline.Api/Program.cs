@@ -93,12 +93,23 @@ if (!string.Equals(builder.Configuration["SimpleFin:Enabled"], "false", StringCo
 
 var app = builder.Build();
 
+// account numbers: a keyed hash and a sealed last 4, with the key file beside the other keys
+AccountNumbers.ConfigureOnce(() =>
+{
+    var db = new Microsoft.Data.Sqlite.SqliteConnectionStringBuilder(ConnectionString(app.Configuration)).DataSource;
+    var keys = options.DataProtectionKeys ?? Path.Combine(Path.GetDirectoryName(Path.GetFullPath(db))!, "keys");
+    return AccountNumberKeys.LoadOrCreate(Path.Combine(keys, "account-numbers.key"));
+});
+
 if (!string.Equals(app.Configuration["Database:AutoMigrate"], "false", StringComparison.OrdinalIgnoreCase))
 {
     var connectionString = ConnectionString(app.Configuration);
     var dir = Path.GetDirectoryName(Path.GetFullPath(new Microsoft.Data.Sqlite.SqliteConnectionStringBuilder(connectionString).DataSource));
     if (!string.IsNullOrEmpty(dir)) Directory.CreateDirectory(dir);
     Migrator.MigrateUp(connectionString);
+    using var secure = new SqliteConnectionFactory(connectionString).Open();
+    AccountNumbers.Verify(secure, app.Services.GetRequiredService<TimeProvider>());
+    AccountNumbers.SecureExisting(secure, app.Services.GetRequiredService<TimeProvider>());
 }
 
 var devNoAuth = app.Services.GetRequiredService<TidelineOptions>().DevNoAuth;

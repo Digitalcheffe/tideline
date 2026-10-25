@@ -94,7 +94,6 @@ public sealed class SimpleFinTests : IDisposable
     {
         await Connect();
         Remote("ACT-1", "Everyday Checking 1111", "1895.51", "2026-04-01T12:00:00Z", []);
-        _api.Execute("UPDATE accounts SET bank_number = '1111' WHERE name = 'Checking'");
 
         var remote = await Ok(HttpMethod.Get, "/api/v1/imports/simplefin/accounts");
         remote[0].GetProperty("id").GetString().Should().Be("ACT-1");

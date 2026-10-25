@@ -251,7 +251,7 @@ public sealed class TransactionEditor(IDbConnection conn, TimeProvider clock, Ac
         }
 
         var classifier = LineClassifier.Load(conn, clock, tx);
-        var k = classifier.Classify(new RuleLine(c.OriginalDescription, c.AmountCents, account.BankNumber ?? "", account.Kind), merchant);
+        var k = classifier.Classify(new RuleLine(c.OriginalDescription, c.AmountCents, account.BankNumberHash ?? "", account.Kind), merchant);
 
         var before = Snapshot(id, tx);
         conn.Execute("""

@@ -4,6 +4,7 @@ using Dapper;
 using Tideline.Core;
 using Tideline.Core.Rules;
 using Tideline.Data.Repositories;
+using Tideline.Data.Security;
 using Rule = Tideline.Core.Rules.Rule;
 
 namespace Tideline.Data.Services;
@@ -76,7 +77,8 @@ public sealed class RuleEditor(IDbConnection conn, TimeProvider clock, Actor? ac
         public long LineCount { get; set; }
     }
 
-    public IReadOnlyList<RuleView> List(IDbTransaction? tx = null)
+    /// <param name="display">True for a person to read: an account named in a rule shows as ••••1111. False for the audit log and tests, where it stays the hash.</param>
+    public IReadOnlyList<RuleView> List(IDbTransaction? tx = null, bool display = true)
     {
         TypeHandlers.EnsureRegistered();
         var rules = conn.Query<RuleRow>("""
@@ -93,8 +95,16 @@ public sealed class RuleEditor(IDbConnection conn, TimeProvider clock, Actor? ac
 
         return rules.Select(r => new RuleView(r.Id, r.Name, r.Priority, r.IsActive, r.SetCategoryId, r.SetCategoryName, r.SetType, r.SetPayee, r.SetRecurringId,
             tags[r.Id].Select(t => t.Name).ToList(),
-            conditions[r.Id].Select(c => new RuleConditionView(c.Field, c.Op, JsonDocument.Parse(c.Value).RootElement.Clone())).ToList(),
+            conditions[r.Id].Select(c => new RuleConditionView(c.Field, c.Op, display && c.Field == "account" ? AccountLabel(c.Value, tx) : JsonDocument.Parse(c.Value).RootElement.Clone())).ToList(),
             r.LineCount)).ToList();
+    }
+
+    /// <summary>An account in a rule is kept as a hash; people see it as ••••1111, found through the accounts that carry the same hash.</summary>
+    private JsonElement AccountLabel(string storedJson, IDbTransaction? tx)
+    {
+        var hash = JsonDocument.Parse(storedJson).RootElement.GetString() ?? "";
+        var enc = conn.ExecuteScalar<string?>("SELECT bank_number_enc FROM accounts WHERE bank_number_hash = @hash LIMIT 1", new { hash }, tx);
+        return JsonSerializer.SerializeToElement(AccountNumbers.MaskFrom(enc) ?? "(an account that is not here)");
     }
 
     // ---- writing -------------------------------------------------------------------------------------------------
@@ -124,6 +134,12 @@ public sealed class RuleEditor(IDbConnection conn, TimeProvider clock, Actor? ac
         foreach (var c2 in r.Conditions ?? [])
         {
             var raw = c2.Value.GetRawText();
+            if (c2.Field == "account")
+            {
+                // an account is named by its last 4 digits (or what the page shows, ••••1111); it is kept as a keyed hash
+                var hash = AccountNumbers.RuleValue(c2.Value.ValueKind == JsonValueKind.String ? c2.Value.GetString() : c2.Value.GetRawText());
+                raw = hash is null ? throw Bad("Name an account in a rule by its last 4 digits.") : JsonSerializer.Serialize(hash);
+            }
             try { RuleCondition.From(c2.Field ?? "", c2.Op ?? "", raw); }
             catch (Exception e) when (e is ArgumentException or JsonException or FormatException or InvalidOperationException)
             {
@@ -141,7 +157,7 @@ public sealed class RuleEditor(IDbConnection conn, TimeProvider clock, Actor? ac
         return new Checked(name, priority, r.IsActive ?? true, r.SetCategoryId, type, string.IsNullOrWhiteSpace(r.SetPayee) ? null : r.SetPayee.Trim(), r.SetRecurringId, conditions, tags);
     }
 
-    private object? Snapshot(long id, IDbTransaction tx) => List(tx).FirstOrDefault(r => r.Id == id) is { } v
+    private object? Snapshot(long id, IDbTransaction tx) => List(tx, display: false).FirstOrDefault(r => r.Id == id) is { } v
         ? new { v.Name, v.Priority, v.IsActive, v.SetCategoryId, v.SetType, v.SetPayee, v.SetRecurringId, v.Tags, conditions = v.Conditions.Select(c => new { c.Field, c.Op, value = c.Value.GetRawText() }) }
         : null;
 
@@ -231,7 +247,7 @@ public sealed class RuleEditor(IDbConnection conn, TimeProvider clock, Actor? ac
 
     private List<LineRow> Lines(DateOnly from, DateOnly to, IDbTransaction? tx) => conn.Query<LineRow>("""
         SELECT t.id AS Id, t.posted_on AS PostedOn, t.original_description AS Description, t.amount_cents AS AmountCents, a.name AS AccountName,
-               a.bank_number AS BankNumber, a.kind AS AccountKind, t.raw_json AS RawJson, t.category_id AS CategoryId, c.name AS CategoryName,
+               a.bank_number_hash AS BankNumber, a.kind AS AccountKind, t.raw_json AS RawJson, t.category_id AS CategoryId, c.name AS CategoryName,
                t.type AS Type, t.payee AS Payee, t.rule_id AS RuleId, t.recurring_id AS RecurringId, t.plan_id AS PlanId
         FROM transactions t JOIN accounts a ON a.id = t.account_id LEFT JOIN categories c ON c.id = t.category_id
         WHERE t.move_id IS NULL AND t.is_manual_override = 0 AND t.posted_on BETWEEN @from AND @to

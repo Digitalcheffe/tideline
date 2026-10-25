@@ -88,7 +88,7 @@ CREATE TABLE accounts (
     name                VARCHAR(100) NOT NULL UNIQUE,
     kind                VARCHAR(16) NOT NULL CHECK (kind IN ('checking','savings','credit_card','loan','asset','retirement')),
     institution         VARCHAR(100),
-    bank_number         VARCHAR(8),                        -- last 4, matches CSV file names acct_XXXX_
+    bank_number         VARCHAR(8),                        -- retired: always NULL now; see bank_number_hash and bank_number_enc
     owner_person_id     INTEGER REFERENCES people(id),
     opening_balance_cents INTEGER,                         -- money accounts only; NULL = not known yet
     opening_on          VARCHAR(10),

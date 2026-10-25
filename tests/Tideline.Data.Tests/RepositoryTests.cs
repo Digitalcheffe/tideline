@@ -1,4 +1,5 @@
 using FluentAssertions;
+using Tideline.Data.Security;
 using Microsoft.Data.Sqlite;
 using Tideline.Core;
 using Tideline.Core.Moves;
@@ -55,7 +56,7 @@ public class AccountRepositoryTests : RepositoryTestBase
 
         var a = Accounts.Get(id)!;
 
-        a.Should().Be(new Account(id, "Everyday", AccountKind.CreditCard, "Truist", "2222", 12345, new DateOnly(2026, 1, 1),
+        a.Should().Be(new Account(id, "Everyday", AccountKind.CreditCard, "Truist", AccountNumbers.HashOf("2222"), 12345, new DateOnly(2026, 1, 1),
             false, false, new DateOnly(2026, 6, 30), null));
     }
 

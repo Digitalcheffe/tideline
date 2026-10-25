@@ -1,5 +1,6 @@
 using System.Data;
 using Dapper;
+using Tideline.Data.Security;
 using Tideline.Core;
 using Tideline.Core.Moves;
 using Tideline.Core.Rules;
@@ -19,7 +20,7 @@ internal static class Sql
 public sealed class AccountRepository(IDbConnection conn, TimeProvider clock, IDbTransaction? tx = null)
 {
     private const string Select = """
-        SELECT id AS Id, name AS Name, kind AS Kind, institution AS Institution, bank_number AS BankNumber,
+        SELECT id AS Id, name AS Name, kind AS Kind, institution AS Institution, bank_number_hash AS BankNumberHash,
                opening_balance_cents AS OpeningBalanceCents, opening_on AS OpeningOn, is_in_spread AS IsInSpread,
                is_closed AS IsClosed, csv_until_on AS CsvUntilOn, simplefin_from_on AS SimplefinFromOn
         FROM accounts
@@ -31,7 +32,7 @@ public sealed class AccountRepository(IDbConnection conn, TimeProvider clock, ID
         public string Name { get; set; } = "";
         public string Kind { get; set; } = "";
         public string? Institution { get; set; }
-        public string? BankNumber { get; set; }
+        public string? BankNumberHash { get; set; }
         public long? OpeningBalanceCents { get; set; }
         public DateOnly? OpeningOn { get; set; }
         public bool IsInSpread { get; set; }
@@ -39,21 +40,23 @@ public sealed class AccountRepository(IDbConnection conn, TimeProvider clock, ID
         public DateOnly? CsvUntilOn { get; set; }
         public DateOnly? SimplefinFromOn { get; set; }
 
-        public Account ToAccount() => new(Id, Name, TypeHandlers.FromDb<AccountKind>(Kind), Institution, BankNumber,
+        public Account ToAccount() => new(Id, Name, TypeHandlers.FromDb<AccountKind>(Kind), Institution, BankNumberHash,
             OpeningBalanceCents, OpeningOn, IsInSpread, IsClosed, CsvUntilOn, SimplefinFromOn);
     }
 
     public long Insert(NewAccount a)
     {
         TypeHandlers.EnsureRegistered();
+        var last = AccountNumbers.LastFour(a.BankNumber);
+        if (a.BankNumber is { Length: > 0 } && last is null) throw new ArgumentException("An account number needs at least its last 4 digits.");
         conn.Execute("""
-            INSERT INTO accounts (name, kind, institution, bank_number, opening_balance_cents, opening_on, is_in_spread,
+            INSERT INTO accounts (name, kind, institution, bank_number_hash, bank_number_enc, opening_balance_cents, opening_on, is_in_spread,
                                   csv_until_on, simplefin_from_on, created_at)
-            VALUES (@Name, @Kind, @Institution, @BankNumber, @OpeningBalanceCents, @OpeningOn, @IsInSpread,
+            VALUES (@Name, @Kind, @Institution, @BankHash, @BankEnc, @OpeningBalanceCents, @OpeningOn, @IsInSpread,
                     @CsvUntilOn, @SimplefinFromOn, @Now)
             """, new
         {
-            a.Name, Kind = a.Kind.ToDb(), a.Institution, a.BankNumber, a.OpeningBalanceCents, a.OpeningOn,
+            a.Name, Kind = a.Kind.ToDb(), a.Institution, BankHash = last is null ? null : AccountNumbers.Keys.Hash(last), BankEnc = last is null ? null : AccountNumbers.Keys.Seal(last), a.OpeningBalanceCents, a.OpeningOn,
             IsInSpread = a.IsInSpread ? 1 : 0, a.CsvUntilOn, a.SimplefinFromOn, Now = clock.GetUtcNow(),
         }, tx);
         return conn.ExecuteScalar<long>(Sql.LastInsertId, transaction: tx);
@@ -71,11 +74,13 @@ public sealed class AccountRepository(IDbConnection conn, TimeProvider clock, ID
         return conn.Query<Row>($"{Select} ORDER BY sort_order, id", transaction: tx).Select(r => r.ToAccount()).ToList();
     }
 
-    /// <summary>The account a Truist file belongs to (from <c>acct_NNNN_</c> in its name).</summary>
+    /// <summary>The account a Truist file belongs to (from <c>acct_NNNN_</c> in its name). The digits are turned into the keyed hash; they are never compared as text.</summary>
     public IReadOnlyList<Account> ByBankNumber(string bankNumber)
     {
         TypeHandlers.EnsureRegistered();
-        return conn.Query<Row>($"{Select} WHERE bank_number = @bankNumber", new { bankNumber }, tx).Select(r => r.ToAccount()).ToList();
+        var hash = AccountNumbers.HashOf(bankNumber);
+        if (hash is null) return [];
+        return conn.Query<Row>($"{Select} WHERE bank_number_hash = @hash", new { hash }, tx).Select(r => r.ToAccount()).ToList();
     }
 
     public void SetOpening(long accountId, long balanceCents, DateOnly openingOn)

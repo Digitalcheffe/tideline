@@ -2,6 +2,7 @@ using Dapper;
 using Tideline.Core;
 using Tideline.Data;
 using Tideline.Data.Repositories;
+using Tideline.Data.Security;
 using Tideline.Import;
 
 namespace Tideline.Cli;
@@ -50,13 +51,28 @@ public sealed class CliApp(TextWriter output, TimeProvider clock)
         var command = positional[0];
         var rest = positional.Skip(1).ToList();
 
+        // account numbers are kept as keyed hashes; the key file sits with the other keys, beside the database unless told otherwise
+        AccountNumbers.ConfigureOnce(() => AccountNumberKeys.LoadOrCreate(Path.Combine(options.GetValueOrDefault("keys") ?? BesideDatabase(connectionString, "keys"), "account-numbers.key")));
+
         try
         {
+            if (command is "setup" or "import" or "status" or "lines" or "backup" && File.Exists(new Microsoft.Data.Sqlite.SqliteConnectionStringBuilder(connectionString).DataSource))
+            {
+                using var check = new SqliteConnectionFactory(connectionString).Open();
+                if (command != "backup") AccountNumbers.Verify(check, clock);
+            }
+
             switch (command)
             {
                 case "migrate":
                     EnsureDirectory(connectionString);
                     Migrator.MigrateUp(connectionString);
+                    using (var db = new SqliteConnectionFactory(connectionString).Open())
+                    {
+                        AccountNumbers.Verify(db, clock);
+                        var secured = AccountNumbers.SecureExisting(db, clock);
+                        if (secured > 0) output.WriteLine($"Account numbers: {secured} kept only as a hash and a sealed last 4 digits.");
+                    }
                     output.WriteLine("Database is up to date.");
                     return 0;
                 case "setup":
@@ -251,11 +267,11 @@ public sealed class CliApp(TextWriter output, TimeProvider clock)
     private int Lines(string connectionString, Dictionary<string, string?> options)
     {
         using var conn = new SqliteConnectionFactory(connectionString).Open();
-        var bank = options.GetValueOrDefault("account");
+        var bank = AccountNumbers.HashOf(options.GetValueOrDefault("account")) ?? options.GetValueOrDefault("account")?.Length switch { null => null, _ => "no such account" };
         var rows = conn.Query<(string Posted, long Cents, string Desc, string? Payee, string? Category, string? Type, long? MoveId, string Account)>("""
             SELECT t.posted_on, t.amount_cents, t.original_description, t.payee, c.name, t.type, t.move_id, a.name
             FROM transactions t JOIN accounts a ON a.id = t.account_id LEFT JOIN categories c ON c.id = t.category_id
-            WHERE (@bank IS NULL OR a.bank_number = @bank)
+            WHERE (@bank IS NULL OR a.bank_number_hash = @bank)
             ORDER BY t.posted_on, t.id
             """, new { bank }).ToList();
 

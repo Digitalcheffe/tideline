@@ -14,7 +14,7 @@ interface AccountRow {
   name: string
   kind: string
   institution: string | null
-  bankNumber: string | null
+  bankNumberMask: string | null
   openingBalanceCents: number | null
   openingOn: string | null
   isInSpread: boolean
@@ -93,7 +93,7 @@ export function AccountsSettings() {
                     {a.name} {a.isClosed && <Badge tone="muted">closed</Badge>} {!a.isInSpread && <Badge tone="info">not in the spread</Badge>}
                   </td>
                   <td>{kindLabel(a.kind)}</td>
-                  <td>{a.bankNumber ? `…${a.bankNumber}` : ''}</td>
+                  <td>{a.bankNumberMask ?? ''}</td>
                   <td>{a.openingBalanceCents === null ? <span className="muted">not set</span> : `${dollars(a.openingBalanceCents)} on ${a.openingOn}`}</td>
                   <td>{a.csvUntilOn ?? ''}</td>
                   <td>
@@ -175,7 +175,7 @@ function AccountForm({ account, all, onClose }: { account: AccountRow | null; al
   const [name, setName] = useState(account?.name ?? '')
   const [kind, setKind] = useState(account?.kind ?? 'checking')
   const [institution, setInstitution] = useState(account?.institution ?? '')
-  const [bankNumber, setBankNumber] = useState(account?.bankNumber ?? '')
+  const [bankNumber, setBankNumber] = useState('')
   const [opening, setOpening] = useState(centsText(account?.openingBalanceCents))
   const [openingOn, setOpeningOn] = useState(account?.openingOn ?? '')
   const [csvUntil, setCsvUntil] = useState(account?.csvUntilOn ?? '')
@@ -220,7 +220,8 @@ function AccountForm({ account, all, onClose }: { account: AccountRow | null; al
       name: name.trim(),
       kind,
       institution: institution.trim() || null,
-      bankNumber: bankNumber.trim() || null,
+      // left empty on a change means keep what is there; only the last 4 digits are ever sent or kept
+      bankNumber: bankNumber === '' ? undefined : bankNumber,
       openingBalanceCents: openingCents,
       openingOn: openingCents === null ? null : openingOn,
       clearOpening: account !== null && openingCents === null && account.openingBalanceCents !== null,
@@ -265,8 +266,15 @@ function AccountForm({ account, all, onClose }: { account: AccountRow | null; al
           <input value={institution} onChange={(e) => setInstitution(e.target.value)} />
         </label>
         <label>
-          Last digits of the account number (up to 8)
-          <input value={bankNumber} maxLength={8} onChange={(e) => setBankNumber(e.target.value)} />
+          Last 4 digits of the account number
+          <input
+            value={bankNumber}
+            inputMode="numeric"
+            maxLength={4}
+            placeholder={account?.bankNumberMask ? `${account.bankNumberMask} (leave empty to keep it)` : '1234'}
+            onChange={(e) => setBankNumber(e.target.value.replace(/\D/g, '').slice(-4))}
+          />
+          <span className="muted">Only these 4 digits are kept, and not as digits: Tideline stores a hash to match files and a sealed copy to show you the mask. Type or paste a longer number and the rest is thrown away.</span>
         </label>
         <label>
           Opening balance (leave empty if you do not know it)

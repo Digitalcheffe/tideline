@@ -119,7 +119,7 @@ public sealed class ImportPipeline(SqliteConnectionFactory factory, WriteGate ga
         if (account.Kind is AccountKind.Loan or AccountKind.Asset or AccountKind.Retirement)
             return RecordFailure(conn, label, sha, account.Id, rows.Count, $"Account '{account.Name}' does not take bank lines.", source);
 
-        var file = new TruistFile(label, account.BankNumber ?? "", account.Kind == AccountKind.CreditCard ? TruistFormat.Card : TruistFormat.Deposit, rows);
+        var file = new TruistFile(label, account.BankNumberHash ?? "", account.Kind == AccountKind.CreditCard ? TruistFormat.Card : TruistFormat.Deposit, rows);
         using var tx = conn.BeginTransaction();
         try
         {
@@ -232,7 +232,7 @@ public sealed class ImportPipeline(SqliteConnectionFactory factory, WriteGate ga
             }
             else
             {
-                var c = classifier.Classify(new RuleLine(r.Description, r.AmountCents, file.BankNumber, account.Kind), r.Merchant);
+                var c = classifier.Classify(new RuleLine(r.Description, r.AmountCents, account.BankNumberHash ?? "", account.Kind), r.Merchant);
                 line = line with
                 {
                     Payee = c.Payee,

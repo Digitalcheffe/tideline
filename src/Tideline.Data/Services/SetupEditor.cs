@@ -134,7 +134,8 @@ public sealed class SetupEditor(IDbConnection conn, TimeProvider clock, Actor? a
         public string Name { get; set; } = "";
         public string Kind { get; set; } = "";
         public string? Institution { get; set; }
-        public string? BankNumber { get; set; }
+        public string? BankNumberHash { get; set; }
+        public string? BankNumberEnc { get; set; }
         public long? OpeningBalanceCents { get; set; }
         public DateOnly? OpeningOn { get; set; }
         public bool IsInSpread { get; set; }
@@ -148,7 +149,7 @@ public sealed class SetupEditor(IDbConnection conn, TimeProvider clock, Actor? a
     }
 
     private AccountRow? Account(long id, IDbTransaction tx) => conn.QuerySingleOrDefault<AccountRow>("""
-        SELECT id AS Id, name AS Name, kind AS Kind, institution AS Institution, bank_number AS BankNumber, opening_balance_cents AS OpeningBalanceCents,
+        SELECT id AS Id, name AS Name, kind AS Kind, institution AS Institution, bank_number_hash AS BankNumberHash, bank_number_enc AS BankNumberEnc, opening_balance_cents AS OpeningBalanceCents,
                opening_on AS OpeningOn, is_in_spread AS IsInSpread, is_closed AS IsClosed, csv_until_on AS CsvUntilOn, notes AS Notes, sort_order AS SortOrder, interest_rate_bps AS InterestRateBps,
                simplefin_account_id AS SimplefinAccountId, simplefin_from_on AS SimplefinFromOn
         FROM accounts WHERE id = @id
@@ -163,9 +164,10 @@ public sealed class SetupEditor(IDbConnection conn, TimeProvider clock, Actor? a
             "SELECT loan_type, rate_bps, payment_cents, escrow_cents, payment_day, original_balance_cents, start_on, term_months, payment_category_id, secured_asset_id FROM loan_terms WHERE account_id = @id", new { id }, tx);
         var retirement = conn.QuerySingleOrDefault<(string Type, long Employee, long Employer, bool Included, long? Pension)?>(
             "SELECT account_type, employee_contribution_monthly_cents, employer_contribution_monthly_cents, is_included_in_goal, pension_annual_at_retirement_cents FROM retirement_terms WHERE account_id = @id", new { id }, tx);
+        // accountNumberKey says whether the number changed, without carrying any digits
         return new
         {
-            a.Name, a.Kind, a.Institution, a.BankNumber, a.OpeningBalanceCents, a.OpeningOn, a.IsInSpread, a.IsClosed, a.CsvUntilOn, a.Notes, a.SortOrder, a.InterestRateBps, a.SimplefinAccountId, a.SimplefinFromOn, card,
+            a.Name, a.Kind, a.Institution, accountNumberKey = a.BankNumberHash is { Length: >= 8 } h ? h[..8] : null, a.OpeningBalanceCents, a.OpeningOn, a.IsInSpread, a.IsClosed, a.CsvUntilOn, a.Notes, a.SortOrder, a.InterestRateBps, a.SimplefinAccountId, a.SimplefinFromOn, card,
             loan = loan is { } l ? new { loanType = l.Type, rateBps = l.Rate, paymentCents = l.Payment, escrowCents = l.Escrow, paymentDay = l.Day, originalBalanceCents = l.Original, startOn = l.Start, termMonths = l.Term, paymentCategoryId = l.Category, securedAssetId = l.Secured } : null,
             retirement = retirement is { } r ? new { accountType = r.Type, employeeMonthlyCents = r.Employee, employerMonthlyCents = r.Employer, isIncludedInGoal = r.Included, pensionAnnualAtRetirementCents = r.Pension } : null,
         };
@@ -184,6 +186,14 @@ public sealed class SetupEditor(IDbConnection conn, TimeProvider clock, Actor? a
         conn.Execute("DELETE FROM card_terms WHERE account_id = @accountId", new { accountId }, tx);
         conn.Execute("INSERT INTO card_terms (account_id, is_pay_in_full, statement_day, due_day, credit_limit_cents) VALUES (@accountId, @pay, @statement, @due, @limit)",
             new { accountId, pay = c.IsPayInFull ? 1 : 0, statement = c.StatementDay, due = c.DueDay, limit = c.CreditLimitCents }, tx);
+    }
+
+    /// <summary>Only the last 4 digits are kept, and never as digits: a keyed hash to match files and rules, and a sealed copy to show as ••••1111. Anything before them is thrown away.</summary>
+    private static (string? Hash, string? Sealed) SecureNumber(string? typed)
+    {
+        if (string.IsNullOrWhiteSpace(typed)) return (null, null);
+        var last = AccountNumbers.LastFour(typed) ?? throw Bad("Enter at least the last 4 digits of the account number. Only the last 4 are kept.");
+        return (AccountNumbers.Keys.Hash(last), AccountNumbers.Keys.Seal(last));
     }
 
     private static int? RateOf(int? bps) => bps is < 0 or > 10000 ? throw Bad("The interest rate must be between 0% and 100%.") : bps;
@@ -228,18 +238,18 @@ public sealed class SetupEditor(IDbConnection conn, TimeProvider clock, Actor? a
         var name = Name(a.Name, 100, "account");
         var kind = (a.Kind ?? "").Trim().ToLowerInvariant();
         if (!AccountKinds.Contains(kind)) throw Bad("The kind must be checking, savings, credit_card, loan, asset or retirement.");
-        if (a.BankNumber is { Length: > 8 }) throw Bad("The bank number is the last digits of the account number (8 at most).");
+        var (bankHash, bankEnc) = SecureNumber(a.BankNumber);
         var openingOn = Day(a.OpeningOn, "The opening date");
         if (a.OpeningBalanceCents is not null && openingOn is null) throw Bad("Say which day the opening balance is for.");
         var csvUntil = Day(a.CsvUntilOn, "The CSV cutover date");
 
         var inSpread = a.IsInSpread ?? kind is "checking" or "savings" or "credit_card";
         conn.Execute("""
-            INSERT INTO accounts (name, kind, institution, bank_number, opening_balance_cents, opening_on, is_in_spread, is_closed, sort_order, csv_until_on, notes, interest_rate_bps, created_at)
-            VALUES (@name, @kind, @institution, @bank, @opening, @openingOn, @inSpread, @closed, @sort, @csvUntil, @notes, @rate, @now)
+            INSERT INTO accounts (name, kind, institution, bank_number_hash, bank_number_enc, opening_balance_cents, opening_on, is_in_spread, is_closed, sort_order, csv_until_on, notes, interest_rate_bps, created_at)
+            VALUES (@name, @kind, @institution, @bankHash, @bankEnc, @opening, @openingOn, @inSpread, @closed, @sort, @csvUntil, @notes, @rate, @now)
             """, new
         {
-            name, kind, institution = Blank(a.Institution), bank = Blank(a.BankNumber), opening = a.OpeningBalanceCents, openingOn,
+            name, kind, institution = Blank(a.Institution), bankHash, bankEnc, opening = a.OpeningBalanceCents, openingOn,
             inSpread = inSpread ? 1 : 0, closed = a.IsClosed == true ? 1 : 0, sort = a.SortOrder ?? 0, csvUntil, notes = Blank(a.Notes), rate = RateOf(a.InterestRateBps), now = clock.GetUtcNow(),
         }, tx);
         var id = conn.ExecuteScalar<long>(Sql.LastInsertId, transaction: tx);
@@ -256,7 +266,8 @@ public sealed class SetupEditor(IDbConnection conn, TimeProvider clock, Actor? a
         var before = AccountSnapshot(id, tx);
 
         var name = a.Name is null ? current.Name : Name(a.Name, 100, "account");
-        if (a.BankNumber is { Length: > 8 }) throw Bad("The bank number is the last digits of the account number (8 at most).");
+        // not sent: leave it; sent empty: clear it; sent digits: keep only the last 4, as a hash and a sealed copy
+        var (bankHash, bankEnc) = a.BankNumber is null ? (current.BankNumberHash, current.BankNumberEnc) : SecureNumber(a.BankNumber);
         DateOnly? openingOn = a.OpeningOn is null ? current.OpeningOn : Day(a.OpeningOn, "The opening date");
         var opening = a.ClearOpening ? null : a.OpeningBalanceCents ?? current.OpeningBalanceCents;
         if (a.ClearOpening) openingOn = null;
@@ -270,13 +281,13 @@ public sealed class SetupEditor(IDbConnection conn, TimeProvider clock, Actor? a
         if (sfin is not null && sfinFrom is null) throw Bad("Say the day SimpleFIN takes over from the CSV files, so the two do not overlap.");
 
         conn.Execute("""
-            UPDATE accounts SET name = @name, institution = @institution, bank_number = @bank, opening_balance_cents = @opening, opening_on = @openingOn,
+            UPDATE accounts SET name = @name, institution = @institution, bank_number_hash = @bankHash, bank_number_enc = @bankEnc, opening_balance_cents = @opening, opening_on = @openingOn,
                 is_in_spread = @inSpread, is_closed = @closed, sort_order = @sort, csv_until_on = @csvUntil, notes = @notes, interest_rate_bps = @rate,
                 simplefin_account_id = @sfin, simplefin_from_on = @sfinFrom
             WHERE id = @id
             """, new
         {
-            id, name, institution = a.Institution is null ? current.Institution : Blank(a.Institution), bank = a.BankNumber is null ? current.BankNumber : Blank(a.BankNumber),
+            id, name, institution = a.Institution is null ? current.Institution : Blank(a.Institution), bankHash, bankEnc,
             opening, openingOn, inSpread = (a.IsInSpread ?? current.IsInSpread) ? 1 : 0, closed = (a.IsClosed ?? current.IsClosed) ? 1 : 0,
             sort = a.SortOrder ?? current.SortOrder, csvUntil, notes = a.Notes is null ? current.Notes : Blank(a.Notes),
             rate = a.ClearRate ? null : RateOf(a.InterestRateBps) ?? current.InterestRateBps,

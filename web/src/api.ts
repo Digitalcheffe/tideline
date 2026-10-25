@@ -173,7 +173,8 @@ export interface AccountInfo {
   name: string
   kind: string
   institution: string | null
-  bankNumber: string | null
+  /** Only ever the last 4 digits, as ••••1111 */
+  bankNumberMask: string | null
 }
 export interface CategoryInfo {
   id: number

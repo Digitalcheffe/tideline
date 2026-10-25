@@ -9,7 +9,7 @@ public sealed record Account(
     string Name,
     AccountKind Kind,
     string? Institution,
-    string? BankNumber,
+    string? BankNumberHash,
     long? OpeningBalanceCents,
     DateOnly? OpeningOn,
     bool IsInSpread,
