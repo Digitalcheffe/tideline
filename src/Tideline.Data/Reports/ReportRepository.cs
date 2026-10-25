@@ -78,6 +78,38 @@ public sealed class ReportRepository(IDbConnection conn, IDbTransaction? tx = nu
             .Select(r => new CategoryMonthTotal(r.Id, r.Month, r.Cents)).ToList();
     }
 
+    /// <summary>What was spent per category per month, across bills, required, extra and one-time: what a budget guideline is measured against.</summary>
+    public IReadOnlyList<CategoryMonthTotal> SpendByCategoryMonth(DateOnly start, DateOnly end)
+    {
+        TypeHandlers.EnsureRegistered();
+        return conn.Query<(long Id, string Month, long Cents)>($"""
+            {SpreadLines}
+            SELECT COALESCE(e.category_id, 0), SUBSTR(e.posted_on, 1, 7), SUM(-e.amount_cents)
+            FROM effective e JOIN accounts a ON a.id = e.account_id
+            WHERE e.type IN ('bill', 'required', 'extra', 'one_time') AND a.is_in_spread = 1 AND e.posted_on BETWEEN @start AND @end
+            GROUP BY COALESCE(e.category_id, 0), SUBSTR(e.posted_on, 1, 7)
+            ORDER BY 1, 2
+            """, new { start, end }, tx)
+            .Select(r => new CategoryMonthTotal(r.Id, r.Month, r.Cents)).ToList();
+    }
+
+    public sealed record PlanSaved(long PlanId, string Month, long Cents);
+
+    /// <summary>Savings lines and savings-move legs linked to a plan, per plan per month, as money put aside (positive).</summary>
+    public IReadOnlyList<PlanSaved> SavedToPlansByMonth(DateOnly end)
+    {
+        TypeHandlers.EnsureRegistered();
+        return conn.Query<(long PlanId, string Month, long Cents)>($"""
+            {SpreadLines}
+            SELECT e.plan_id, SUBSTR(e.posted_on, 1, 7), SUM(-e.amount_cents)
+            FROM counted e
+            WHERE e.type = 'savings' AND e.plan_id IS NOT NULL AND e.posted_on <= @end
+            GROUP BY e.plan_id, SUBSTR(e.posted_on, 1, 7)
+            ORDER BY 1, 2
+            """, new { end }, tx)
+            .Select(r => new PlanSaved(r.PlanId, r.Month, r.Cents)).ToList();
+    }
+
     public IReadOnlyList<PayeeTotal> TopPayees(LineType type, DateOnly start, DateOnly end, int limit = 10)
     {
         TypeHandlers.EnsureRegistered();

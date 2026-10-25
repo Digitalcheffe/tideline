@@ -97,6 +97,7 @@ api.MapAdminEndpoints();
 api.MapSetupEndpoints();
 api.MapImportEndpoints();
 api.MapDataEndpoints();
+api.MapPlanningEndpoints();
 api.MapLookupEndpoints();
 api.MapLinesEndpoints();
 api.MapScreenEndpoints();

@@ -175,7 +175,7 @@ public sealed partial class GateTests(ITestOutputHelper output) : IDisposable
     private sealed record Case(string Key, Kind Kind, string Action, Func<Task> Act);
 
     /// <summary>The routes that change nothing, so they have nothing to audit.</summary>
-    private static readonly string[] ReadOnlyPosts = ["POST /rules/test"];
+    private static readonly string[] ReadOnlyPosts = ["POST /rules/test", "POST /budgets/{year:int}/fill-from-averages"];
 
     private long Id(string table, string name) => _api.Scalar<long>($"SELECT id FROM {table} WHERE name = @name", new { name });
 
@@ -200,7 +200,7 @@ public sealed partial class GateTests(ITestOutputHelper output) : IDisposable
             name, setType = "extra", conditions = new[] { new { field = "description", op = "contains_any", value = JsonSerializer.SerializeToElement(new[] { text }) } },
         };
 
-        long account = 0, category = 0, tag = 0, pattern = 0, recurring = 0, rule = 0, manual = 0, token = 0, invited = 0;
+        long snapAccount = 0, snapshot = 0, person = 0, plan = 0, account = 0, category = 0, tag = 0, pattern = 0, recurring = 0, rule = 0, manual = 0, token = 0, invited = 0;
 
         var m1 = _api.AddUser("m1@example.com", "M One", Tideline.Core.Security.Role.Member);
         var m2 = _api.AddUser("m2@example.com", "M Two", Tideline.Core.Security.Role.Member);
@@ -267,6 +267,20 @@ public sealed partial class GateTests(ITestOutputHelper output) : IDisposable
             new("POST /users/{id:long}/sessions/revoke-all", Kind.Event, "session.revoked_all", () => Ok(HttpMethod.Post, $"/api/v1/users/{m1.Id}/sessions/revoke-all")),
             new("POST /tokens", Kind.Create, "token.created", async () => token = (await Ok(HttpMethod.Post, "/api/v1/tokens", new { name = "Gate token", scope = "read" }, HttpStatusCode.Created)).GetProperty("record").GetProperty("id").GetInt64()),
             new("DELETE /tokens/{id:long}", Kind.Delete, "token.revoked", () => Ok(HttpMethod.Delete, $"/api/v1/tokens/{token}")),
+
+            // net worth, retirement, plans and budget
+            new("POST /accounts/{id:long}/snapshots", Kind.Create, "snapshot.saved", async () =>
+            {
+                snapAccount = (await Ok(HttpMethod.Post, "/api/v1/accounts", new { name = "Gate house", kind = "asset" }, HttpStatusCode.Created)).GetProperty("id").GetInt64();
+                snapshot = (await Ok(HttpMethod.Post, $"/api/v1/accounts/{snapAccount}/snapshots", new { asOn = "2026-03-01", balanceCents = 100 }, HttpStatusCode.Created)).GetProperty("id").GetInt64();
+            }),
+            new("DELETE /accounts/{id:long}/snapshots/{snapshotId:long}", Kind.Delete, "snapshot.deleted", () => Ok(HttpMethod.Delete, $"/api/v1/accounts/{snapAccount}/snapshots/{snapshot}")),
+            new("POST /people", Kind.Create, "person.created", async () => person = (await Ok(HttpMethod.Post, "/api/v1/people", new { name = "Gate person", retireAge = 65 }, HttpStatusCode.Created)).GetProperty("id").GetInt64()),
+            new("PATCH /people/{id:long}", Kind.Update, "person.updated", () => Ok(HttpMethod.Patch, $"/api/v1/people/{person}", new { retireAge = 67 })),
+            new("PUT /retirement/goal", Kind.Create, "retirement_goal.saved", () => Ok(HttpMethod.Put, "/api/v1/retirement/goal", new { goalAnnualIncomeTodayCents = 8_000_000 })),
+            new("POST /plans", Kind.Create, "plan.created", async () => plan = (await Ok(HttpMethod.Post, "/api/v1/plans", new { name = "Gate plan", targetCents = 1_000, targetOn = "2027-01-01" }, HttpStatusCode.Created)).GetProperty("id").GetInt64()),
+            new("PATCH /plans/{id:long}", Kind.Update, "plan.updated", () => Ok(HttpMethod.Patch, $"/api/v1/plans/{plan}", new { targetCents = 2_000 })),
+            new("PUT /budgets/{year:int}", Kind.Create, "budget.saved", () => Ok(HttpMethod.Put, "/api/v1/budgets/2026", new { expectedIncomeCents = 1 })),
 
             // data in and out
             new("POST /backups", Kind.Create, "backup.created", () => Ok(HttpMethod.Post, "/api/v1/backups")),

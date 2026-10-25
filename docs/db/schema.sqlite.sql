@@ -121,7 +121,7 @@ CREATE TABLE accounts (
     simplefin_from_on   VARCHAR(10),                       -- cutover: SimpleFIN rows before this date are ignored
     notes               TEXT,
     created_at          VARCHAR(32) NOT NULL
-);
+, interest_rate_bps INTEGER);
 CREATE UNIQUE INDEX ux_accounts_bank_number ON accounts(institution, bank_number);
 
 CREATE TABLE card_terms (

@@ -86,7 +86,11 @@ public static class ScreenEndpoints
                 @out = new Figure(spread.OutCents, null), leftOver = new Figure(spread.LeftOverCents, null),
             },
             months,
-            plans = Array.Empty<object>(),
+            plans = new PlanReader(conn).Read(clock.Today).Where(p => p.IsTrackable && p.Lifecycle != "cancelled").Select(p => new
+            {
+                p.Id, p.Name, p.TargetCents, p.TargetOn, p.ActualCents, p.ExpectedCents, p.Status, p.MonthsLeft, p.NeededPerMonthCents,
+                trouble = p.Trouble is { } t ? new { t.Month, t.Status } : null,
+            }),
             flags = new { alert = 0, warn = 0, info = 0 },
         });
     }

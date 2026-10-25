@@ -10,6 +10,25 @@ namespace Tideline.Data.Services;
 
 public sealed record CardInput(bool IsPayInFull = true, int? StatementDay = null, int? DueDay = null, long? CreditLimitCents = null);
 
+public sealed record LoanInput(
+    string? LoanType = null,
+    int? RateBps = null,
+    long? PaymentCents = null,
+    long? EscrowCents = null,
+    int? PaymentDay = null,
+    long? OriginalBalanceCents = null,
+    string? StartOn = null,
+    int? TermMonths = null,
+    long? PaymentCategoryId = null,
+    long? SecuredAssetId = null);
+
+public sealed record RetirementInput(
+    string? AccountType = null,
+    long? EmployeeMonthlyCents = null,
+    long? EmployerMonthlyCents = null,
+    bool? IsIncludedInGoal = null,
+    long? PensionAnnualAtRetirementCents = null);
+
 public sealed record AccountInput(
     string? Name,
     string? Kind,
@@ -23,7 +42,11 @@ public sealed record AccountInput(
     string? Notes = null,
     int? SortOrder = null,
     bool ClearOpening = false,
-    CardInput? Card = null);
+    CardInput? Card = null,
+    LoanInput? Loan = null,
+    RetirementInput? Retirement = null,
+    int? InterestRateBps = null,
+    bool ClearRate = false);
 
 public sealed record PatternInput(long FromAccountId, string? FromContains, long ToAccountId, string? ToContains, int? MaxDaysApart = null);
 
@@ -116,11 +139,12 @@ public sealed class SetupEditor(IDbConnection conn, TimeProvider clock, Actor? a
         public DateOnly? CsvUntilOn { get; set; }
         public string? Notes { get; set; }
         public int SortOrder { get; set; }
+        public int? InterestRateBps { get; set; }
     }
 
     private AccountRow? Account(long id, IDbTransaction tx) => conn.QuerySingleOrDefault<AccountRow>("""
         SELECT id AS Id, name AS Name, kind AS Kind, institution AS Institution, bank_number AS BankNumber, opening_balance_cents AS OpeningBalanceCents,
-               opening_on AS OpeningOn, is_in_spread AS IsInSpread, is_closed AS IsClosed, csv_until_on AS CsvUntilOn, notes AS Notes, sort_order AS SortOrder
+               opening_on AS OpeningOn, is_in_spread AS IsInSpread, is_closed AS IsClosed, csv_until_on AS CsvUntilOn, notes AS Notes, sort_order AS SortOrder, interest_rate_bps AS InterestRateBps
         FROM accounts WHERE id = @id
         """, new { id }, tx);
 
@@ -129,7 +153,16 @@ public sealed class SetupEditor(IDbConnection conn, TimeProvider clock, Actor? a
         var a = Account(id, tx)!;
         var terms = conn.QuerySingleOrDefault<(bool Pay, int? Statement, int? Due, long? Limit)?>("SELECT is_pay_in_full, statement_day, due_day, credit_limit_cents FROM card_terms WHERE account_id = @id", new { id }, tx);
         var card = terms is { } t ? new { isPayInFull = t.Pay, statementDay = t.Statement, dueDay = t.Due, creditLimitCents = t.Limit } : null;
-        return new { a.Name, a.Kind, a.Institution, a.BankNumber, a.OpeningBalanceCents, a.OpeningOn, a.IsInSpread, a.IsClosed, a.CsvUntilOn, a.Notes, a.SortOrder, card };
+        var loan = conn.QuerySingleOrDefault<(string Type, int? Rate, long? Payment, long? Escrow, int? Day, long? Original, string? Start, int? Term, long? Category, long? Secured)?>(
+            "SELECT loan_type, rate_bps, payment_cents, escrow_cents, payment_day, original_balance_cents, start_on, term_months, payment_category_id, secured_asset_id FROM loan_terms WHERE account_id = @id", new { id }, tx);
+        var retirement = conn.QuerySingleOrDefault<(string Type, long Employee, long Employer, bool Included, long? Pension)?>(
+            "SELECT account_type, employee_contribution_monthly_cents, employer_contribution_monthly_cents, is_included_in_goal, pension_annual_at_retirement_cents FROM retirement_terms WHERE account_id = @id", new { id }, tx);
+        return new
+        {
+            a.Name, a.Kind, a.Institution, a.BankNumber, a.OpeningBalanceCents, a.OpeningOn, a.IsInSpread, a.IsClosed, a.CsvUntilOn, a.Notes, a.SortOrder, a.InterestRateBps, card,
+            loan = loan is { } l ? new { loanType = l.Type, rateBps = l.Rate, paymentCents = l.Payment, escrowCents = l.Escrow, paymentDay = l.Day, originalBalanceCents = l.Original, startOn = l.Start, termMonths = l.Term, paymentCategoryId = l.Category, securedAssetId = l.Secured } : null,
+            retirement = retirement is { } r ? new { accountType = r.Type, employeeMonthlyCents = r.Employee, employerMonthlyCents = r.Employer, isIncludedInGoal = r.Included, pensionAnnualAtRetirementCents = r.Pension } : null,
+        };
     }
 
     private static void CheckCard(CardInput c)
@@ -147,6 +180,43 @@ public sealed class SetupEditor(IDbConnection conn, TimeProvider clock, Actor? a
             new { accountId, pay = c.IsPayInFull ? 1 : 0, statement = c.StatementDay, due = c.DueDay, limit = c.CreditLimitCents }, tx);
     }
 
+    private static int? RateOf(int? bps) => bps is < 0 or > 10000 ? throw Bad("The interest rate must be between 0% and 100%.") : bps;
+
+    private bool Exists(string table, long id, IDbTransaction tx) => conn.ExecuteScalar<long>($"SELECT COUNT(*) FROM {table} WHERE id = @id", new { id }, tx) > 0;
+
+    private static readonly string[] LoanTypes = ["mortgage", "auto", "student", "personal", "family", "other"];
+    private static readonly string[] RetirementTypes = ["401k", "403b", "457", "ira", "roth_ira", "pension", "hsa", "brokerage", "other"];
+
+    private void SaveLoan(long accountId, LoanInput l, IDbTransaction tx)
+    {
+        var type = (l.LoanType ?? "other").Trim().ToLowerInvariant();
+        if (!LoanTypes.Contains(type)) throw Bad("The loan type must be mortgage, auto, student, personal, family or other.");
+        if (l.RateBps is < 0 or > 10000 * 3) throw Bad("The interest rate must be between 0% and 300%.");
+        if (l.PaymentCents is < 0 || l.EscrowCents is < 0 || l.OriginalBalanceCents is < 0) throw Bad("Amounts cannot be negative.");
+        if (l.PaymentDay is < 1 or > 31) throw Bad("The payment day must be between 1 and 31.");
+        if (l.TermMonths is < 1 or > 1200) throw Bad("The term is a number of months, 1 to 1200.");
+        var start = Day(l.StartOn, "The start date");
+        if (l.PaymentCategoryId is { } c && !Exists("categories", c, tx)) throw Bad("That payment category does not exist.");
+        if (l.SecuredAssetId is { } s && (s == accountId || !Exists("accounts", s, tx))) throw Bad("The secured asset must be a different, existing account.");
+        conn.Execute("DELETE FROM loan_terms WHERE account_id = @accountId", new { accountId }, tx);
+        conn.Execute("""
+            INSERT INTO loan_terms (account_id, loan_type, rate_bps, payment_cents, escrow_cents, payment_day, original_balance_cents, start_on, term_months, payment_category_id, secured_asset_id)
+            VALUES (@accountId, @type, @rate, @payment, @escrow, @day, @original, @start, @term, @category, @secured)
+            """, new { accountId, type, rate = l.RateBps, payment = l.PaymentCents, escrow = l.EscrowCents, day = l.PaymentDay, original = l.OriginalBalanceCents, start, term = l.TermMonths, category = l.PaymentCategoryId, secured = l.SecuredAssetId }, tx);
+    }
+
+    private void SaveRetirement(long accountId, RetirementInput r, IDbTransaction tx)
+    {
+        var type = (r.AccountType ?? "other").Trim().ToLowerInvariant();
+        if (!RetirementTypes.Contains(type)) throw Bad("The account type must be 401k, 403b, 457, ira, roth_ira, pension, hsa, brokerage or other.");
+        if (r.EmployeeMonthlyCents is < 0 || r.EmployerMonthlyCents is < 0 || r.PensionAnnualAtRetirementCents is < 0) throw Bad("Amounts cannot be negative.");
+        conn.Execute("DELETE FROM retirement_terms WHERE account_id = @accountId", new { accountId }, tx);
+        conn.Execute("""
+            INSERT INTO retirement_terms (account_id, account_type, employee_contribution_monthly_cents, employer_contribution_monthly_cents, is_included_in_goal, pension_annual_at_retirement_cents)
+            VALUES (@accountId, @type, @employee, @employer, @included, @pension)
+            """, new { accountId, type, employee = r.EmployeeMonthlyCents ?? 0, employer = r.EmployerMonthlyCents ?? 0, included = (r.IsIncludedInGoal ?? true) ? 1 : 0, pension = r.PensionAnnualAtRetirementCents }, tx);
+    }
+
     public long CreateAccount(AccountInput a) => InTransaction((tx, audit) =>
     {
         var name = Name(a.Name, 100, "account");
@@ -159,15 +229,17 @@ public sealed class SetupEditor(IDbConnection conn, TimeProvider clock, Actor? a
 
         var inSpread = a.IsInSpread ?? kind is "checking" or "savings" or "credit_card";
         conn.Execute("""
-            INSERT INTO accounts (name, kind, institution, bank_number, opening_balance_cents, opening_on, is_in_spread, is_closed, sort_order, csv_until_on, notes, created_at)
-            VALUES (@name, @kind, @institution, @bank, @opening, @openingOn, @inSpread, @closed, @sort, @csvUntil, @notes, @now)
+            INSERT INTO accounts (name, kind, institution, bank_number, opening_balance_cents, opening_on, is_in_spread, is_closed, sort_order, csv_until_on, notes, interest_rate_bps, created_at)
+            VALUES (@name, @kind, @institution, @bank, @opening, @openingOn, @inSpread, @closed, @sort, @csvUntil, @notes, @rate, @now)
             """, new
         {
             name, kind, institution = Blank(a.Institution), bank = Blank(a.BankNumber), opening = a.OpeningBalanceCents, openingOn,
-            inSpread = inSpread ? 1 : 0, closed = a.IsClosed == true ? 1 : 0, sort = a.SortOrder ?? 0, csvUntil, notes = Blank(a.Notes), now = clock.GetUtcNow(),
+            inSpread = inSpread ? 1 : 0, closed = a.IsClosed == true ? 1 : 0, sort = a.SortOrder ?? 0, csvUntil, notes = Blank(a.Notes), rate = RateOf(a.InterestRateBps), now = clock.GetUtcNow(),
         }, tx);
         var id = conn.ExecuteScalar<long>(Sql.LastInsertId, transaction: tx);
         if (kind == "credit_card") SaveCard(id, a.Card ?? new CardInput(), tx);
+        if (kind == "loan") { SaveLoan(id, a.Loan ?? new LoanInput(), tx); LoanTracker.Refresh(conn, clock, tx); }
+        if (kind == "retirement") SaveRetirement(id, a.Retirement ?? new RetirementInput(), tx);
         audit.Write("account.created", "account", id, null, AccountSnapshot(id, tx));
         return id;
     });
@@ -187,18 +259,30 @@ public sealed class SetupEditor(IDbConnection conn, TimeProvider clock, Actor? a
 
         conn.Execute("""
             UPDATE accounts SET name = @name, institution = @institution, bank_number = @bank, opening_balance_cents = @opening, opening_on = @openingOn,
-                is_in_spread = @inSpread, is_closed = @closed, sort_order = @sort, csv_until_on = @csvUntil, notes = @notes
+                is_in_spread = @inSpread, is_closed = @closed, sort_order = @sort, csv_until_on = @csvUntil, notes = @notes, interest_rate_bps = @rate
             WHERE id = @id
             """, new
         {
             id, name, institution = a.Institution is null ? current.Institution : Blank(a.Institution), bank = a.BankNumber is null ? current.BankNumber : Blank(a.BankNumber),
             opening, openingOn, inSpread = (a.IsInSpread ?? current.IsInSpread) ? 1 : 0, closed = (a.IsClosed ?? current.IsClosed) ? 1 : 0,
             sort = a.SortOrder ?? current.SortOrder, csvUntil, notes = a.Notes is null ? current.Notes : Blank(a.Notes),
+            rate = a.ClearRate ? null : RateOf(a.InterestRateBps) ?? current.InterestRateBps,
         }, tx);
         if (a.Card is not null)
         {
             if (current.Kind != "credit_card") throw Bad("Only a credit card has card terms.");
             SaveCard(id, a.Card, tx);
+        }
+        if (a.Loan is not null)
+        {
+            if (current.Kind != "loan") throw Bad("Only a loan has loan terms.");
+            SaveLoan(id, a.Loan, tx);
+            LoanTracker.Refresh(conn, clock, tx);
+        }
+        if (a.Retirement is not null)
+        {
+            if (current.Kind != "retirement") throw Bad("Only a retirement account has retirement terms.");
+            SaveRetirement(id, a.Retirement, tx);
         }
         audit.Write("account.updated", "account", id, before, AccountSnapshot(id, tx));
     });

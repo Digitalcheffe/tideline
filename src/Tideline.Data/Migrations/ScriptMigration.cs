@@ -36,3 +36,9 @@ public class M0002_Guards : ScriptMigration
 {
     protected override string ScriptName => "M0002_Guards";
 }
+
+[Migration(3, "Savings accounts: the interest rate they pay")]
+public class M0003_AccountRate : ScriptMigration
+{
+    protected override string ScriptName => "M0003_AccountRate";
+}

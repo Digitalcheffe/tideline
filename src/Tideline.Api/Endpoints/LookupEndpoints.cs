@@ -15,15 +15,22 @@ public static class LookupEndpoints
             var cards = conn.Query<(long AccountId, bool Pay, int? Statement, int? Due, long? Limit)>(
                 "SELECT account_id, is_pay_in_full, statement_day, due_day, credit_limit_cents FROM card_terms").ToDictionary(c => c.AccountId);
 
+            var loans = conn.Query<(long AccountId, string Type, int? Rate, long? Payment, long? Escrow, int? Day, long? Original, DateOnly? Start, int? Term, long? Category, long? Secured)>(
+                "SELECT account_id, loan_type, rate_bps, payment_cents, escrow_cents, payment_day, original_balance_cents, start_on, term_months, payment_category_id, secured_asset_id FROM loan_terms").ToDictionary(l => l.AccountId);
+            var retirement = conn.Query<(long AccountId, string Type, long Employee, long Employer, bool Included, long? Pension)>(
+                "SELECT account_id, account_type, employee_contribution_monthly_cents, employer_contribution_monthly_cents, is_included_in_goal, pension_annual_at_retirement_cents FROM retirement_terms").ToDictionary(r => r.AccountId);
+
             return Results.Ok(conn.Query<(long Id, string Name, string Kind, string? Institution, string? BankNumber, long? Opening, DateOnly? OpeningOn, bool InSpread, bool Closed,
-                    DateOnly? CsvUntil, string? Notes, int Sort, long Lines)>("""
-                SELECT a.id, a.name, a.kind, a.institution, a.bank_number, a.opening_balance_cents, a.opening_on, a.is_in_spread, a.is_closed, a.csv_until_on, a.notes, a.sort_order,
+                    DateOnly? CsvUntil, string? Notes, int Sort, int? Rate, long Lines)>("""
+                SELECT a.id, a.name, a.kind, a.institution, a.bank_number, a.opening_balance_cents, a.opening_on, a.is_in_spread, a.is_closed, a.csv_until_on, a.notes, a.sort_order, a.interest_rate_bps,
                        (SELECT COUNT(*) FROM transactions t WHERE t.account_id = a.id)
                 FROM accounts a ORDER BY a.sort_order, a.id
                 """).Select(a => new
             {
                 a.Id, a.Name, kind = a.Kind, a.Institution, a.BankNumber,
-                openingBalanceCents = a.Opening, openingOn = a.OpeningOn, isInSpread = a.InSpread, isClosed = a.Closed, csvUntilOn = a.CsvUntil, a.Notes, sortOrder = a.Sort, lineCount = a.Lines,
+                openingBalanceCents = a.Opening, openingOn = a.OpeningOn, isInSpread = a.InSpread, isClosed = a.Closed, csvUntilOn = a.CsvUntil, a.Notes, sortOrder = a.Sort, interestRateBps = a.Rate, lineCount = a.Lines,
+                loan = loans.TryGetValue(a.Id, out var l) ? new { loanType = l.Type, rateBps = l.Rate, paymentCents = l.Payment, escrowCents = l.Escrow, paymentDay = l.Day, originalBalanceCents = l.Original, startOn = l.Start, termMonths = l.Term, paymentCategoryId = l.Category, securedAssetId = l.Secured } : null,
+                retirement = retirement.TryGetValue(a.Id, out var rt) ? new { accountType = rt.Type, employeeMonthlyCents = rt.Employee, employerMonthlyCents = rt.Employer, isIncludedInGoal = rt.Included, pensionAnnualAtRetirementCents = rt.Pension } : null,
                 card = cards.TryGetValue(a.Id, out var c) ? new { isPayInFull = c.Pay, statementDay = c.Statement, dueDay = c.Due, creditLimitCents = c.Limit } : null,
             }));
         });

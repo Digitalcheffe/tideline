@@ -228,6 +228,9 @@ public sealed class ImportPipeline(SqliteConnectionFactory factory, WriteGate ga
             reconciliation = new Reconciliation(account.Id, lastDay, bank, ledger.BalanceAsOf(account.Id, lastDay));
         }
 
+        // 7. loans move on by a payment: their balances follow the ledger
+        LoanTracker.Refresh(conn, clock, tx);
+
         batches.Finish(batchId, "done", file.Rows.Count, inserted, file.Rows.Count - fresh.Count, review);
         return new ImportResult(name, ImportStatus.Done, file.Rows.Count, inserted, file.Rows.Count - fresh.Count, review,
             paired, stillPending, null, batchId, reconciliation);
