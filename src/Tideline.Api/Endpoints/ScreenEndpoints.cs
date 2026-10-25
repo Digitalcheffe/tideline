@@ -13,8 +13,6 @@ namespace Tideline.Api.Endpoints;
 /// </summary>
 public static class ScreenEndpoints
 {
-    private const long OneTimeAttentionCents = 50000;
-
     public static void MapScreenEndpoints(this RouteGroupBuilder api)
     {
         api.MapGet("/overview", Overview);
@@ -286,7 +284,8 @@ public static class ScreenEndpoints
             projectedCents = rows.Sum(r => r.Cells[i].ProjectedCents),
         }).ToList();
 
-        var attention = new LinesRepository(conn).Query(new LineFilter(start, end, [LineType.OneTime], MinCents: OneTimeAttentionCents, Sort: LineSort.DateDesc), 1, 50);
+        var threshold = Tideline.Data.Services.SetupEditor.OneTimeAttentionCents(conn);
+        var attention = new LinesRepository(conn).Query(new LineFilter(start, end, [LineType.OneTime], MinCents: threshold, Sort: LineSort.DateDesc), 1, 50);
 
         return Results.Ok(new
         {
@@ -298,8 +297,8 @@ public static class ScreenEndpoints
             grandTotalCents = rows.Sum(r => r.TotalCents),
             oneTimeAttention = new
             {
-                thresholdCents = OneTimeAttentionCents,
-                drill = Drill.Range(start, end, ("type", "one_time"), ("minCents", OneTimeAttentionCents)),
+                thresholdCents = threshold,
+                drill = Drill.Range(start, end, ("type", "one_time"), ("minCents", threshold)),
                 items = attention.Items.Select(LineDto.From),
             },
         });

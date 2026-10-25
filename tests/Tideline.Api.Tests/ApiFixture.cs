@@ -186,7 +186,9 @@ public sealed class ApiFixture : IDisposable
         if (body is not null) request.Content = JsonContent.Create(body);
         var response = await Client.SendAsync(request);
         var text = await response.Content.ReadAsStringAsync();
-        return (response.StatusCode, text.Length == 0 ? default : JsonDocument.Parse(text).RootElement.Clone());
+        if (text.Length == 0) return (response.StatusCode, default);
+        try { return (response.StatusCode, JsonDocument.Parse(text).RootElement.Clone()); }
+        catch (JsonException) { throw new InvalidOperationException($"{method} {url} -> {(int)response.StatusCode}, not JSON: {text}"); }
     }
 
     public long IdOf(string description) => Scalar<long>("SELECT id FROM transactions WHERE original_description = @description", new { description });
