@@ -1,0 +1,28 @@
+{
+  // A made-up household for tests. Real households are set up in the app (or a private file kept outside this repository).
+  "accounts": [
+    { "name": "Checking", "kind": "checking", "bankNumber": "1111" },
+    { "name": "Savings", "kind": "savings", "bankNumber": "3333" },
+    { "name": "Card", "kind": "credit_card", "bankNumber": "2222" }
+  ],
+  "categories": [
+    { "name": "Salary", "defaultType": "income" },
+    { "name": "Utilities", "defaultType": "bill" },
+    { "name": "Subscriptions", "defaultType": "bill" },
+    { "name": "Groceries", "defaultType": "required" },
+    { "name": "Rent", "defaultType": "required" }
+  ],
+  "rules": [
+    { "name": "Income: payroll", "priority": 10,
+      "when": { "direction": "in", "account_kind": ["checking", "savings"], "contains_any": ["PAYROLL"] },
+      "set": { "category": "Salary", "payee": "Acme Corp" } },
+    { "name": "Bill: power", "priority": 20, "when": { "contains_any": ["CITY POWER"] }, "set": { "category": "Utilities", "payee": "City Power" } },
+    { "name": "Bill: Spotify", "priority": 30, "when": { "contains_any": ["SPOTIFY"] }, "set": { "category": "Subscriptions", "payee": "Spotify" } },
+    { "name": "Rent check", "priority": 40, "when": { "starts_with": "Check #", "amount_min": 500, "amount_max": 500 }, "set": { "category": "Rent", "payee": "Landlord" } },
+    { "name": "Groceries", "priority": 50, "when": { "contains_any": ["GROCERY"] }, "set": { "category": "Groceries" } }
+  ],
+  "movePatterns": [
+    { "from": "Checking", "fromContains": "TRANSFER TO SAVINGS", "to": "Savings", "toContains": "TRANSFER FROM CHECKING" },
+    { "from": "Checking", "fromContains": "CARD PAYMENT", "to": "Card", "toContains": "PAYMENT THANK YOU" }
+  ]
+}

@@ -8,8 +8,23 @@ gives each line one meaning (income, bill, required, extra, one-time or savings)
 few things that need a person: a bill that did not get paid, a card balance carried over, a plan that
 is slipping.
 
-> **Status:** design phase. This repository currently holds the build spec and reference material.
-> No application code has been written yet.
+> **Status:** Phase 1 (ledger and ingestion) is built and waiting for its gate: no screens yet, the
+> `tideline` command line is the way in. Progress is tracked in the
+> [GitHub issues](https://github.com/Digitalcheffe/tideline/issues).
+
+## Try it (Phase 1)
+
+Needs the .NET 10 SDK. Keep your own household file and bank exports outside this repository.
+
+```bash
+dotnet run --project src/Tideline.Cli -- migrate --db "Data Source=/path/to/tideline.db"
+dotnet run --project src/Tideline.Cli -- setup my-household.json --db "Data Source=/path/to/tideline.db"
+dotnet run --project src/Tideline.Cli -- import /path/to/exports --db "Data Source=/path/to/tideline.db"
+dotnet run --project src/Tideline.Cli -- status --db "Data Source=/path/to/tideline.db"
+```
+
+`tests/fixtures/household.json` shows the household file format with made-up data. `status` lists each
+account's ledger balance next to the bank's last balance; they should match to the cent.
 
 ## Principles
 

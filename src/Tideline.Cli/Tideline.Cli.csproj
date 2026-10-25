@@ -7,7 +7,8 @@
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
+    <AssemblyName>tideline</AssemblyName>
+    <RootNamespace>Tideline.Cli</RootNamespace>
   </PropertyGroup>
 
 </Project>
-
