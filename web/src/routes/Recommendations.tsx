@@ -33,6 +33,22 @@ interface RuleData {
   rules: RecoRule[]
 }
 
+/** One card per suggestion, however many flags it fits: ten unpaid bills are one suggestion with ten reasons. Most serious first. */
+function groups(cards: RecoCard[]) {
+  const rank = { alert: 2, warn: 1, info: 0 }
+  const byRule = new Map<number, RecoCard[]>()
+  for (const c of cards) byRule.set(c.ruleId, [...(byRule.get(c.ruleId) ?? []), c])
+  return [...byRule.values()]
+    .map((list) => ({
+      ruleId: list[0].ruleId,
+      ruleName: list[0].ruleName,
+      suggestion: list[0].suggestion,
+      severity: list.reduce((worst, c) => (rank[c.severity] > rank[worst] ? c.severity : worst), list[0].severity),
+      cards: list,
+    }))
+    .sort((a, b) => rank[b.severity] - rank[a.severity] || b.cards.length - a.cards.length)
+}
+
 const TONE = { alert: 'bad', warn: 'warn', info: 'info' } as const
 const SEVERITY = { alert: 'Needs you', warn: 'Worth a look', info: 'For your information' } as const
 
@@ -60,25 +76,26 @@ export function Recommendations() {
           <Empty>Nothing to suggest right now. Nothing is flagged that has a suggestion.</Empty>
         </Card>
       )}
-      {cards.data?.map((c) => (
-        <Card
-          key={`${c.ruleId}-${c.flagId}`}
-          title={c.ruleName}
-          aside={<Badge tone={TONE[c.severity]}>{SEVERITY[c.severity]}</Badge>}
-        >
-          <p>{c.suggestion}</p>
-          <p className="muted">
-            Because: <strong>{c.flagTitle}</strong>
-            {c.flagDetail && <> {c.flagDetail}</>} {c.acknowledged && <Badge tone="muted">you have acknowledged it</Badge>}
-          </p>
-          <div className="toolbar">
-            <Link className="btn primary" to={c.link}>
-              Take a look
-            </Link>
-            <button className="btn" type="button" disabled={dismiss.isPending} onClick={() => dismiss.mutate(c)} title="Hide this suggestion for this flag">
-              Not useful here
-            </button>
-          </div>
+      {groups(cards.data ?? []).map((g) => (
+        <Card key={g.ruleId} title={g.ruleName} aside={<Badge tone={TONE[g.severity]}>{SEVERITY[g.severity]}</Badge>}>
+          <p>{g.suggestion}</p>
+          <p className="muted">{g.cards.length === 1 ? 'Because of:' : `Because of these ${g.cards.length}:`}</p>
+          <ul className="because">
+            {g.cards.map((c) => (
+              <li key={c.flagId}>
+                <strong>{c.flagTitle}</strong>
+                {c.flagDetail && <span className="muted"> {c.flagDetail}</span>} {c.acknowledged && <Badge tone="muted">acknowledged</Badge>}
+                <span className="toolbar">
+                  <Link className="btn" to={c.link}>
+                    Take a look
+                  </Link>
+                  <button className="btn" type="button" disabled={dismiss.isPending} onClick={() => dismiss.mutate(c)} title="Hide this suggestion for this flag">
+                    Not useful here
+                  </button>
+                </span>
+              </li>
+            ))}
+          </ul>
         </Card>
       ))}
       {dismiss.error && <p className="problem" role="alert">{dismiss.error.message}</p>}
