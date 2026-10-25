@@ -12,6 +12,7 @@ import { Income } from './routes/Income'
 import { Lines } from './routes/Lines'
 import { Coming } from './routes/Coming'
 import { Settings } from './routes/settings/Settings'
+import { ThemeToggle } from './theme'
 
 const GROUPS: { title: string; items: { to: string; label: string }[] }[] = [
   {
@@ -123,6 +124,7 @@ function Shell() {
               Settings
             </NavLink>
           )}
+          <ThemeToggle />
           <div className="whoami">
             <div>
               <strong>{me.user.displayName}</strong>

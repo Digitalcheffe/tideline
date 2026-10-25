@@ -26,8 +26,30 @@
   --shadow: 0 1px 2px rgb(20 40 60 / 8%);
 }
 
+:root[data-theme='light'] {
+  color-scheme: light;
+}
+
+/* a dark choice made in the app, whatever the device is set to */
 :root[data-theme='dark'] {
   color-scheme: dark;
+  --bg: #0f1519;
+  --surface: #182027;
+  --surface-2: #202a32;
+  --text: #e6edf2;
+  --muted: #9bacb8;
+  --border: #2d3a44;
+  --accent: #5db4d6;
+  --accent-text: #08202b;
+  --good: #6fd29a;
+  --good-bg: #123322;
+  --warn: #f0c261;
+  --warn-bg: #3a2c0b;
+  --bad: #f28b8e;
+  --bad-bg: #411b1d;
+  --info: #86bff0;
+  --info-bg: #16304a;
+  --shadow: none;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -910,4 +932,13 @@ button.linklike {
 a.btn {
   text-decoration: none;
   display: inline-block;
+}
+
+.theme-toggle {
+  margin: 0.6rem 0.6rem 0;
+}
+
+.theme-toggle button {
+  flex: 1;
+  font-size: 0.8rem;
 }
