@@ -136,7 +136,7 @@ public sealed class SimpleFinSync(SqliteConnectionFactory factory, ImportPipelin
 
     /// <summary>Every run of exactly four digits in a name such as "Everyday Checking 1111". Account numbers are only ever compared as keyed hashes.</summary>
     private static IEnumerable<string> DigitRuns(string name) =>
-        System.Text.RegularExpressions.Regex.Matches(name, @"(?<!d)d{4}(?!d)").Select(m => m.Value);
+        System.Text.RegularExpressions.Regex.Matches(name, @"(?<!\d)\d{4}(?!\d)").Select(m => m.Value);
 
     private static async Task<SfResponse> Fetch(Func<Task<SfResponse>> call)
     {

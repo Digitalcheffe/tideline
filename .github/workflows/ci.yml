@@ -5,6 +5,10 @@ on:
     branches: [main]
   pull_request:
 
+# nothing here needs to write to the repository or read secrets, so the token is limited to reading
+permissions:
+  contents: read
+
 jobs:
   dotnet:
     runs-on: ubuntu-24.04

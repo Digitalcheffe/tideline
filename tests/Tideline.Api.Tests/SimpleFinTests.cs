@@ -115,6 +115,20 @@ public sealed class SimpleFinTests : IDisposable
         accounts.EnumerateArray().Single(a => a.GetProperty("name").GetString() == "Checking").GetProperty("simplefinFromOn").GetString().Should().Be("2026-04-01");
     }
 
+    [Fact]
+    public async Task An_account_is_suggested_from_the_last_four_digits_in_its_name_even_when_the_words_say_nothing()
+    {
+        await Connect();
+        Remote("ACT-9", "Rainy day money 3333", "10.00", "2026-04-01T12:00:00Z", []); // no account is called anything like that; 3333 is the savings account's number
+
+        var remote = await Ok(HttpMethod.Get, "/api/v1/imports/simplefin/accounts");
+
+        remote[0].GetProperty("suggestedAccountId").GetInt64().Should().Be(Id("accounts", "Savings"));
+
+        Remote("ACT-8", "Rainy day money 33334", "10.00", "2026-04-01T12:00:00Z", []); // five digits in a row are not a last four
+        (await Ok(HttpMethod.Get, "/api/v1/imports/simplefin/accounts"))[0].GetProperty("suggestedAccountId").ValueKind.Should().Be(JsonValueKind.Null);
+    }
+
     // ---- syncing -----------------------------------------------------------------------------------------------------
 
     [Fact]
