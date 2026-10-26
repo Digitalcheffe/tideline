@@ -11,10 +11,6 @@ public static class AuthEndpoints
     public sealed record LoginRequest(string? Email, string? Password);
     public sealed record SetupRequest(string? Token, string? Password);
     public sealed record CodeRequest(string? Code, string? RecoveryCode);
-    public sealed record PasskeyEnrollRequest(string? Label, Fido2NetLib.AuthenticatorAttestationRawResponse? Credential);
-    public sealed record PasskeySignInRequest(Fido2NetLib.AuthenticatorAssertionRawResponse? Credential);
-
-    private static IResult Json(string json) => Results.Content(json, "application/json");
 
     public static void MapAuthEndpoints(this RouteGroupBuilder api)
     {
@@ -27,7 +23,7 @@ public static class AuthEndpoints
                 return Results.Problem(title: "Could not sign in", detail: "Wrong email or password, or the account is locked for a few minutes.", statusCode: 401);
 
             SetCookie(http, options, clock, result.SessionToken!);
-            return Results.Ok(new { mfaRequired = true, mfaEnrolled = result.User!.MfaEnrolledAt is not null, methods = service.Methods(result.User!) });
+            return Results.Ok(new { mfaRequired = true, mfaEnrolled = result.User!.MfaEnrolledAt is not null, methods = new[] { "totp" } });
         });
 
         // a setup link: the person chooses a password, then sets up the authenticator
@@ -44,10 +40,10 @@ public static class AuthEndpoints
             {
                 var result = service.CompleteSetup(request.Token, request.Password, http.ClientIp(), http.Request.Headers.UserAgent.ToString());
                 SetCookie(http, options, clock, result.SessionToken!);
-                return Results.Ok(new { mfaRequired = true, mfaEnrolled = result.User!.MfaEnrolledAt is not null, methods = service.Methods(result.User!) });
+                return Results.Ok(new { mfaRequired = true, mfaEnrolled = result.User!.MfaEnrolledAt is not null, methods = new[] { "totp" } });
             }));
 
-        auth.MapGet("/me", (HttpContext http, Csrf csrf, AuthService service, SqliteConnectionFactory factory, TimeProvider clock, TidelineOptions options) =>
+        auth.MapGet("/me", (HttpContext http, Csrf csrf, SqliteConnectionFactory factory, TimeProvider clock, TidelineOptions options) =>
         {
             var who = http.Principal()!;
             using var conn = factory.Open();
@@ -58,7 +54,7 @@ public static class AuthEndpoints
                 authDisabled = options.DevNoAuth,
                 mfaPassed = who.IsFull,
                 mfaEnrolled = who.User.MfaEnrolledAt is not null,
-                methods = who.IsToken ? [] : service.Methods(who.User),
+                methods = new[] { "totp" },
                 sessionExpires = who.Session?.ExpiresAt,
                 recoveryCodesLeft = left,
                 csrf = who.Session is null || options.DevNoAuth ? null : csrf.Issue(who.Session),
@@ -102,52 +98,6 @@ public static class AuthEndpoints
                     : service.VerifyRecoveryCode(who.Session!, who.User, request.RecoveryCode, http.ClientIp());
                 SetCookie(http, options, clock, done.SessionToken);
                 return Results.Ok(new { signedIn = true, recoveryCodesLeft = done.RecoveryCodesLeft });
-            }));
-
-        // ---- passkeys (WebAuthn) ----
-        // the browser asks for the challenge, its device signs it, and the answer comes back to be checked
-        auth.MapPost("/enroll/passkey/options", (HttpContext http, AuthService service) =>
-            Guard(() =>
-            {
-                var who = http.Principal()!;
-                return Json(service.StartPasskey(who.Session!, who.User).ToJson());
-            }));
-
-        auth.MapPost("/enroll/passkey/verify", (PasskeyEnrollRequest request, HttpContext http, AuthService service, TidelineOptions options, TimeProvider clock) =>
-            Guard(() =>
-            {
-                var who = http.Principal()!;
-                if (request.Credential is null) throw new AuthException("The passkey was not sent.", 400);
-                var done = service.ConfirmPasskey(who.Session!, who.User, request.Credential, request.Label, http.ClientIp());
-                if (done.SessionToken is not null) SetCookie(http, options, clock, done.SessionToken);
-                return Results.Ok(new { recoveryCodes = done.RecoveryCodes, recoveryCodesLeft = done.RecoveryCodesLeft });
-            }));
-
-        auth.MapPost("/mfa/passkey/options", (HttpContext http, AuthService service) =>
-            Guard(() =>
-            {
-                var who = http.Principal()!;
-                return Json(service.StartPasskeySignIn(who.Session!, who.User).ToJson());
-            }));
-
-        auth.MapPost("/mfa/passkey/verify", (PasskeySignInRequest request, HttpContext http, AuthService service, TidelineOptions options, TimeProvider clock) =>
-            Guard(() =>
-            {
-                var who = http.Principal()!;
-                if (request.Credential is null) throw new AuthException("The passkey was not sent.", 400);
-                var done = service.VerifyPasskey(who.Session!, who.User, request.Credential, http.ClientIp());
-                SetCookie(http, options, clock, done.SessionToken);
-                return Results.Ok(new { signedIn = true, recoveryCodesLeft = done.RecoveryCodesLeft });
-            }));
-
-        auth.MapGet("/passkeys", (HttpContext http, AuthService service) => Results.Ok(service.Passkeys(http.Principal()!.User)));
-
-        auth.MapDelete("/passkeys/{id:long}", (long id, HttpContext http, AuthService service) =>
-            Guard(() =>
-            {
-                var who = http.Principal()!;
-                service.RemovePasskey(who.Session!, who.User, id, http.ClientIp());
-                return Results.Ok(new { removed = true });
             }));
 
         auth.MapPost("/recovery-codes", (CodeRequest request, HttpContext http, AuthService service) =>

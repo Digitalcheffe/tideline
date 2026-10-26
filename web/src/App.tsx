@@ -19,7 +19,6 @@ const Budget = lazy(() => import('./routes/Budget').then((m) => ({ default: m.Bu
 const Planning = lazy(() => import('./routes/Planning').then((m) => ({ default: m.Planning })))
 const Retirement = lazy(() => import('./routes/Retirement').then((m) => ({ default: m.Retirement })))
 const Recommendations = lazy(() => import('./routes/Recommendations').then((m) => ({ default: m.Recommendations })))
-const Account = lazy(() => import('./routes/Account').then((m) => ({ default: m.Account })))
 const Assets = lazy(() => import('./routes/Assets').then((m) => ({ default: m.Assets })))
 const Savings = lazy(() => import('./routes/Savings').then((m) => ({ default: m.Savings })))
 
@@ -51,7 +50,7 @@ const GROUPS: { title: string; items: { to: string; label: string }[] }[] = [
 ]
 
 // screens where the period picker does nothing, so it is not shown
-const NO_PERIOD = ['/account', '/savings', '/assets', '/planning', '/retirement', '/settings', '/recommendations']
+const NO_PERIOD = ['/savings', '/assets', '/planning', '/retirement', '/settings', '/recommendations']
 
 function Logo() {
   return (
@@ -135,11 +134,6 @@ function Shell() {
               Settings
             </NavLink>
           )}
-          {!me.authDisabled && (
-            <NavLink to="/account" className={({ isActive }) => (isActive ? 'active' : '')}>
-              Your sign-in
-            </NavLink>
-          )}
           <ThemeToggle />
           <div className="whoami">
             <div>
@@ -169,7 +163,6 @@ function Shell() {
             <Route path="/lines" element={<Lines />} />
             <Route path="/savings" element={<Savings />} />
             <Route path="/assets" element={<Assets />} />
-            <Route path="/account" element={<Account />} />
             <Route path="/planning" element={<Planning />} />
             <Route path="/budget" element={<Budget period={period} />} />
             <Route path="/retirement" element={<Retirement />} />

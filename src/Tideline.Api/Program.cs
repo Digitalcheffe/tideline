@@ -37,7 +37,6 @@ builder.Services.AddOptions<KeyManagementOptions>().Configure<IServiceProvider>(
 });
 builder.Services.AddSingleton<SecretBox>();
 builder.Services.AddSingleton<Csrf>();
-builder.Services.AddSingleton<PasskeyService>();
 builder.Services.AddSingleton<AuthService>();
 
 // 10 requests a minute per address on everything under /auth (docs/09-security.md)

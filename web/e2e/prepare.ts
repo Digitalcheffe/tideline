@@ -23,7 +23,8 @@ export function prepare() {
   run(['build', 'src/Tideline.Api', '-v', 'q', '--nologo'])
   run(['build', 'src/Tideline.Cli', '-v', 'q', '--nologo'])
 
-  for (const f of [E2E_DB, `${E2E_DB}-wal`, `${E2E_DB}-shm`, `${E2E_DB.replace(/[^\\/]+$/, 'keys')}`]) fs.rmSync(f, { force: true, recursive: true })
+  // the keys and the backups sit beside the database; old ones from an earlier run would leak into this one
+  for (const f of [E2E_DB, `${E2E_DB}-wal`, `${E2E_DB}-shm`, E2E_DB.replace(/[^\\/]+$/, 'keys'), E2E_DB.replace(/[^\\/]+$/, 'backups')]) fs.rmSync(f, { force: true, recursive: true })
 
   const fixtures = path.join(repo, 'tests', 'fixtures')
   cli('migrate')

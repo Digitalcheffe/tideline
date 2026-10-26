@@ -175,15 +175,7 @@ public sealed partial class GateTests(ITestOutputHelper output) : IDisposable
     private sealed record Case(string Key, Kind Kind, string Action, Func<Task> Act);
 
     /// <summary>The routes that change nothing, so they have nothing to audit.</summary>
-    private static readonly string[] ReadOnlyPosts =
-    [
-        "POST /rules/test", "POST /budgets/{year:int}/fill-from-averages", "POST /notify/test", "POST /imports/simplefin/dry-run",
-        // these only make a one-time challenge for the device to sign; nothing is stored
-        "POST /auth/enroll/passkey/options", "POST /auth/mfa/passkey/options",
-    ];
-
-    /// <summary>Passkey routes need a device to sign things, so PasskeyTests does them and checks their audit rows (mfa.enrolled, mfa.passkey_added, mfa.success, mfa.passkey_removed).</summary>
-    private static readonly string[] CoveredByPasskeyTests = ["POST /auth/enroll/passkey/verify", "POST /auth/mfa/passkey/verify", "DELETE /auth/passkeys/{id:long}"];
+    private static readonly string[] ReadOnlyPosts = ["POST /rules/test", "POST /budgets/{year:int}/fill-from-averages", "POST /notify/test", "POST /imports/simplefin/dry-run"];
 
     private long Id(string table, string name) => _api.Scalar<long>($"SELECT id FROM {table} WHERE name = @name", new { name });
 
@@ -392,7 +384,6 @@ public sealed partial class GateTests(ITestOutputHelper output) : IDisposable
         // and no route was left out of the list above
         var changing = Routes().Where(r => r.Method is not ("GET" or "HEAD" or "OPTIONS")).Select(r => $"{r.Method} {Relative(r).TrimEnd('/')}").ToHashSet();
         changing.ExceptWith(ReadOnlyPosts);
-        changing.ExceptWith(CoveredByPasskeyTests);
         changing.Should().BeSubsetOf(cases.Select(c => c.Key), "a new route that changes data has to be added to this test, with its audit action");
     }
 }

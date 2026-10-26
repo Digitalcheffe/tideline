@@ -228,8 +228,6 @@ public sealed class MfaMethod
     public string Kind { get; init; } = "";
     public string Label { get; init; } = "";
     public string? TotpSecretEnc { get; init; }
-    public string? CredentialId { get; init; }
-    public string? PublicKey { get; init; }
     public long SignCount { get; init; }
     public DateTimeOffset CreatedAt { get; init; }
     public DateTimeOffset? LastUsedAt { get; init; }
@@ -250,33 +248,11 @@ public sealed class MfaRepository(IDbConnection conn, TimeProvider clock, IDbTra
     {
         TypeHandlers.EnsureRegistered();
         return conn.Query<MfaMethod>("""
-            SELECT id AS Id, user_id AS UserId, kind AS Kind, label AS Label, totp_secret_enc AS TotpSecretEnc,
-                   credential_id AS CredentialId, public_key AS PublicKey, sign_count AS SignCount,
+            SELECT id AS Id, user_id AS UserId, kind AS Kind, label AS Label, totp_secret_enc AS TotpSecretEnc, sign_count AS SignCount,
                    created_at AS CreatedAt, last_used_at AS LastUsedAt, revoked_at AS RevokedAt
             FROM user_mfa WHERE user_id = @userId AND revoked_at IS NULL ORDER BY id
             """, new { userId }, tx).ToList();
     }
-
-    /// <summary>A passkey: the credential id and the public key (never a secret; the private key stays on the person's device).</summary>
-    public long AddPasskey(long userId, string label, string credentialId, string publicKey, long signCount)
-    {
-        TypeHandlers.EnsureRegistered();
-        conn.Execute("""
-            INSERT INTO user_mfa (user_id, kind, label, credential_id, public_key, sign_count, created_at)
-            VALUES (@userId, 'passkey', @label, @credentialId, @publicKey, @signCount, @now)
-            """, new { userId, label, credentialId, publicKey, signCount, now = clock.GetUtcNow() }, tx);
-        return conn.ExecuteScalar<long>(Sql.LastInsertId, transaction: tx);
-    }
-
-    /// <summary>Remember the counter the device reported, so a cloned passkey that reports an older one is refused next time.</summary>
-    public void RecordPasskeyUse(long methodId, long signCount) =>
-        conn.Execute("UPDATE user_mfa SET sign_count = @signCount, last_used_at = @now WHERE id = @methodId",
-            new { methodId, signCount, now = clock.GetUtcNow() }, tx);
-
-    /// <summary>Takes a method away from a person. Returns false if it was not theirs or was already gone.</summary>
-    public bool Revoke(long userId, long methodId) =>
-        conn.Execute("UPDATE user_mfa SET revoked_at = @now WHERE id = @methodId AND user_id = @userId AND revoked_at IS NULL",
-            new { methodId, userId, now = clock.GetUtcNow() }, tx) == 1;
 
     /// <summary>An enrolment that was started but never confirmed is thrown away when a new one starts.</summary>
     public void DeleteAll(long userId)

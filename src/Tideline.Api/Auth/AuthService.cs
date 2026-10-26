@@ -51,11 +51,6 @@ public sealed record TotpEnrollment(string Secret, string OtpAuthUri, string QrS
 
 public sealed record MfaSuccess(string SessionToken, IReadOnlyList<string>? RecoveryCodes = null, int RecoveryCodesLeft = 0);
 
-/// <summary>The first passkey of a new account carries a fresh session and recovery codes; one added later carries neither.</summary>
-public sealed record PasskeyEnrolled(string? SessionToken, IReadOnlyList<string>? RecoveryCodes, int RecoveryCodesLeft);
-
-public sealed record PasskeyInfo(long Id, string Label, DateTimeOffset CreatedAt, DateTimeOffset? LastUsedAt);
-
 /// <summary>Raised for things a person can fix; the message is written for them.</summary>
 public sealed class AuthException(string message, int status = 400) : Exception(message)
 {
@@ -65,7 +60,7 @@ public sealed class AuthException(string message, int status = 400) : Exception(
 /// <summary>
 /// Signing in: password, then a second step that is not optional (docs/09-security.md). Every attempt, good or bad, is audited.
 /// </summary>
-public sealed class AuthService(SqliteConnectionFactory factory, TimeProvider clock, TidelineOptions options, SecretBox box, PasskeyService passkeys)
+public sealed class AuthService(SqliteConnectionFactory factory, TimeProvider clock, TidelineOptions options, SecretBox box)
 {
     private static readonly PasswordHasher<UserRecord> Hasher = new();
     private static readonly string TimingHash = Hasher.HashPassword(null!, "never-matches-anything-real");
@@ -267,114 +262,6 @@ public sealed class AuthService(SqliteConnectionFactory factory, TimeProvider cl
         var left = mfa.RecoveryCodesLeft(user.Id);
         tx.Commit();
         return new MfaSuccess(token, null, left);
-    }
-
-    // ---- passkeys ----------------------------------------------------------------------------------------------
-
-    /// <summary>The ways this person can pass the second step. Someone who has not set one up yet is offered both.</summary>
-    public IReadOnlyList<string> Methods(UserRecord user)
-    {
-        if (user.MfaEnrolledAt is null) return ["totp", "passkey"];
-        using var conn = factory.Open();
-        return new MfaRepository(conn, clock).Active(user.Id).Select(m => m.Kind).Distinct().OrderByDescending(k => k == "totp").ToList();
-    }
-
-    public IReadOnlyList<PasskeyInfo> Passkeys(UserRecord user)
-    {
-        using var conn = factory.Open();
-        return new MfaRepository(conn, clock).Active(user.Id).Where(m => m.Kind == "passkey")
-            .Select(m => new PasskeyInfo(m.Id, m.Label, m.CreatedAt, m.LastUsedAt)).ToList();
-    }
-
-    /// <summary>
-    /// Adding a passkey is for someone who has no second step yet, or who is fully signed in. A person who has only passed the password
-    /// cannot add one, or anyone with a stolen password could add their own device.
-    /// </summary>
-    private static void RequireMayEnroll(SessionRecord session, UserRecord user)
-    {
-        if (user.MfaEnrolledAt is not null && !session.IsFullyAuthenticated)
-            throw new AuthException("Finish signing in first, then add a passkey.", 403);
-    }
-
-    public Fido2NetLib.CredentialCreateOptions StartPasskey(SessionRecord session, UserRecord user)
-    {
-        RequireMayEnroll(session, user);
-        using var conn = factory.Open();
-        return passkeys.BeginEnrollment(session.Id, user, new MfaRepository(conn, clock).Active(user.Id));
-    }
-
-    /// <summary>
-    /// A person with no second step yet is enrolled by their first passkey (and signed in fully, with recovery codes, like the authenticator app).
-    /// A person already signed in just gets another way to sign in.
-    /// </summary>
-    public PasskeyEnrolled ConfirmPasskey(SessionRecord session, UserRecord user, Fido2NetLib.AuthenticatorAttestationRawResponse response, string? label, string? ip)
-    {
-        RequireMayEnroll(session, user);
-        var name = string.IsNullOrWhiteSpace(label) ? "Passkey" : label.Trim();
-        if (name.Length > 100) throw new AuthException("The name is too long (100 characters at most).", 422);
-
-        var (credentialId, publicKey, signCount) = passkeys.CompleteEnrollment(session.Id, response);
-
-        using var conn = factory.Open();
-        if (new MfaRepository(conn, clock).Active(user.Id).Any(m => m.CredentialId == credentialId))
-            throw new AuthException("That passkey is already added.", 409);
-
-        using var tx = conn.BeginTransaction();
-        var mfa = new MfaRepository(conn, clock, tx);
-        var audit = new AuditWriter(conn, clock, tx, new Actor(user.Id, Ip: ip));
-
-        if (user.MfaEnrolledAt is null)
-        {
-            mfa.DeleteAll(user.Id); // a half-finished authenticator setup is thrown away
-            mfa.AddPasskey(user.Id, name, credentialId, publicKey, signCount);
-            var codes = RecoveryCodes.Generate();
-            mfa.ReplaceRecoveryCodes(user.Id, codes.Select(RecoveryCodes.Hash));
-            new UserRepository(conn, clock, tx).SetMfaEnrolled(user.Id, clock.GetUtcNow());
-            var token = Tokens.NewSessionToken();
-            new SessionRepository(conn, clock, tx).MarkMfaPassed(session.Id, Tokens.Hash(token));
-            audit.Write("mfa.enrolled", "user", user.Id.ToString(), null, new { kind = "passkey", recoveryCodes = codes.Count });
-            tx.Commit();
-            return new PasskeyEnrolled(token, codes, codes.Count);
-        }
-
-        mfa.AddPasskey(user.Id, name, credentialId, publicKey, signCount);
-        audit.Write("mfa.passkey_added", "user", user.Id.ToString(), null, new { label = name });
-        var left = mfa.RecoveryCodesLeft(user.Id);
-        tx.Commit();
-        return new PasskeyEnrolled(null, null, left);
-    }
-
-    public Fido2NetLib.AssertionOptions StartPasskeySignIn(SessionRecord session, UserRecord user)
-    {
-        if (user.MfaEnrolledAt is null) throw new AuthException("Set up your second step first.", 409);
-        using var conn = factory.Open();
-        var keys = new MfaRepository(conn, clock).Active(user.Id).Where(m => m.Kind == "passkey").ToList();
-        if (keys.Count == 0) throw new AuthException("This account has no passkey. Use your authenticator app.", 409);
-        return passkeys.BeginAssertion(session.Id, keys);
-    }
-
-    public MfaSuccess VerifyPasskey(SessionRecord session, UserRecord user, Fido2NetLib.AuthenticatorAssertionRawResponse response, string? ip) =>
-        Verify(session, user, ip, "passkey", (conn, tx, mfa) =>
-        {
-            var keys = mfa.Active(user.Id).Where(m => m.Kind == "passkey").ToList();
-            if (passkeys.CompleteAssertion(session.Id, response, keys) is not { } done) return false;
-            mfa.RecordPasskeyUse(done.Method.Id, done.SignCount);
-            return true;
-        });
-
-    public void RemovePasskey(SessionRecord session, UserRecord user, long id, string? ip)
-    {
-        if (!session.IsFullyAuthenticated) throw new AuthException("Finish signing in first.", 403);
-        using var conn = factory.Open();
-        using var tx = conn.BeginTransaction();
-        var mfa = new MfaRepository(conn, clock, tx);
-        var all = mfa.Active(user.Id);
-        var target = all.FirstOrDefault(m => m.Id == id && m.Kind == "passkey") ?? throw new AuthException("That is not one of your passkeys.", 404);
-        if (all.Count == 1) throw new AuthException("That is your only way to sign in. Add an authenticator app or another passkey first.", 409);
-
-        mfa.Revoke(user.Id, id);
-        new AuditWriter(conn, clock, tx, new Actor(user.Id, Ip: ip)).Write("mfa.passkey_removed", "user", user.Id.ToString(), new { label = target.Label }, null);
-        tx.Commit();
     }
 
     /// <summary>Ten new recovery codes. Needs a current authenticator code, since it replaces the old ones.</summary>
