@@ -8,7 +8,7 @@ public sealed class ImportFileException(string message) : Exception(message);
 
 public sealed record TruistFile(string FileName, string BankNumber, TruistFormat Format, IReadOnlyList<TruistRow> Rows);
 
-/// <summary>Reads Truist deposit and credit card CSV exports (docs/05-import.md, "Truist CSV formats").</summary>
+/// <summary>Reads Truist deposit and credit card CSV exports (docs/ARCHITECTURE.md).</summary>
 public static partial class TruistParser
 {
     [GeneratedRegex(@"acct_(\d{4})_", RegexOptions.IgnoreCase)]

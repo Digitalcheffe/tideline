@@ -2,7 +2,7 @@ using Microsoft.Data.Sqlite;
 
 namespace Tideline.Data;
 
-/// <summary>Opens SQLite connections with the pragmas from docs/03-database.md on every one.</summary>
+/// <summary>Opens SQLite connections with the pragmas from docs/ARCHITECTURE.md on every one.</summary>
 public sealed class SqliteConnectionFactory(string connectionString)
 {
     public string ConnectionString { get; } = connectionString;

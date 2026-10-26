@@ -40,7 +40,7 @@ builder.Services.AddSingleton<Csrf>();
 builder.Services.AddSingleton<AuthService>();
 
 // 10 requests a minute per address on what can be guessed at under /auth: every change (sign-in, codes, setup, first run). Reading
-// who is signed in (GET /auth/me, and the page asking it when the tab gets focus) is not a guess, so it is not counted (docs/09-security.md)
+// who is signed in (GET /auth/me, and the page asking it when the tab gets focus) is not a guess, so it is not counted (docs/ARCHITECTURE.md)
 builder.Services.AddRateLimiter(o =>
 {
     o.RejectionStatusCode = StatusCodes.Status429TooManyRequests;

@@ -24,7 +24,7 @@ public static class MovePairer
     public const int UnpairedFlagAfterDays = 10;
 
     /// <summary>
-    /// docs/04-domain-rules.md, "Moves". Per pattern, walk OUT rows by date ascending; each takes the unpaired IN
+    /// docs/ARCHITECTURE.md. Per pattern, walk OUT rows by date ascending; each takes the unpaired IN
     /// row with the same absolute amount and the smallest day gap within the window (tie: earliest IN row).
     /// </summary>
     public static MovePairingResult Pair(IEnumerable<MoveCandidate> candidates, IEnumerable<MovePattern> patterns)

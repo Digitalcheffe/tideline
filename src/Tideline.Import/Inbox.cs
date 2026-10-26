@@ -9,7 +9,7 @@ namespace Tideline.Import;
 public sealed record InboxRunSummary(int Imported, int Failed, int Waiting);
 
 /// <summary>
-/// The CSV inbox (docs/05-import.md): root files only, dot files ignored, files modified in the last minute left for the
+/// The CSV inbox (docs/ARCHITECTURE.md): root files only, dot files ignored, files modified in the last minute left for the
 /// next run, good files to <c>Done/YYYY-MM/</c>, bad files to <c>Failed/</c> with a <c>.error.txt</c> beside them.
 /// </summary>
 public sealed class InboxProcessor(

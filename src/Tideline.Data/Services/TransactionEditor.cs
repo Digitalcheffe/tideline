@@ -28,7 +28,7 @@ public sealed record EditRequest(
     long? PlanId = null,
     long? AssetId = null);
 
-/// <summary>One change applied to many lines at once (docs/07-api.md, POST /transactions/bulk). Null parts are left alone; an asset of 0 unlinks.</summary>
+/// <summary>One change applied to many lines at once (docs/ARCHITECTURE.md, POST /transactions/bulk). Null parts are left alone; an asset of 0 unlinks.</summary>
 public sealed record BulkChange(long? CategoryId = null, string? Type = null, IReadOnlyList<string>? AddTags = null, IReadOnlyList<string>? RemoveTags = null, long? AssetId = null);
 
 public sealed record BulkResult(int Updated, int SkippedTransfers, int NotFound);
@@ -53,7 +53,7 @@ public sealed record ManualEntry(
 
 /// <summary>
 /// Edits to a ledger line. The bank fields are never touched (the triggers would refuse); everything a person
-/// changes is audited in the same database transaction (docs/07-api.md, "Ledger").
+/// changes is audited in the same database transaction (docs/ARCHITECTURE.md).
 /// </summary>
 public sealed class TransactionEditor(IDbConnection conn, TimeProvider clock, Actor? actor = null)
 {
@@ -307,7 +307,7 @@ public sealed class TransactionEditor(IDbConnection conn, TimeProvider clock, Ac
     // ---- moves by hand ---------------------------------------------------------------------------------------
 
     /// <summary>
-    /// Pairs two lines as one move between our own accounts (docs/07-api.md, POST /moves): one out and one in, the same
+    /// Pairs two lines as one move between our own accounts (docs/ARCHITECTURE.md, POST /moves): one out and one in, the same
     /// amount, on different accounts. A line may already be a waiting leg (a move with no partner yet); a line in a
     /// complete move has to be unpaired first. A paired line has no category, type, splits or tags.
     /// </summary>
@@ -401,7 +401,7 @@ public sealed class TransactionEditor(IDbConnection conn, TimeProvider clock, Ac
     // ---- splits ----------------------------------------------------------------------------------------------
 
     /// <summary>
-    /// Replaces every split of a line (docs/04-domain-rules.md, "Effective lines"): same sign as the parent, a category and
+    /// Replaces every split of a line (docs/ARCHITECTURE.md): same sign as the parent, a category and
     /// a type each, and together no more than the line. What is left over stays with the line's own category and type.
     /// </summary>
     public string ReplaceSplits(long id, IReadOnlyList<SplitInput> splits, string? version)

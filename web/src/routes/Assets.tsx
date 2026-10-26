@@ -26,7 +26,7 @@ interface AssetData {
   values: { asOf: string; cents: number; source: string }[]
 }
 
-/** Asset ledgers (docs/08-screens.md, "Assets"): real numbers on top, lifetime value below. */
+/** Asset ledgers (docs/ARCHITECTURE.md): real numbers on top, lifetime value below. */
 export function Assets() {
   const { data, error, isLoading } = useQuery({ queryKey: ['assets'], queryFn: () => get<AssetData[]>('/assets') })
 

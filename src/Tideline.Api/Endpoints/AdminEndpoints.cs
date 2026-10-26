@@ -8,7 +8,7 @@ using Tideline.Data.Services;
 namespace Tideline.Api.Endpoints;
 
 /// <summary>
-/// Owner-only: the people, every session, API tokens and the logs (docs/07-api.md, "Settings"). The access table has already
+/// Owner-only: the people, every session, API tokens and the logs (docs/ARCHITECTURE.md). The access table has already
 /// checked the role by the time any of this runs. Each change is audited in the same transaction.
 /// </summary>
 public static class AdminEndpoints

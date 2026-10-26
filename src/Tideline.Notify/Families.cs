@@ -26,7 +26,7 @@ internal static class Text
     }
 }
 
-/// <summary>A bill or recurring item not paid, or paid for an unusual amount (docs/04-domain-rules.md, "Recurring status").</summary>
+/// <summary>A bill or recurring item not paid, or paid for an unusual amount (docs/ARCHITECTURE.md).</summary>
 public sealed class RecurringFlags : IFlagFamily
 {
     public IReadOnlyList<string> Kinds => [FlagKinds.RecurringMissing, FlagKinds.RecurringOutOfRange];
@@ -61,7 +61,7 @@ public sealed class RecurringFlags : IFlagFamily
     }
 }
 
-/// <summary>Cards that should be paid in full, and interest or fees showing up on a card (docs/04-domain-rules.md, "Card paid in full").</summary>
+/// <summary>Cards that should be paid in full, and interest or fees showing up on a card (docs/ARCHITECTURE.md).</summary>
 public sealed class CardFlags : IFlagFamily
 {
     public IReadOnlyList<string> Kinds => [FlagKinds.CardNotPaidInFull, FlagKinds.CardInterest];
@@ -106,7 +106,7 @@ public sealed class CardFlags : IFlagFamily
     }
 }
 
-/// <summary>The bank's last balance against what the ledger adds up to (docs/05-import.md, "Reconcile").</summary>
+/// <summary>The bank's last balance against what the ledger adds up to (docs/ARCHITECTURE.md).</summary>
 public sealed class BalanceFlags : IFlagFamily
 {
     public IReadOnlyList<string> Kinds => [FlagKinds.BalanceMismatch];
@@ -170,7 +170,7 @@ public sealed class MoveFlags : IFlagFamily
     }
 }
 
-/// <summary>A payment that looks like a loan Tideline does not know about (docs/04-domain-rules.md, "New recurring and new debt").</summary>
+/// <summary>A payment that looks like a loan Tideline does not know about (docs/ARCHITECTURE.md).</summary>
 public sealed class DebtFlags : IFlagFamily
 {
     public IReadOnlyList<string> Kinds => [FlagKinds.NewDebt];
@@ -230,7 +230,7 @@ public sealed class NewRecurringFlags : IFlagFamily
     }
 }
 
-/// <summary>Spending over a guideline, and income behind the year's pace (docs/04-domain-rules.md, "Budget").</summary>
+/// <summary>Spending over a guideline, and income behind the year's pace (docs/ARCHITECTURE.md).</summary>
 public sealed class BudgetFlags : IFlagFamily
 {
     public IReadOnlyList<string> Kinds => [FlagKinds.BudgetPop, FlagKinds.IncomeShort];
@@ -256,7 +256,7 @@ public sealed class BudgetFlags : IFlagFamily
     }
 }
 
-/// <summary>Trackable plans that have slipped (docs/04-domain-rules.md, "Plans").</summary>
+/// <summary>Trackable plans that have slipped (docs/ARCHITECTURE.md).</summary>
 public sealed class PlanFlags : IFlagFamily
 {
     public IReadOnlyList<string> Kinds => [FlagKinds.PlanWavered, FlagKinds.PlanBehind];
@@ -310,7 +310,7 @@ public sealed class ReviewFlags : IFlagFamily
     }
 }
 
-/// <summary>The retirement shortfall getting bigger than it was last month (docs/04-domain-rules.md, "Flags").</summary>
+/// <summary>The retirement shortfall getting bigger than it was last month (docs/ARCHITECTURE.md).</summary>
 public sealed class RetirementFlags : IFlagFamily
 {
     public const long MinGrowthCents = 50_000;

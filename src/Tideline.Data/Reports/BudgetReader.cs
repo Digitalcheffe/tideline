@@ -16,7 +16,7 @@ public sealed record BudgetProposal(long CategoryId, string Name, long MonthlyCe
 
 public sealed record BudgetProposals(string From, string To, IReadOnlyList<BudgetProposal> Items);
 
-/// <summary>The yearly budget against what was spent (docs/04-domain-rules.md, "Budget").</summary>
+/// <summary>The yearly budget against what was spent (docs/ARCHITECTURE.md).</summary>
 public sealed class BudgetReader(IDbConnection conn)
 {
     public BudgetView Read(int year, DateOnly today)

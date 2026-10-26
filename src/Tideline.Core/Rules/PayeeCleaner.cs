@@ -2,7 +2,7 @@ using System.Globalization;
 
 namespace Tideline.Core.Rules;
 
-/// <summary>Payee when no rule names one (docs/05-import.md, "Payee"; reference: classify.payee_for).</summary>
+/// <summary>Payee when no rule names one.</summary>
 public static class PayeeCleaner
 {
     private static readonly string[] Prefixes =

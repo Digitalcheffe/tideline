@@ -5,7 +5,7 @@ using Tideline.Core;
 namespace Tideline.Data.Services;
 
 /// <summary>
-/// Keeps a loan's balance moving between statements (docs/04-domain-rules.md, "Debt countdown"). Each payment in the loan's payment
+/// Keeps a loan's balance moving between statements (docs/ARCHITECTURE.md). Each payment in the loan's payment
 /// category writes a <c>computed</c> snapshot of <c>B * (1 + r) - P</c> on the day it posted. A figure you enter from a statement or
 /// as an estimate always wins: computing starts again from the latest one of those.
 /// </summary>

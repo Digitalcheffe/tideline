@@ -14,7 +14,7 @@ public sealed record FileCheckResult(long StartCents, long EndCents, int BadDays
 public static class FileCheck
 {
     /// <summary>
-    /// Deposit files only (docs/05-import.md, "The file check"): rebuild the running balance day by day and
+    /// Deposit files only (docs/ARCHITECTURE.md): rebuild the running balance day by day and
     /// compare with Truist's balance, which sits on the day's last row in file order. Returns null for files with
     /// no balance column (credit cards), which are checked after load instead.
     /// </summary>

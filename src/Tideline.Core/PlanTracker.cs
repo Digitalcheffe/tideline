@@ -2,7 +2,7 @@ namespace Tideline.Core;
 
 public enum PlanStatus { OnTrack, Wavered, Behind, Done }
 
-/// <summary>Plans (docs/04-domain-rules.md, "Plans"): where a plan should be by a month, and whether it is there.</summary>
+/// <summary>Plans (docs/ARCHITECTURE.md): where a plan should be by a month, and whether it is there.</summary>
 public static class PlanTracker
 {
     /// <summary>Linear from the start amount to the target. <paramref name="elapsedMonths"/> and <paramref name="totalMonths"/> are whole months.</summary>
@@ -52,7 +52,7 @@ public static class PlanTracker
     };
 }
 
-/// <summary>Budget guidelines (docs/04-domain-rules.md, "Budget").</summary>
+/// <summary>Budget guidelines (docs/ARCHITECTURE.md).</summary>
 public static class BudgetRules
 {
     /// <summary>A monthly guideline pops when month-to-date spend is over it by the percent AND by the minimum amount.</summary>

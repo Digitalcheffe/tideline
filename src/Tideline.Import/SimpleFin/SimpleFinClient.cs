@@ -16,7 +16,7 @@ public sealed record SfAccount(string Id, string Name, string Organization, stri
 public sealed record SfResponse(IReadOnlyList<SfAccount> Accounts, IReadOnlyList<string> Errors);
 
 /// <summary>
-/// SimpleFIN Bridge (docs/05-import.md, "SimpleFIN"). A setup token is claimed once for an access address; after that each request is the address
+/// SimpleFIN Bridge (docs/ARCHITECTURE.md). A setup token is claimed once for an access address; after that each request is the address
 /// plus /accounts with the window wanted. The credentials in the address go in a header, never in logs or messages.
 /// </summary>
 public sealed class SimpleFinClient(HttpClient http)

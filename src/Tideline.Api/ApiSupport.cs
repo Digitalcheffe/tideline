@@ -38,14 +38,14 @@ public sealed class TidelineOptions
     /// <summary>
     /// For testing on your own computer only: everyone is treated as the owner with the second step passed. It does nothing
     /// unless the environment is Development and the app listens on this computer alone, and the app refuses to start otherwise.
-    /// This is the one exception to "no setting turns MFA off" (docs/09-security.md, "Development switch").
+    /// This is the one exception to "no setting turns MFA off" (docs/ARCHITECTURE.md).
     /// </summary>
     public bool DevNoAuth { get; set; }
 
     public string CookieName => SecureCookie ? "__Host-tideline" : "tideline";
 }
 
-/// <summary>"Today" and month boundaries in the household's time zone (docs/04-domain-rules.md).</summary>
+/// <summary>"Today" and month boundaries in the household's time zone (docs/ARCHITECTURE.md).</summary>
 public sealed class Clock(TidelineOptions options, TimeProvider time)
 {
     private readonly TimeZoneInfo _zone = Find(options.Timezone);
@@ -64,7 +64,7 @@ public sealed class Clock(TidelineOptions options, TimeProvider time)
     public DateTime LocalNow => TimeZoneInfo.ConvertTime(time.GetUtcNow(), _zone).DateTime;
 }
 
-/// <summary>Builds the query string of a drill-down link (docs/07-api.md, "Drill-down contract").</summary>
+/// <summary>Builds the query string of a drill-down link (docs/ARCHITECTURE.md).</summary>
 public static class Drill
 {
     public static string Of(params (string Key, object? Value)[] parts)

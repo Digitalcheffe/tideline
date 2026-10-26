@@ -8,7 +8,7 @@ using Tideline.Data.Reports;
 namespace Tideline.Api.Endpoints;
 
 /// <summary>
-/// Read models for the screens (docs/07-api.md, "Screens"). Every figure carries the drill-down query that opens
+/// Read models for the screens (docs/ARCHITECTURE.md). Every figure carries the drill-down query that opens
 /// the lines behind it, and a test asserts the two agree.
 /// </summary>
 public static class ScreenEndpoints

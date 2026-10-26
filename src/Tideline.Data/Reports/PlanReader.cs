@@ -16,7 +16,7 @@ public sealed record PlanView(
     PlanTrouble? Trouble, IReadOnlyList<PlanCheckpoint> Checkpoints, int LinkedLines);
 
 /// <summary>
-/// Plans and where they stand (docs/04-domain-rules.md, "Plans"). Checkpoints are worked out here from the ledger each time they are
+/// Plans and where they stand (docs/ARCHITECTURE.md). Checkpoints are worked out here from the ledger each time they are
 /// asked for; the evaluator in Phase 5 will write the same figures to plan_checkpoints at each month end.
 /// </summary>
 public sealed class PlanReader(IDbConnection conn)

@@ -62,7 +62,7 @@ export function NotificationsSettings() {
         }
       >
         <p className="muted">
-          A webhook posts a message to something you run, such as an automation flow that puts it in Chat. Email goes by SMTP. The addresses and passwords are stored sealed
+          A webhook posts a message to something you run, such as an automation that puts it in a chat room. Email goes by SMTP. The addresses and passwords are stored sealed
           and are never shown again.
         </p>
         {channels.data.length === 0 ? (
@@ -166,7 +166,7 @@ function ChannelForm({ onClose }: { onClose: () => void }) {
           <>
             <label>
               Webhook address
-              <input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://automation.example.test/webhook/tideline" autoComplete="off" />
+              <input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://hooks.example.test/webhook/tideline" autoComplete="off" />
             </label>
             <label>
               Shared secret (sent in a header, optional)

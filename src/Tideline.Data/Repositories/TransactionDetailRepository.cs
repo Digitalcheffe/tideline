@@ -9,7 +9,7 @@ public sealed record MovePartner(long TransactionId, long AccountId, string Acco
 
 public sealed record AuditEntry(long Id, DateTimeOffset At, string? User, string Action, string? BeforeJson, string? AfterJson);
 
-/// <summary>Everything the transaction drawer shows (docs/08-screens.md, "Lines").</summary>
+/// <summary>Everything the transaction drawer shows (docs/ARCHITECTURE.md).</summary>
 public sealed record TransactionDetail(
     long Id,
     long AccountId,

@@ -17,7 +17,7 @@ public static class Tokens
 
     public static string NewSetupToken() => Base64Url(RandomNumberGenerator.GetBytes(32));
 
-    /// <summary><c>tdl_</c> plus 40 random base62 characters (docs/09-security.md).</summary>
+    /// <summary><c>tdl_</c> plus 40 random base62 characters (docs/ARCHITECTURE.md).</summary>
     public static string NewApiToken()
     {
         var chars = new char[40];

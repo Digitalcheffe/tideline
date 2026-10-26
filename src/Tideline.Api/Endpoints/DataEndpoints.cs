@@ -5,7 +5,7 @@ using Tideline.Data.Services;
 
 namespace Tideline.Api.Endpoints;
 
-/// <summary>Owner only: the backups on disk, making one now, and taking everything out as CSV (docs/11-deploy.md, docs/07-api.md).</summary>
+/// <summary>Owner only: the backups on disk, making one now, and taking everything out as CSV (docs/ARCHITECTURE.md, docs/ARCHITECTURE.md).</summary>
 public static class DataEndpoints
 {
     public static void MapDataEndpoints(this RouteGroupBuilder api)

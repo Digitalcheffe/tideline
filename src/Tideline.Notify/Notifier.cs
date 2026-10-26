@@ -19,7 +19,7 @@ public sealed record NotifierSettings(TimeOnly QuietStart, TimeOnly QuietEnd, st
 public sealed record NotifyRun(int Sent, int Failed, int WaitingForQuietHours, int Digested);
 
 /// <summary>
-/// Tells people about flags (docs/10-notifications-logging.md, "Notifier"). Each kind is sent at once, left for the monthly summary, or
+/// Tells people about flags (docs/ARCHITECTURE.md). Each kind is sent at once, left for the monthly summary, or
 /// switched off. Urgent ones wait out quiet hours. Every attempt is written down, and a failed one is tried again on the next run.
 /// </summary>
 public sealed class Notifier(IEnumerable<IChannelSender> senders, ISecretProtector protector, TimeProvider clock)

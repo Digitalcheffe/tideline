@@ -30,7 +30,7 @@ public sealed record RetirementView(
     IReadOnlyList<ChartPoint> Chart,
     long SocialSecurityTotalAnnualTodayCents);
 
-/// <summary>Gathers what a person has typed in and runs the retirement model over it (docs/04-domain-rules.md, "Retirement model").</summary>
+/// <summary>Gathers what a person has typed in and runs the retirement model over it (docs/ARCHITECTURE.md).</summary>
 public sealed class RetirementReader(IDbConnection conn)
 {
     public const int StaleDays = 180;

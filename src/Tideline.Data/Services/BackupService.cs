@@ -16,7 +16,7 @@ public sealed record VerifyResult(bool Ok, string IntegrityCheck, int Year, Spre
 public sealed record RestoreResult(string DatabaseFile, string? KeysDirectory, VerifyResult Check);
 
 /// <summary>
-/// Backups (docs/11-deploy.md): a consistent copy of the database made while the app runs (<c>VACUUM INTO</c>), the keys that
+/// Backups (docs/ARCHITECTURE.md): a consistent copy of the database made while the app runs (<c>VACUUM INTO</c>), the keys that
 /// encrypt authenticator secrets beside it, thirty days kept, and a check that a copy opens and adds up to the same spread.
 /// </summary>
 public static class BackupService

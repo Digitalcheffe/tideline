@@ -4,7 +4,7 @@ public enum Severity { Info, Warn, Alert }
 
 public enum NotifyMode { Immediate, Summary, Off }
 
-/// <summary>The complete list of flags (docs/04-domain-rules.md, "Flags") and how each is sent unless a person chooses otherwise.</summary>
+/// <summary>The complete list of flags (docs/ARCHITECTURE.md) and how each is sent unless a person chooses otherwise.</summary>
 public static class FlagKinds
 {
     public const string RecurringMissing = "recurring_missing";
@@ -72,7 +72,7 @@ public static class FlagText
     }
 }
 
-/// <summary>Quiet hours (docs/10-notifications-logging.md): urgent messages wait until they are over.</summary>
+/// <summary>Quiet hours (docs/ARCHITECTURE.md): urgent messages wait until they are over.</summary>
 public static class QuietHours
 {
     /// <summary>True when <paramref name="local"/> is inside the window. A window that crosses midnight, like 21:00 to 07:00, is the usual case.</summary>

@@ -24,7 +24,7 @@ public sealed record NetWorthView(
     IReadOnlyList<LoanView> Loans, IReadOnlyList<EquityView> Equity, IReadOnlyList<NetWorthPoint> Trend,
     IReadOnlyList<string> NeedsInput);
 
-/// <summary>Net worth, equity and the debt countdown (docs/04-domain-rules.md). Every figure carries the day it is as of.</summary>
+/// <summary>Net worth, equity and the debt countdown (docs/ARCHITECTURE.md). Every figure carries the day it is as of.</summary>
 public sealed class NetWorthReader(IDbConnection conn)
 {
     public const int StaleDays = 90;

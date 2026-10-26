@@ -18,7 +18,7 @@ public abstract record RuleCondition
 
     /// <summary>
     /// Build a condition from its stored form (<c>rule_conditions.field</c>, <c>op</c>, JSON <c>value</c>);
-    /// see docs/06-rules-engine.md, "Conditions".
+    /// see docs/ARCHITECTURE.md.
     /// </summary>
     public static RuleCondition From(string field, string op, string valueJson)
     {

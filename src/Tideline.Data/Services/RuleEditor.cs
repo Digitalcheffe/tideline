@@ -36,7 +36,7 @@ public sealed record RuleChange(long TransactionId, string PostedOn, string Desc
 public sealed record RuleTestResult(int LinesChecked, int WouldChange, IReadOnlyList<RuleChange> Changes);
 
 /// <summary>
-/// Rules and what they do to past lines (docs/06-rules-engine.md): create, change, reorder, delete, try a draft over a period before
+/// Rules and what they do to past lines (docs/ARCHITECTURE.md): create, change, reorder, delete, try a draft over a period before
 /// saving it, and apply to past lines. Lines you changed by hand are never touched.
 /// </summary>
 public sealed class RuleEditor(IDbConnection conn, TimeProvider clock, Actor? actor = null)

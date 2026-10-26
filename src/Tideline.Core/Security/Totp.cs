@@ -49,7 +49,7 @@ public static class Base32
     }
 }
 
-/// <summary>Time-based one-time passwords: RFC 6238 with SHA-1, six digits, 30 second steps (docs/09-security.md).</summary>
+/// <summary>Time-based one-time passwords: RFC 6238 with SHA-1, six digits, 30 second steps (docs/ARCHITECTURE.md).</summary>
 public static class Totp
 {
     public const int Digits = 6;

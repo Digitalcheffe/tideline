@@ -28,7 +28,7 @@ public static class ExternalIds
 {
     /// <summary>
     /// <c>"truist:" + hex(SHA1("{bank}|{yyyy-MM-dd}|{description}|{amount 0.00}|{occurrence}"))[0..20]</c>
-    /// (docs/05-import.md, "External id"). Changing this orphans every stored row, so the vectors are tested.
+    /// (docs/ARCHITECTURE.md). Changing this orphans every stored row, so the vectors are tested.
     /// </summary>
     public static string Truist(string bankNumber, DateOnly postedOn, string description, long amountCents, int occurrence)
     {

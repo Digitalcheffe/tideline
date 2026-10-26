@@ -36,7 +36,7 @@ public sealed record ImportResult(
 }
 
 /// <summary>
-/// One door in, one pipeline (docs/05-import.md): parse, file check, drop rows already seen, cutover check,
+/// One door in, one pipeline (docs/ARCHITECTURE.md): parse, file check, drop rows already seen, cutover check,
 /// pair moves, rules, write, bank balance snapshot and reconcile. One database transaction per file.
 /// </summary>
 public sealed class ImportPipeline(SqliteConnectionFactory factory, WriteGate gate, TimeProvider clock)

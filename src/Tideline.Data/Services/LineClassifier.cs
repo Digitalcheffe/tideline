@@ -18,7 +18,7 @@ public sealed record Classification(
 
 /// <summary>
 /// Gives a bank line its meaning: the first matching rule wins; anything unmatched goes to Uncategorized (extra)
-/// with the <c>review</c> tag (docs/06-rules-engine.md). Used by the import and by "reset to rules".
+/// with the <c>review</c> tag (docs/ARCHITECTURE.md). Used by the import and by "reset to rules".
 /// </summary>
 public sealed class LineClassifier
 {

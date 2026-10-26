@@ -1,7 +1,7 @@
 CREATE TABLE recommendation_rules (
     id              INTEGER PRIMARY KEY,
     name            VARCHAR(100) NOT NULL UNIQUE,
-    flag_kind       VARCHAR(40) NOT NULL,                  -- a kind from docs/04-domain-rules.md, "Flags"
+    flag_kind       VARCHAR(40) NOT NULL,                  -- a kind from docs/ARCHITECTURE.md
     min_severity    VARCHAR(8) NOT NULL DEFAULT 'info' CHECK (min_severity IN ('info','warn','alert')),
     contains        VARCHAR(100),                          -- optional: the flag's text has to contain this
     suggestion      VARCHAR(600) NOT NULL,

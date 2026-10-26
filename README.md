@@ -12,7 +12,7 @@ Tideline is a self-hosted ledger for a household. You give it your bank exports,
 
 ## A Note on How This Is Built
 
-Tideline is built with **[Claude Code](https://claude.ai/code)**. The behaviour is written down first, in [`docs/`](docs/README.md), and that spec is the contract: code that disagrees with it is a bug. Work is broken into phases tracked as GitHub issues, and every change ships with tests (xUnit for the server, Vitest and Playwright for the web app, and a CI run on Linux). The issue history and the commit log show how each piece got here.
+Tideline is built with **[Claude Code](https://claude.ai/code)**. The design is written down in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md), work was broken into phases tracked as GitHub issues, and every change ships with tests (xUnit for the server, Vitest and Playwright for the web app, and a CI run on Linux). The issue history and the commit log show how each piece got here.
 
 ---
 
@@ -47,24 +47,28 @@ Click a picture to see it full size, or see [all the screenshots](docs/screensho
 
 ## Features
 
-- **Bank imports.** Upload a CSV, drop files in a folder, or sync automatically with SimpleFIN. Repeats are skipped, and every file is checked against the bank's balance.
-- **One meaning per line.** Income, Bill, Required, Extra, One-time or Savings, set by rules you control, so each month always adds up.
-- **Transfers are not spending.** Money moving between your own accounts is paired and left out of the totals.
-- **Overview.** Where the month's money went, a chart, your plans, and what needs you.
-- **Accounts, Cards and Bills.** Each account by month, whether each card was paid in full, and a year grid of every recurring bill.
-- **Required, Extra and Income.** Totals by category and payee, subscriptions and price changes, and expected income against actual.
-- **Ledger.** Every line, filterable. Split a line, tag it, link it to a plan or an asset, pair transfers, edit many at once, add a line by hand.
-- **Take something back.** Leave a duplicate out of the totals (and bring it back), delete a line you added by hand, or undo a whole import that went in wrong. Bank lines are never deleted.
-- **Rules.** Sort lines automatically, and try a rule over past months before you save it.
-- **Budget, plans and savings.** Guidelines per category, saving goals with a date, and savings balances with their interest.
-- **Net worth, loans and assets.** What you own and owe, loan payoff with an extra-payment calculator, and the equity and upkeep cost of a house or car.
-- **Retirement.** What you will need, what you are on course for, the gap, and the extra per month that closes it.
-- **Alerts and suggestions.** Sixteen things it watches for (a late bill, a card balance carried over, a plan slipping), a plain suggestion for each, and optional webhook or email messages with a monthly summary.
-- **Every number is a link** to the lines behind it.
-- **Private and secure.** Two-step sign-in for everyone, roles, an audit log nobody can edit, account numbers never stored, secrets encrypted, and backups you can verify.
-- **Runs at home.** One Docker container and one SQLite file, on Linux or Windows, with light and dark colours, a phone-friendly layout, and Help built in.
+- **Ledger**: every bank line, never edited; filter, split, tag, leave out
+- **Accounts**: checking, savings, cards, loans, assets, retirement
+- **Imports**: CSV upload, inbox folder, SimpleFIN
+- **Rules**: sort lines automatically, try them on past months first
+- **Transfers**: paired between your accounts, not counted as spending
+- **Bills**: a 12-month grid of paid, due and missing
+- **Cards**: paid in full, or balance carried
+- **Budget and plans**: guidelines, saving goals with a date
+- **Savings**: balances and interest
+- **Net worth**: what you own and owe, loan payoff dates
+- **Assets**: house and car equity and upkeep
+- **Retirement**: the gap, and what closes it
+- **Alerts**: webhook or email, and a monthly summary
+- **MFA**: required for everyone, with recovery codes
+- **Roles**: owner, member, viewer
+- **Audit log**: who changed what, before and after
+- **Backups**: checked copies, and export to CSV
+- **Docker**: one container, one SQLite file
+- **Light and dark**, and works on a phone
+- **Help** built in
 
-The full tour, screen by screen, is in [docs/FEATURES.md](docs/FEATURES.md).
+The longer tour, screen by screen, is in [docs/FEATURES.md](docs/FEATURES.md).
 
 ---
 
@@ -90,7 +94,7 @@ Start over with an empty app at any time:
 docker compose -f deploy/compose.local.yaml down -v
 ```
 
-The local compose file binds to this computer only. See [docs/11-deploy.md](docs/11-deploy.md) for backups, the inbox folder, and the production notes, and [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) to run it from source.
+The local compose file binds to this computer only. The inbox folder and backups are set in the app (Settings), and [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) to run it from source.
 
 ---
 
@@ -136,7 +140,7 @@ Everything about your household is set in **Settings** inside the app, not in fi
 | Tests | xUnit and FluentAssertions, Vitest, Playwright, CodeQL |
 | Deployment | One Docker image, built in three stages: web, server, runtime |
 
-For the layout, data model and design decisions, see [docs/00-architecture.md](docs/00-architecture.md).
+For the layout, data model and design decisions, see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ---
 
@@ -154,25 +158,11 @@ For the layout, data model and design decisions, see [docs/00-architecture.md](d
 
 ## Documentation
 
-Everything lives in [`docs/`](docs/README.md).
-
 | Doc | What it covers |
 |---|---|
+| [ARCHITECTURE](docs/ARCHITECTURE.md) | How it fits together: principles, the import pipeline, data, security, running it |
 | [FEATURES](docs/FEATURES.md) | A tour of every screen and what it does |
 | [DEVELOPMENT](docs/DEVELOPMENT.md) | Run from source, the command line, tests |
-| [00-architecture](docs/00-architecture.md) | The big picture: principles, diagram, data model, screens, phases |
-| [01-overview](docs/01-overview.md) | Principles, vocabulary, the spread equation |
-| [02-solution-layout](docs/02-solution-layout.md) | Stack, projects, packages, configuration, conventions |
-| [03-database](docs/03-database.md) | Tables, portability rules, migrations |
-| [04-domain-rules](docs/04-domain-rules.md) | Every calculation |
-| [05-import](docs/05-import.md) | Truist CSV formats, external ids, balance check, inbox, SimpleFIN |
-| [06-rules-engine](docs/06-rules-engine.md) | Conditions, actions, ordering, testing rules |
-| [07-api](docs/07-api.md) | REST endpoints, drill-down contract, errors, paging |
-| [08-screens](docs/08-screens.md) | Every screen: route, data, drill links, acceptance |
-| [09-security](docs/09-security.md) | Users, MFA, sessions, roles, API tokens, encryption |
-| [10-notifications-logging](docs/10-notifications-logging.md) | Alerts, monthly summary, audit and system logs |
-| [11-deploy](docs/11-deploy.md) | The container, backups, production notes |
-| [12-phases-and-tests](docs/12-phases-and-tests.md) | Build phases, test plan, open decisions |
 
 ---
 

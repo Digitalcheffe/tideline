@@ -3,7 +3,7 @@ using Tideline.Data.Reports;
 
 namespace Tideline.Api.Endpoints;
 
-/// <summary>Asset ledgers (docs/07-api.md, "Assets"): what each asset is worth and what has been put into it. Reads only; lines are linked with PATCH /transactions.</summary>
+/// <summary>Asset ledgers (docs/ARCHITECTURE.md): what each asset is worth and what has been put into it. Reads only; lines are linked with PATCH /transactions.</summary>
 public static class AssetEndpoints
 {
     public static void MapAssetEndpoints(this RouteGroupBuilder api)

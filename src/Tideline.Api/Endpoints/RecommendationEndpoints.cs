@@ -5,7 +5,7 @@ using Tideline.Data.Services;
 
 namespace Tideline.Api.Endpoints;
 
-/// <summary>Suggestions on flags (docs/07-api.md, "Recommendations"). Anyone signed in can read; members can change the rules and dismiss cards.</summary>
+/// <summary>Suggestions on flags (docs/ARCHITECTURE.md). Anyone signed in can read; members can change the rules and dismiss cards.</summary>
 public static class RecommendationEndpoints
 {
     public sealed record DismissRequest(long RuleId, long FlagId);

@@ -11,7 +11,7 @@ public sealed record RecommendationRuleView(long Id, string Name, string FlagKin
 public sealed record RecommendationCard(
     long RuleId, string RuleName, string Suggestion, long FlagId, string FlagKind, string Severity, string FlagTitle, string FlagDetail, string Period, bool Acknowledged);
 
-/// <summary>Suggestions are rules on flags: kind, how serious, and words in the flag's text (docs/08-screens.md, "Recommendations").</summary>
+/// <summary>Suggestions are rules on flags: kind, how serious, and words in the flag's text (docs/ARCHITECTURE.md).</summary>
 public sealed class RecommendationReader(IDbConnection conn)
 {
     public IReadOnlyList<RecommendationRuleView> Rules()

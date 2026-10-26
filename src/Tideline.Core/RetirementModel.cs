@@ -28,7 +28,7 @@ public sealed record RetirementResult(
     bool LastsPastPlan);
 
 /// <summary>
-/// The retirement projection (docs/04-domain-rules.md, "Retirement model"). Money in cents; the growth maths is done in double and
+/// The retirement projection (docs/ARCHITECTURE.md). Money in cents; the growth maths is done in double and
 /// rounded to the cent at the end. It is a projection, not advice, and says so wherever it is shown.
 /// </summary>
 public static class RetirementModel

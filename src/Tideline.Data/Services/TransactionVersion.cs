@@ -5,7 +5,7 @@ namespace Tideline.Data.Services;
 
 /// <summary>
 /// The version of a line: when it last changed plus how many audited changes it has had. The count keeps two edits in the
-/// same second apart, so a stale write is always noticed (docs/07-api.md, "Concurrency").
+/// same second apart, so a stale write is always noticed (docs/ARCHITECTURE.md).
 /// </summary>
 public static class TransactionVersion
 {

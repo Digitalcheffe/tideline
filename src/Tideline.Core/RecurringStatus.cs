@@ -26,7 +26,7 @@ public sealed record RecurringCell(CellStatus Status, long PaidCents, long Proje
     public long GridCents => PaidCents + ProjectedCents;
 }
 
-/// <summary>Bills grid and subscriptions (docs/04-domain-rules.md, "Recurring status").</summary>
+/// <summary>Bills grid and subscriptions (docs/ARCHITECTURE.md).</summary>
 public static class RecurringStatus
 {
     private static int Ym(int year, int month) => year * 12 + month;

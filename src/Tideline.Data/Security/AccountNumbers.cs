@@ -75,7 +75,7 @@ public sealed class AccountNumberKeys
 
 public sealed class AccountKeyMismatchException(string message) : InvalidOperationException(message);
 
-/// <summary>The one place account numbers are turned into what is stored and what is shown (docs/09-security.md, "Account numbers").</summary>
+/// <summary>The one place account numbers are turned into what is stored and what is shown (docs/ARCHITECTURE.md).</summary>
 public static class AccountNumbers
 {
     public const string CheckKey = "account_key_check";

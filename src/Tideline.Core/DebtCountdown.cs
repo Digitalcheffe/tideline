@@ -8,7 +8,7 @@ public sealed record Payoff(bool PaysOff, double? MonthsLeft, long InterestLeftC
 /// <param name="MonthsSaved">Null when the extra turns a loan that never pays off into one that does.</param>
 public sealed record ExtraPaymentEffect(Payoff Without, Payoff With, double? MonthsSaved, long InterestSavedCents);
 
-/// <summary>Loans (docs/04-domain-rules.md, "Debt countdown"). The payment is principal and interest only: escrow is not principal.</summary>
+/// <summary>Loans (docs/ARCHITECTURE.md). The payment is principal and interest only: escrow is not principal.</summary>
 public static class DebtCountdown
 {
     /// <summary>Monthly rate from basis points a year.</summary>

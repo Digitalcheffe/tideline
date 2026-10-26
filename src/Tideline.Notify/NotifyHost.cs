@@ -28,7 +28,7 @@ public sealed class NotifyOptions
 
 /// <summary>
 /// Runs the evaluators after every import and every day at 06:00, hands what they find to the notifier, and sends the monthly summary
-/// (docs/10-notifications-logging.md). One tick does everything that is due, so a test can drive it with a clock.
+/// (docs/ARCHITECTURE.md). One tick does everything that is due, so a test can drive it with a clock.
 /// </summary>
 public sealed class NotifyHost(
     SqliteConnectionFactory factory, Evaluator evaluator, Notifier notifier, TimeProvider clock, NotifyOptions options,

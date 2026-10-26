@@ -15,7 +15,7 @@ public sealed record SavingsGoalView(PlanView Plan, long? ProjectedAtTargetCents
 public sealed record SavingsView(
     long TotalBalanceCents, long TotalAverageMonthlyDepositCents, IReadOnlyList<SavingsAccountView> Accounts, IReadOnlyList<SavingsGoalView> Goals);
 
-/// <summary>Money market balances, what goes in each month, and the plans they fund (docs/08-screens.md, "Savings").</summary>
+/// <summary>Money market balances, what goes in each month, and the plans they fund (docs/ARCHITECTURE.md).</summary>
 public sealed class SavingsReader(IDbConnection conn)
 {
     /// <summary>Balance after <paramref name="months"/> of the same monthly deposit at the account's rate (or none).</summary>

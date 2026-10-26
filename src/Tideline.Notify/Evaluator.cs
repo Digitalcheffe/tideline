@@ -39,7 +39,7 @@ public sealed class EvalContext(IDbConnection conn, DateOnly today, TimeProvider
     public static DateOnly LastOf(string month) => FirstOf(month).AddMonths(1).AddDays(-1);
 }
 
-/// <summary>One rule family from docs/04-domain-rules.md, "Flags". Each says what is true now; the evaluator does the rest.</summary>
+/// <summary>One rule family from docs/ARCHITECTURE.md. Each says what is true now; the evaluator does the rest.</summary>
 public interface IFlagFamily
 {
     IReadOnlyList<string> Kinds { get; }
@@ -50,7 +50,7 @@ public sealed record EvaluationResult(int Found, int Created, int Resolved);
 
 /// <summary>
 /// Runs every family, adds the flags it finds (idempotent), and resolves the ones whose condition has cleared
-/// (docs/10-notifications-logging.md, "Evaluator"). What it creates is handed to the notifier by the host.
+/// (docs/ARCHITECTURE.md). What it creates is handed to the notifier by the host.
 /// </summary>
 public sealed class Evaluator(IEnumerable<IFlagFamily> families)
 {

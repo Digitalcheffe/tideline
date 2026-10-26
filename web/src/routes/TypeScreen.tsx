@@ -4,7 +4,7 @@ import { Badge, Card, Empty, ErrorBox, Loading, Money, Spark } from '../componen
 import { dateLabel, dollars, monthRange, plural } from '../format'
 import type { Period } from '../period'
 
-/** Required and Extra share one layout (docs/08-screens.md). */
+/** Required and Extra share one layout (docs/ARCHITECTURE.md). */
 export function TypeScreen({ type, title, period }: { type: 'required' | 'extra'; title: string; period: Period }) {
   const { data, error, isLoading } = useQuery({
     queryKey: [type, period.from, period.to],

@@ -6,7 +6,7 @@ using Tideline.Data.Services;
 namespace Tideline.Cli;
 
 /// <summary>
-/// People are added here, on the machine the app runs on: there is no public sign-up page (docs/09-security.md). Each
+/// People are added here, on the machine the app runs on: there is no public sign-up page (docs/ARCHITECTURE.md). Each
 /// new person gets a one-time setup link, good for 15 minutes (make another any time), where they choose a password and set up their authenticator.
 /// </summary>
 public static class UserCommands

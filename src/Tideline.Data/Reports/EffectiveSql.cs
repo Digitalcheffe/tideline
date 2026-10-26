@@ -1,7 +1,7 @@
 namespace Tideline.Data.Reports;
 
 /// <summary>
-/// The SQL every report counts (docs/04-domain-rules.md, "Effective lines"; reference: docs/db/queries.sql).
+/// The SQL every report counts (docs/ARCHITECTURE.md, "What a total counts").
 /// <list type="bullet">
 /// <item><c>effective</c>: each split line, plus the transaction's remainder (amount minus its splits). Moves produce none.</item>
 /// <item><c>savings_legs</c>: the leg of a savings move that is not on a savings account, counted as type 'savings'.</item>

@@ -60,7 +60,7 @@ interface DryRun {
 const DISCONNECT_WARNING =
   'Disconnect SimpleFIN?\n\nThis only makes Tideline forget the connection. It does not cancel it at SimpleFIN. To stop access for good, also revoke it at SimpleFIN Bridge (disable the token or connection there).\n\nLines already imported stay. You will need a new setup token to connect again.'
 
-/** The second door in (docs/05-import.md, "SimpleFIN"): connect once, match accounts, try a month beside the CSV, then let it run. */
+/** The second door in (docs/ARCHITECTURE.md): connect once, match accounts, try a month beside the CSV, then let it run. */
 export function SimpleFinPanel() {
   const status = useQuery({ queryKey: ['settings', 'simplefin'], queryFn: () => get<Status>('/imports/simplefin') })
   if (status.isLoading) return <Loading what="SimpleFIN" />

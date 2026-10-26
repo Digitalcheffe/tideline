@@ -6,7 +6,7 @@ import { Badge, ErrorBox, Loading, Money } from '../components'
 import { dateLabel, typeLabel } from '../format'
 import { EditPanel } from './EditPanel'
 
-/** The transaction drawer (docs/08-screens.md, "Lines"). Editing arrives with the splits editor. */
+/** The transaction drawer (docs/ARCHITECTURE.md). Editing arrives with the splits editor. */
 export function TransactionDrawer({ id, onClose }: { id: number; onClose: () => void }) {
   const { data, error, isLoading } = useQuery({ queryKey: ['transaction', id], queryFn: () => get<TransactionDetail>(`/transactions/${id}`) })
 

@@ -368,7 +368,7 @@ CREATE TABLE retirement_goal (
 -- ---------------------------------------------------------------- flags and notifications
 CREATE TABLE flags (
     id              INTEGER PRIMARY KEY,
-    kind            VARCHAR(40) NOT NULL,                  -- see docs/04-domain-rules.md, "Flags"
+    kind            VARCHAR(40) NOT NULL,                  -- see docs/ARCHITECTURE.md
     subject_type    VARCHAR(24) NOT NULL,                  -- recurring | account | category | plan | transaction | import
     subject_id      INTEGER NOT NULL,
     period          VARCHAR(10) NOT NULL,                  -- 'YYYY-MM' or 'YYYY-MM-DD'

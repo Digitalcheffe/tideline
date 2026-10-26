@@ -135,7 +135,7 @@ public class TruistParserTests
 
 public class ExternalIdTests
 {
-    // Vectors from docs/05-import.md (taken from the reference implementation).
+    // Vectors from docs/ARCHITECTURE.md (taken from the reference implementation).
     [Theory]
     [InlineData("1111", 2026, 3, 9, "Check #1042", -500000, 0, "truist:1fb866c87f8dbb056929")]
     [InlineData("3333", 2026, 1, 5, "SPOTIFY USA", -2119, 1, "truist:5175eb7b9face68d9eb0")]

@@ -1,6 +1,6 @@
 namespace Tideline.Core.Security;
 
-/// <summary>Minimum 12 characters and not on a short local list of common passwords (docs/09-security.md).</summary>
+/// <summary>Minimum 12 characters and not on a short local list of common passwords (docs/ARCHITECTURE.md).</summary>
 public static class PasswordPolicy
 {
     public const int MinLength = 12;

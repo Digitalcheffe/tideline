@@ -21,7 +21,7 @@ public static class SeverityExtensions
 }
 
 /// <summary>
-/// Flags (docs/04-domain-rules.md, "Flags"). A flag is unique on kind, subject and period, so finding the same thing again changes
+/// Flags (docs/ARCHITECTURE.md). A flag is unique on kind, subject and period, so finding the same thing again changes
 /// nothing. A flag whose condition clears is resolved, not deleted; one a person has acknowledged stays acknowledged.
 /// </summary>
 public sealed class FlagRepository(IDbConnection conn, TimeProvider clock, IDbTransaction? tx = null)

@@ -22,7 +22,7 @@ public sealed class NotifierTests : IDisposable
         return json;
     }
 
-    private async Task<long> Webhook(string url = "https://hooks.example.test/automation/abc123secret") =>
+    private async Task<long> Webhook(string url = "https://hooks.example.test/hook/abc123secret") =>
         (await Ok(HttpMethod.Post, "/api/v1/notify/channels", new { kind = "webhook", name = "Chat", config = new { url } }, HttpStatusCode.Created)).GetProperty("id").GetInt64();
 
     private Task Tick() => _api.Service<NotifyHost>().TickAsync();
@@ -44,7 +44,7 @@ public sealed class NotifierTests : IDisposable
         list[0].ToString().Should().NotContain("abc123secret");
         _api.Scalar<string>("SELECT config_enc FROM notification_channels WHERE id = @id", new { id }).Should().NotContain("hooks.example.test").And.NotContain("abc123secret");
 
-        await Ok(HttpMethod.Patch, $"/api/v1/notify/channels/{id}", new { name = "Chat room", config = new { url = "https://hooks.example.test/automation/newsecret999" } });
+        await Ok(HttpMethod.Patch, $"/api/v1/notify/channels/{id}", new { name = "Chat room", config = new { url = "https://hooks.example.test/hook/newsecret999" } });
         var audit = (await _api.Get("/api/v1/audit?entity=notify_channel")).ToString();
         audit.Should().NotContain("abc123secret").And.NotContain("newsecret999").And.Contain("settingsReplaced");
         (await Ok(HttpMethod.Get, "/api/v1/notify/channels"))[0].GetProperty("name").GetString().Should().Be("Chat room");

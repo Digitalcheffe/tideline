@@ -12,7 +12,7 @@ public sealed record AssetCategory(long? CategoryId, string Name, long PutInCent
 public sealed record ValuePoint(string AsOf, long Cents, string Source);
 
 /// <summary>
-/// One asset (a house, a car): what it is worth, what is owed on it, the equity, and what has been put into it (docs/08-screens.md, "Assets").
+/// One asset (a house, a car): what it is worth, what is owed on it, the equity, and what has been put into it (docs/ARCHITECTURE.md).
 /// <c>PutInCents</c> is money out minus refunds on every line linked to the asset, over all time.
 /// </summary>
 public sealed record AssetView(

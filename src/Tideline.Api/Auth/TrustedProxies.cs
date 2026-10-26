@@ -4,7 +4,7 @@ using Microsoft.AspNetCore.HttpOverrides;
 namespace Tideline.Api.Auth;
 
 /// <summary>
-/// Believing a reverse proxy about who the visitor really is (docs/09-security.md, "Behind a reverse proxy"). Without it every request seems to come
+/// Believing a reverse proxy about who the visitor really is (docs/ARCHITECTURE.md). Without it every request seems to come
 /// from the proxy: the sign-in limit is shared by everyone and the audit log shows one address. With it, only the addresses listed in
 /// <c>Tideline__TrustedProxies</c> are believed, so a visitor cannot make up an address by sending the header themselves.
 /// </summary>

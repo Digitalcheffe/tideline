@@ -52,7 +52,7 @@ function groups(cards: RecoCard[]) {
 const TONE = { alert: 'bad', warn: 'warn', info: 'info' } as const
 const SEVERITY = { alert: 'Needs you', warn: 'Worth a look', info: 'For your information' } as const
 
-/** Suggestions: a kind of flag, how serious, and some words produce a card with what to try (docs/08-screens.md, "Recommendations"). */
+/** Suggestions: a kind of flag, how serious, and some words produce a card with what to try (docs/ARCHITECTURE.md). */
 export function Recommendations() {
   const client = useQueryClient()
   const cards = useQuery({ queryKey: ['recommendations'], queryFn: () => get<RecoCard[]>('/recommendations') })

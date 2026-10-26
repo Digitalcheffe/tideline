@@ -73,7 +73,7 @@ public sealed record RecurringInput(
 
 /// <summary>
 /// Setting up the household: accounts, move patterns, categories, tags, recurring items and the few app settings. Every change
-/// is checked, then written with its audit entry in the same database transaction (docs/09-security.md, "Audit").
+/// is checked, then written with its audit entry in the same database transaction (docs/ARCHITECTURE.md).
 /// A null field in an update means "leave it alone".
 /// </summary>
 public sealed class SetupEditor(IDbConnection conn, TimeProvider clock, Actor? actor = null)

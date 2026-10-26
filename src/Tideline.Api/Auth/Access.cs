@@ -185,7 +185,7 @@ public sealed class AccessMiddleware(RequestDelegate next, TidelineOptions optio
     }
 }
 
-/// <summary>Headers from docs/09-security.md. The API sets them on everything it serves, including the web app.</summary>
+/// <summary>Headers from docs/ARCHITECTURE.md. The API sets them on everything it serves, including the web app.</summary>
 public sealed class SecurityHeadersMiddleware(RequestDelegate next)
 {
     public Task InvokeAsync(HttpContext context)

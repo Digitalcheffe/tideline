@@ -247,7 +247,7 @@ const TOPICS: Topic[] = [
         </p>
         <h3>Notifications</h3>
         <p>
-          In <L to="/settings/notifications">Settings, Notifications</L>, add a channel (a webhook address, such as an automation flow, or email). For each kind of alert choose whether it is sent <strong>now</strong>,
+          In <L to="/settings/notifications">Settings, Notifications</L>, add a channel (a webhook address, such as an automation or chat tool, or email). For each kind of alert choose whether it is sent <strong>now</strong>,
           held for the <strong>monthly summary</strong>, or <strong>off</strong>. Quiet hours hold urgent messages until morning. The monthly summary is sent on the first of the month, and its text can be previewed before it goes out.
         </p>
       </>

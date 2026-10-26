@@ -5,7 +5,7 @@ using Tideline.Data.Services;
 
 namespace Tideline.Api.Endpoints;
 
-/// <summary>Changes to how the household is set up (docs/07-api.md, "Planning and setup"). The role needed for each is in the access table.</summary>
+/// <summary>Changes to how the household is set up (docs/ARCHITECTURE.md). The role needed for each is in the access table.</summary>
 public static class SetupEndpoints
 {
     public sealed record MergeRequest(long IntoId);

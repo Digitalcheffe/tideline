@@ -5,7 +5,7 @@ using Tideline.Data.Services;
 
 namespace Tideline.Api.Endpoints;
 
-/// <summary>Net worth, retirement, plans, budgets and savings (docs/07-api.md). Reads need any signed-in person; changes need a member, or the owner for account figures.</summary>
+/// <summary>Net worth, retirement, plans, budgets and savings (docs/ARCHITECTURE.md). Reads need any signed-in person; changes need a member, or the owner for account figures.</summary>
 public static class PlanningEndpoints
 {
     public sealed record GoalRequest(GoalInput? Goal);

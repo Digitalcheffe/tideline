@@ -7,7 +7,7 @@ namespace Tideline.Data.Repositories;
 
 /// <summary>
 /// The ledger. There is deliberately no method that updates a bank field of an existing row; the database
-/// triggers refuse it as well (docs/CLAUDE.md, non-negotiable 1).
+/// triggers refuse it as well (CLAUDE.md, non-negotiable 1).
 /// </summary>
 public sealed class LedgerRepository(IDbConnection conn, TimeProvider clock, IDbTransaction? tx = null)
 {

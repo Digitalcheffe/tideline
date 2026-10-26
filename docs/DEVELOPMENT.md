@@ -1,6 +1,6 @@
 # Development
 
-How to run Tideline from source, use the command line, and run the tests. For the container, see [11-deploy](11-deploy.md).
+How to run Tideline from source, use the command line, and run the tests. For the container, see the [README](../README.md#quick-start).
 
 ## Run it from source
 

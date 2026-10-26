@@ -29,7 +29,7 @@ public sealed record RuleDecision(
 public static class RulesEngine
 {
     /// <summary>
-    /// First active rule, in ascending priority, whose conditions all hold wins (docs/06-rules-engine.md).
+    /// First active rule, in ascending priority, whose conditions all hold wins (docs/ARCHITECTURE.md).
     /// Never touches manual overrides or moves. Returns null when nothing matches.
     /// </summary>
     /// <param name="categoryDefaultType">Looks up a category's default type, used when the rule sets none.</param>

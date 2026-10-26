@@ -9,7 +9,7 @@ public sealed record RecommendationRuleInput(string? Name, string? FlagKind = nu
 
 /// <summary>
 /// Suggestion rules: when a flag of this kind is open (and is at least this serious, and its text has these words), show this suggestion
-/// (docs/08-screens.md, "Recommendations"). Every change is audited. Dismissing a suggestion for one flag is audited too.
+/// (docs/ARCHITECTURE.md). Every change is audited. Dismissing a suggestion for one flag is audited too.
 /// </summary>
 public sealed class RecommendationEditor(IDbConnection conn, TimeProvider clock, Actor? actor = null) : EditorBase(conn, clock, actor)
 {

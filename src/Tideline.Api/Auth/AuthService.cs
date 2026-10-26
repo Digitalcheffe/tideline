@@ -29,7 +29,7 @@ public sealed class NotifySecrets(IDataProtectionProvider provider) : Tideline.D
     public string Unprotect(string sealedText) => _protector.Unprotect(sealedText);
 }
 
-/// <summary>Anti-forgery for cookie sessions: a token only this session can have been given (docs/09-security.md, "Sessions").</summary>
+/// <summary>Anti-forgery for cookie sessions: a token only this session can have been given (docs/ARCHITECTURE.md).</summary>
 public sealed class Csrf(IDataProtectionProvider provider)
 {
     private readonly IDataProtector _protector = provider.CreateProtector("Tideline.Csrf.v1");
@@ -59,7 +59,7 @@ public sealed class AuthException(string message, int status = 400) : Exception(
 }
 
 /// <summary>
-/// Signing in: password, then a second step that is not optional (docs/09-security.md). Every attempt, good or bad, is audited.
+/// Signing in: password, then a second step that is not optional (docs/ARCHITECTURE.md). Every attempt, good or bad, is audited.
 /// </summary>
 public sealed class AuthService(SqliteConnectionFactory factory, TimeProvider clock, TidelineOptions options, SecretBox box)
 {
@@ -134,7 +134,7 @@ public sealed class AuthService(SqliteConnectionFactory factory, TimeProvider cl
     }
 
     /// <summary>
-    /// The first person to arrive in an empty app makes the owner account (docs/09-security.md, "First run"). They then go on to the same second
+    /// The first person to arrive in an empty app makes the owner account (docs/ARCHITECTURE.md). They then go on to the same second
     /// step as everyone: nothing is open until the authenticator is set up. Only works while there are no users.
     /// </summary>
     public LoginResult FirstRun(string? email, string? displayName, string? password, string? ip, string? userAgent)

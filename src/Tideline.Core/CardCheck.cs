@@ -1,6 +1,6 @@
 namespace Tideline.Core;
 
-/// <summary>Credit card "paid in full" (docs/04-domain-rules.md, "Card paid in full").</summary>
+/// <summary>Credit card "paid in full" (docs/ARCHITECTURE.md).</summary>
 public static class CardCheck
 {
     /// <summary>

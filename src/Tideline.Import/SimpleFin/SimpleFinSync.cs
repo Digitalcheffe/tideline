@@ -27,7 +27,7 @@ public sealed record DryRunReport(
 public sealed record ConnectionStatus(bool Connected, DateTimeOffset? LastSyncAt, string? LastError, int RequestsToday);
 
 /// <summary>
-/// Pulls transactions from SimpleFIN into the same pipeline the CSV files use (docs/05-import.md, "SimpleFIN"). Windows of at most 90 days overlapping
+/// Pulls transactions from SimpleFIN into the same pipeline the CSV files use (docs/ARCHITECTURE.md). Windows of at most 90 days overlapping
 /// by 5; pending lines wait until they post; a cutover date per account keeps the two doors from covering the same days; more than 24 requests
 /// in a day is treated as a bug and stops. The access address is sealed and never logged.
 /// </summary>

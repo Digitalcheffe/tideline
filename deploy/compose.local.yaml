@@ -1,4 +1,4 @@
-# Try Tideline on this computer with Docker (the real server stack comes later, once the Docker host and network are chosen).
+# Try Tideline on this computer with Docker.
 #
 #   docker compose -f deploy/compose.local.yaml up -d --build
 #
@@ -7,7 +7,7 @@
 # Stop with `docker compose -f deploy/compose.local.yaml down` (your data stays); add `-v` to delete the data as well.
 #
 # The data lives in named Docker volumes here, not bind mounts: SQLite does not behave well on a Windows folder mounted into
-# a Linux container. The server stack uses bind mounts under /srv/tideline/ (docs/11-deploy.md).
+# a Linux container. On a server you would use bind mounts to folders you choose instead.
 name: tideline
 
 services:

@@ -11,7 +11,7 @@ public enum LineSort { DateDesc, DateAsc, AmountDesc, AmountAsc }
 
 public enum LineDirection { Any, In, Out }
 
-/// <summary>The drill-down contract (docs/07-api.md): one filter shape opens the lines behind any number.</summary>
+/// <summary>The drill-down contract (docs/ARCHITECTURE.md): one filter shape opens the lines behind any number.</summary>
 public sealed record LineFilter(
     DateOnly From,
     DateOnly To,

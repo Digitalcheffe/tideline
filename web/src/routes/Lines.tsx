@@ -16,7 +16,7 @@ const SORTS: { key: string; label: string }[] = [
 
 /**
  * The ledger: every line, for the period in the menu. It is also the drill-down view that every number on every screen
- * opens (docs/08-screens.md, "Lines"), so the filters live in the URL.
+ * opens (docs/ARCHITECTURE.md), so the filters live in the URL.
  */
 export function Lines() {
   const [params, setParams] = useSearchParams()

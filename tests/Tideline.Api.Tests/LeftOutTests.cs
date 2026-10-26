@@ -4,7 +4,7 @@ using FluentAssertions;
 
 namespace Tideline.Api.Tests;
 
-/// <summary>Leaving lines out of the totals, deleting a hand-added line, and undoing an import (docs/07-api.md, "Ledger").</summary>
+/// <summary>Leaving lines out of the totals, deleting a hand-added line, and undoing an import (docs/ARCHITECTURE.md).</summary>
 public sealed class LeftOutTests : IDisposable
 {
     private readonly ApiFixture _api = new();

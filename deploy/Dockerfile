@@ -1,4 +1,4 @@
-# Tideline image (docs/11-deploy.md). Build from the repository root:
+# Tideline image (docs/ARCHITECTURE.md). Build from the repository root:
 #   docker build -f deploy/Dockerfile -t tideline:local .
 # Pass --build-arg RUN_TESTS=0 to skip the .NET tests inside the build (they take a couple of minutes).
 

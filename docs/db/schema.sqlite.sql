@@ -2,7 +2,7 @@
 --
 -- This file is the CONTRACT. The real schema is created by FluentMigrator migrations
 -- (src/Tideline.Data/Migrations) that must produce this structure on SQLite and the
--- equivalent on MariaDB (see docs/03-database.md, "Portability rules").
+-- equivalent on MariaDB (see docs/ARCHITECTURE.md).
 -- tests/Tideline.Data.Tests/SchemaContractTests compares the migrated SQLite schema to this file.
 --
 -- Conventions
@@ -392,7 +392,7 @@ CREATE TABLE retirement_goal (
 -- ---------------------------------------------------------------- flags and notifications
 CREATE TABLE flags (
     id              INTEGER PRIMARY KEY,
-    kind            VARCHAR(40) NOT NULL,                  -- see docs/04-domain-rules.md, "Flags"
+    kind            VARCHAR(40) NOT NULL,                  -- see docs/ARCHITECTURE.md
     subject_type    VARCHAR(24) NOT NULL,                  -- recurring | account | category | plan | transaction | import
     subject_id      INTEGER NOT NULL,
     period          VARCHAR(10) NOT NULL,                  -- 'YYYY-MM' or 'YYYY-MM-DD'
@@ -486,7 +486,7 @@ BEGIN SELECT RAISE(ABORT, 'imported transactions cannot be deleted'); END;
 CREATE TABLE recommendation_rules (
     id              INTEGER PRIMARY KEY,
     name            VARCHAR(100) NOT NULL UNIQUE,
-    flag_kind       VARCHAR(40) NOT NULL,                  -- a kind from docs/04-domain-rules.md, "Flags"
+    flag_kind       VARCHAR(40) NOT NULL,                  -- a kind from docs/ARCHITECTURE.md
     min_severity    VARCHAR(8) NOT NULL DEFAULT 'info' CHECK (min_severity IN ('info','warn','alert')),
     contains        VARCHAR(100),                          -- optional: the flag's text has to contain this
     suggestion      VARCHAR(600) NOT NULL,

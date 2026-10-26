@@ -10,7 +10,7 @@ namespace Tideline.Notify;
 
 public sealed record SummaryMessage(string Month, string Title, string Body, string LinkPath, int NeedsYou);
 
-/// <summary>The all-clear for a month that has just ended (docs/10-notifications-logging.md, "Monthly summary"). Plain words, no dashes.</summary>
+/// <summary>The all-clear for a month that has just ended (docs/ARCHITECTURE.md). Plain words, no dashes.</summary>
 public static class MonthlySummary
 {
     public static SummaryMessage Build(IDbConnection conn, string month, DateOnly today, TimeProvider clock)

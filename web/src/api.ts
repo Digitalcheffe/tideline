@@ -1,4 +1,4 @@
-// Typed client for /api/v1 (docs/07-api.md). Money is integer cents; dates are YYYY-MM-DD.
+// Typed client for /api/v1 (docs/ARCHITECTURE.md). Money is integer cents; dates are YYYY-MM-DD.
 
 export interface Figure {
   cents: number

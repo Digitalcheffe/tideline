@@ -5,7 +5,7 @@ using Tideline.Data.Services;
 
 namespace Tideline.Import.SimpleFin;
 
-/// <summary>Syncs every 6 hours at a minute past 17 that is the same each time but not the same for everyone (docs/05-import.md), so the bridge is not hit on the hour.</summary>
+/// <summary>Syncs every 6 hours at a minute past 17 that is the same each time but not the same for everyone (docs/ARCHITECTURE.md), so the bridge is not hit on the hour.</summary>
 public sealed class SimpleFinHost(SimpleFinSync sync, TimeProvider clock, Func<DateTime> localNow, ILogger<SimpleFinHost>? logger = null) : BackgroundService
 {
     public static readonly TimeSpan Every = TimeSpan.FromHours(6);

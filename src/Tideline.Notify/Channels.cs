@@ -29,7 +29,7 @@ internal static class Json
     public static readonly JsonSerializerOptions Options = new(JsonSerializerDefaults.Web);
 }
 
-/// <summary>A POST of the JSON in docs/10-notifications-logging.md, normally to an automation workflow that posts on to Chat.</summary>
+/// <summary>A POST of the JSON in docs/ARCHITECTURE.md, normally to an automation that posts on to chat.</summary>
 public sealed class WebhookSender(HttpClient http) : IChannelSender
 {
     public string Kind => "webhook";

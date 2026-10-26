@@ -9,7 +9,7 @@ using Tideline.Import;
 namespace Tideline.Api.Endpoints;
 
 /// <summary>
-/// The Imports page (docs/05-import.md): what came in and what failed, how the inbox folder looks, whether each account's ledger
+/// The Imports page (docs/ARCHITECTURE.md): what came in and what failed, how the inbox folder looks, whether each account's ledger
 /// agrees with the bank, and a way to send a CSV from a phone through the same pipeline the inbox uses. Owner only.
 /// </summary>
 public static class ImportEndpoints

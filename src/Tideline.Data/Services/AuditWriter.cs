@@ -12,7 +12,7 @@ public sealed record Actor(long? UserId = null, long? ApiTokenId = null, string?
 
 /// <summary>
 /// Everything a person changes is in the audit log, with before and after, written in the same database
-/// transaction as the change (docs/09-security.md, "Audit"). The log is append-only.
+/// transaction as the change (docs/ARCHITECTURE.md). The log is append-only.
 /// </summary>
 public sealed class AuditWriter(IDbConnection conn, TimeProvider clock, IDbTransaction tx, Actor? actor = null)
 {

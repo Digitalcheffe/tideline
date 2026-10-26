@@ -53,7 +53,7 @@ public static class TransactionEndpoints
             });
         });
 
-        // docs/07-api.md, "Ledger": every edit is audited, sets is_manual_override, and is refused (409) if the line changed since it was read.
+        // docs/ARCHITECTURE.md: every edit is audited, sets is_manual_override, and is refused (409) if the line changed since it was read.
         api.MapPatch("/transactions/{id:long}", (long id, EditRequest request, SqliteConnectionFactory factory, TimeProvider time, HttpContext http) =>
             Edit(http, factory, time, e => new { version = e.Update(id, request) }));
 
@@ -66,7 +66,7 @@ public static class TransactionEndpoints
         api.MapPost("/transactions/bulk", (BulkRequest request, SqliteConnectionFactory factory, TimeProvider time, HttpContext http) =>
             Edit(http, factory, time, e => e.BulkUpdate(request.Ids ?? [], request.Set ?? new BulkChange())));
 
-        // docs/07-api.md: pair two lines by hand, or take a move apart (both lines go back to the rules)
+        // docs/ARCHITECTURE.md: pair two lines by hand, or take a move apart (both lines go back to the rules)
         api.MapPost("/moves", (PairRequest request, SqliteConnectionFactory factory, TimeProvider time, HttpContext http) =>
             Edit(http, factory, time, e => new { id = e.Pair(request.TransactionIds ?? []) }, created: true));
 
@@ -79,7 +79,7 @@ public static class TransactionEndpoints
         api.MapDelete("/transactions/{id:long}", (long id, SqliteConnectionFactory factory, TimeProvider time, HttpContext http) =>
             Edit(http, factory, time, e => { e.DeleteManual(id); return new { deleted = true }; }));
 
-        // leave lines out of every total without touching them, and bring them back (docs/07-api.md, "Ledger")
+        // leave lines out of every total without touching them, and bring them back (docs/ARCHITECTURE.md)
         api.MapPost("/transactions/leave-out", (LeaveOutRequest request, SqliteConnectionFactory factory, TimeProvider time, HttpContext http) =>
             Edit(http, factory, time, e => e.LeaveOut(request.Ids ?? [], request.Reason)));
 

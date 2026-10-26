@@ -1,6 +1,6 @@
 namespace Tideline.Core;
 
-/// <summary>Subscriptions: spotting a recent price change (docs/08-screens.md, "Extra").</summary>
+/// <summary>Subscriptions: spotting a recent price change (docs/ARCHITECTURE.md).</summary>
 public static class PriceHistory
 {
     /// <summary>

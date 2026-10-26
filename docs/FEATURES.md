@@ -1,7 +1,7 @@
 # Features
 
-A tour of what Tideline does, screen by screen. Pictures are in [screenshots](screenshots/README.md). The exact rules and calculations are in
-[04-domain-rules](04-domain-rules.md), and the screens are specified in [08-screens](08-screens.md).
+A tour of what Tideline does, screen by screen. Pictures are in [screenshots](screenshots/README.md). How it fits together is in
+[ARCHITECTURE](ARCHITECTURE.md).
 
 ## The ideas it is built on
 
@@ -88,7 +88,7 @@ and clears itself when the cause is fixed.
 
 **Recommendations** shows a plain suggestion for each open alert. You can edit them, switch them off, add your own, and hide one for a single alert.
 
-**Notifications** go to a webhook (for example an automation flow that posts to chat) or email. Per kind of alert you choose *send now*, *hold for the
+**Notifications** go to a webhook (for example a flow that posts to chat) or email. Per kind of alert you choose *send now*, *hold for the
 monthly summary*, or *off*. Quiet hours hold urgent messages until morning, a flood is collapsed into a digest, failed sends retry, and a
 **monthly summary** with the real numbers arrives on the first.
 
