@@ -26,6 +26,7 @@ public static class ImportEndpoints
             var batches = conn.Query<(long Id, string Source, string? FileName, long? AccountId, string? AccountName, string StartedAt, string? FinishedAt, string Status, int Read, int Inserted, int Existing, int Review, string? Error)>("""
                 SELECT b.id, b.source, b.file_name, b.account_id, a.name, b.started_at, b.finished_at, b.status, b.rows_read, b.rows_inserted, b.rows_existing, b.rows_review, b.error
                 FROM import_batches b LEFT JOIN accounts a ON a.id = b.account_id
+                WHERE b.dismissed_at IS NULL
                 ORDER BY b.id DESC LIMIT 100
                 """).Select(b => new
             {
@@ -56,7 +57,11 @@ public static class ImportEndpoints
             return batch is null ? Results.Problem(title: "Not found", detail: "There is no such import.", statusCode: 404) : Results.Ok(batch);
         });
 
-        api.MapPost("/imports/upload", async (HttpRequest request, HttpContext http, ImportPipeline pipeline, SqliteConnectionFactory factory, TimeProvider clock, CancellationToken ct) =>
+        // clear a failed import from the list (and stop it raising the alert); the record and the audit entry stay
+        api.MapPost("/imports/{id:long}/dismiss", (long id, HttpContext http, SqliteConnectionFactory f, TimeProvider t) =>
+            Edits.Run(http, f, t, (c, clock, who) => { new ImportBatchEditor(c, clock, who).Dismiss(id); return new { dismissed = true }; }));
+
+        api.MapPost("/imports/upload",async (HttpRequest request, HttpContext http, ImportPipeline pipeline, SqliteConnectionFactory factory, TimeProvider clock, CancellationToken ct) =>
         {
             if (!request.HasFormContentType) return Results.Problem(title: "Check the request", detail: "Send the CSV as a file in a form.", statusCode: 400);
             var form = await request.ReadFormAsync(ct);

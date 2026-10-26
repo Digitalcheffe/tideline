@@ -185,6 +185,7 @@ CREATE TABLE tags (
 );
 
 -- ---------------------------------------------------------------- imports
+-- dismissed_at (migration M0006): set when a person clears a failed import from the list; the row and its audit entry stay
 CREATE TABLE import_batches (
     id              INTEGER PRIMARY KEY,
     source          VARCHAR(16) NOT NULL CHECK (source IN ('csv','simplefin','manual')),
@@ -199,7 +200,7 @@ CREATE TABLE import_batches (
     rows_existing   INTEGER NOT NULL DEFAULT 0,
     rows_review     INTEGER NOT NULL DEFAULT 0,
     error           TEXT
-);
+, dismissed_at VARCHAR(32));
 CREATE INDEX ix_import_batches_sha ON import_batches(file_sha256);
 
 -- ---------------------------------------------------------------- recurring (bills and subscriptions)

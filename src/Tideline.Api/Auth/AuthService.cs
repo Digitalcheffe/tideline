@@ -311,6 +311,145 @@ public sealed class AuthService(SqliteConnectionFactory factory, TimeProvider cl
         return new MfaSuccess(token, null, left);
     }
 
+    // ---- your own account --------------------------------------------------------------------------------------
+
+    private static void RequireFull(SessionRecord session)
+    {
+        if (!session.IsFullyAuthenticated) throw new AuthException("Finish signing in first.", 403);
+    }
+
+    public void UpdateName(SessionRecord session, UserRecord user, string? name, string? ip)
+    {
+        RequireFull(session);
+        var clean = name?.Trim() ?? "";
+        if (clean.Length is 0 or > 100) throw new AuthException("Give a name (100 characters at most).", 422);
+
+        using var conn = factory.Open();
+        using var tx = conn.BeginTransaction();
+        new UserRepository(conn, clock, tx).SetDisplayName(user.Id, clean);
+        new AuditWriter(conn, clock, tx, new Actor(user.Id, Ip: ip)).Write("user.updated", "user", user.Id.ToString(), new { displayName = user.DisplayName }, new { displayName = clean });
+        tx.Commit();
+    }
+
+    /// <summary>
+    /// A new password needs the current one. A wrong current password counts toward the same lockout as a wrong sign-in, and a good change signs
+    /// every other device out (this one stays).
+    /// </summary>
+    public void ChangePassword(SessionRecord session, UserRecord user, string? current, string? next, string? ip)
+    {
+        RequireFull(session);
+        using var conn = factory.Open();
+        using var tx = conn.BeginTransaction();
+        var users = new UserRepository(conn, clock, tx);
+        var audit = new AuditWriter(conn, clock, tx, new Actor(user.Id, Ip: ip));
+        var fresh = users.Get(user.Id)!;
+
+        if (fresh.LockedUntil > clock.GetUtcNow()) throw new AuthException("Too many wrong tries. Wait a few minutes and try again.", 429);
+
+        if (Hasher.VerifyHashedPassword(fresh, fresh.PasswordHash, current ?? "") == PasswordVerificationResult.Failed)
+        {
+            var (_, lockedUntil) = users.RecordFailedLogin(user.Id, options.MaxFailedLogins, Lock);
+            audit.Write("password.change_failed", "user", user.Id.ToString(), null, new { reason = "wrong current password" });
+            if (lockedUntil is not null)
+            {
+                audit.Write("login.locked", "user", user.Id.ToString(), null, new { until = lockedUntil, during = "password change" });
+                new SessionRepository(conn, clock, tx).Revoke(session.Id);
+            }
+            tx.Commit();
+            throw new AuthException("Your current password is not right.", 401);
+        }
+
+        if (PasswordPolicy.Check(next, fresh.Email, fresh.DisplayName) is { } problem) throw new AuthException(problem, 422);
+        if (next == current) throw new AuthException("Pick a password that is different from your current one.", 422);
+
+        users.SetPassword(user.Id, Hasher.HashPassword(fresh, next!));
+        var ended = new SessionRepository(conn, clock, tx).RevokeAllForUser(user.Id, session.Id);
+        audit.Write("user.password_changed", "user", user.Id.ToString(), null, new { otherSessionsEnded = ended });
+        tx.Commit();
+    }
+
+    private sealed record PendingAuthenticator(string Secret, DateTimeOffset Expires);
+
+    private readonly System.Collections.Concurrent.ConcurrentDictionary<long, PendingAuthenticator> _pendingAuthenticators = new();
+
+    /// <summary>
+    /// Step one of moving to a new phone: prove it is you with a code from the current authenticator (or, if that phone is gone, a recovery code),
+    /// and get a new secret to scan. Nothing changes until the new authenticator shows a good code.
+    /// </summary>
+    public TotpEnrollment StartReplacingAuthenticator(SessionRecord session, UserRecord user, string? code, string? recoveryCode, string? ip)
+    {
+        RequireFull(session);
+        using var conn = factory.Open();
+        using var tx = conn.BeginTransaction();
+        var mfa = new MfaRepository(conn, clock, tx);
+        var users = new UserRepository(conn, clock, tx);
+        var audit = new AuditWriter(conn, clock, tx, new Actor(user.Id, Ip: ip));
+
+        if (users.Get(user.Id)!.LockedUntil > clock.GetUtcNow()) throw new AuthException("Too many wrong tries. Wait a few minutes and try again.", 429);
+
+        var proved = false;
+        if (!string.IsNullOrWhiteSpace(recoveryCode)) proved = mfa.TryUseRecoveryCode(user.Id, RecoveryCodes.Hash(recoveryCode));
+        else
+            foreach (var m in mfa.Active(user.Id).Where(m => m.Kind == "totp" && m.TotpSecretEnc is not null))
+            {
+                var step = Totp.Verify(box.Unprotect(m.TotpSecretEnc!), code ?? "", clock.GetUtcNow(), m.SignCount);
+                if (step is not null && mfa.TryUseStep(m.Id, step.Value)) { proved = true; break; }
+            }
+
+        if (!proved)
+        {
+            var (_, lockedUntil) = users.RecordFailedLogin(user.Id, options.MaxFailedLogins, Lock);
+            audit.Write("mfa.failure", "user", user.Id.ToString(), null, new { kind = "replace" });
+            if (lockedUntil is not null)
+            {
+                audit.Write("login.locked", "user", user.Id.ToString(), null, new { until = lockedUntil, during = "authenticator change" });
+                new SessionRepository(conn, clock, tx).Revoke(session.Id);
+            }
+            tx.Commit();
+            throw new AuthException("That code did not match.", 401);
+        }
+
+        var secret = Totp.NewSecret();
+        _pendingAuthenticators[session.Id] = new PendingAuthenticator(secret, clock.GetUtcNow().AddMinutes(10));
+        audit.Write("mfa.replace_started", "user", user.Id.ToString(), null, new { proof = string.IsNullOrWhiteSpace(recoveryCode) ? "authenticator" : "recovery code" });
+        tx.Commit();
+
+        var uri = Totp.OtpAuthUri("Tideline", user.Email, secret);
+        return new TotpEnrollment(secret, uri, Qr(uri));
+    }
+
+    /// <summary>
+    /// Step two: the new authenticator shows a good code. The old one stops working, fresh recovery codes replace the old ones, and every other
+    /// device is signed out.
+    /// </summary>
+    public IReadOnlyList<string> ConfirmReplacingAuthenticator(SessionRecord session, UserRecord user, string? code, string? ip)
+    {
+        RequireFull(session);
+        if (!_pendingAuthenticators.TryGetValue(session.Id, out var pending) || pending.Expires <= clock.GetUtcNow())
+        {
+            _pendingAuthenticators.TryRemove(session.Id, out _);
+            throw new AuthException("That took too long. Start again.", 409);
+        }
+
+        var step = Totp.Verify(pending.Secret, code ?? "", clock.GetUtcNow(), 0);
+        if (step is null) throw new AuthException("That code did not match. Check that you scanned the new code, and try the next one.", 401);
+
+        using var conn = factory.Open();
+        using var tx = conn.BeginTransaction();
+        var mfa = new MfaRepository(conn, clock, tx);
+        foreach (var old in mfa.Active(user.Id).Where(m => m.Kind == "totp")) mfa.Revoke(user.Id, old.Id);
+        var id = mfa.AddTotp(user.Id, "Authenticator app", box.Protect(pending.Secret));
+        mfa.TryUseStep(id, step.Value); // the code just used cannot be used again to sign in
+        var codes = RecoveryCodes.Generate();
+        mfa.ReplaceRecoveryCodes(user.Id, codes.Select(RecoveryCodes.Hash));
+        var ended = new SessionRepository(conn, clock, tx).RevokeAllForUser(user.Id, session.Id);
+        new AuditWriter(conn, clock, tx, new Actor(user.Id, Ip: ip)).Write("mfa.authenticator_replaced", "user", user.Id.ToString(), null, new { recoveryCodes = codes.Count, otherSessionsEnded = ended });
+        tx.Commit();
+
+        _pendingAuthenticators.TryRemove(session.Id, out _);
+        return codes;
+    }
+
     /// <summary>Ten new recovery codes. Needs a current authenticator code, since it replaces the old ones.</summary>
     public IReadOnlyList<string> RegenerateRecoveryCodes(UserRecord user, string? totpCode, string? ip)
     {

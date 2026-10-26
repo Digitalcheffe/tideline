@@ -10,6 +10,8 @@ public static class AuthEndpoints
 {
     public sealed record LoginRequest(string? Email, string? Password);
     public sealed record SetupRequest(string? Token, string? Password);
+    public sealed record ProfileRequest(string? DisplayName);
+    public sealed record PasswordRequest(string? CurrentPassword, string? NewPassword);
     public sealed record FirstRunRequest(string? Email, string? DisplayName, string? Password);
     public sealed record CodeRequest(string? Code, string? RecoveryCode);
 
@@ -114,6 +116,38 @@ public static class AuthEndpoints
 
         auth.MapPost("/recovery-codes", (CodeRequest request, HttpContext http, AuthService service) =>
             Guard(() => Results.Ok(new { recoveryCodes = service.RegenerateRecoveryCodes(http.Principal()!.User, request.Code, http.ClientIp()) })));
+
+        // ---- your own account: name, password, a new phone ----
+        auth.MapPatch("/profile", (ProfileRequest request, HttpContext http, AuthService service) =>
+            Guard(() =>
+            {
+                var who = http.Principal()!;
+                service.UpdateName(who.Session!, who.User, request.DisplayName, http.ClientIp());
+                return Results.Ok(new { displayName = request.DisplayName!.Trim() });
+            }));
+
+        auth.MapPost("/password", (PasswordRequest request, HttpContext http, AuthService service) =>
+            Guard(() =>
+            {
+                var who = http.Principal()!;
+                service.ChangePassword(who.Session!, who.User, request.CurrentPassword, request.NewPassword, http.ClientIp());
+                return Results.Ok(new { changed = true });
+            }));
+
+        auth.MapPost("/authenticator/start", (CodeRequest request, HttpContext http, AuthService service) =>
+            Guard(() =>
+            {
+                var who = http.Principal()!;
+                var enrollment = service.StartReplacingAuthenticator(who.Session!, who.User, request.Code, request.RecoveryCode, http.ClientIp());
+                return Results.Ok(new { secret = enrollment.Secret, otpauthUri = enrollment.OtpAuthUri, qrSvg = enrollment.QrSvg });
+            }));
+
+        auth.MapPost("/authenticator/confirm", (CodeRequest request, HttpContext http, AuthService service) =>
+            Guard(() =>
+            {
+                var who = http.Principal()!;
+                return Results.Ok(new { recoveryCodes = service.ConfirmReplacingAuthenticator(who.Session!, who.User, request.Code, http.ClientIp()) });
+            }));
 
         // ---- your own sessions ----
         auth.MapGet("/sessions", (HttpContext http, SqliteConnectionFactory factory, TimeProvider clock, TidelineOptions options) =>

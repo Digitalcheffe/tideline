@@ -214,7 +214,18 @@ public sealed partial class GateTests(ITestOutputHelper output) : IDisposable
         var m3Client = await _api.SignInAsync("m3@example.com", ApiFixture.Password, m3.Secret);
         var newcomer = _api.AddUser("new@example.com", "New", Tideline.Core.Security.Role.Member, enrolled: false, password: null);
         var raw = _api.RawClient();
-        string pre = "", csrf = "", newSecret = "";
+        string pre = "", csrf = "", newSecret = "", acctNewSecret = "";
+
+        // someone managing their own account, signed in fully
+        var acct = _api.AddUser("acct@example.com", "Acct One", Tideline.Core.Security.Role.Member);
+        var acctClient = await _api.SignInAsync("acct@example.com", ApiFixture.Password, acct.Secret);
+        async Task<JsonElement> Mine(HttpMethod method, string url, object body)
+        {
+            var response = await acctClient.SendAsync(new HttpRequestMessage(method, url) { Content = JsonContent.Create(body) });
+            var text = await response.Content.ReadAsStringAsync();
+            response.IsSuccessStatusCode.Should().BeTrue($"{method} {url}: {text}");
+            return JsonDocument.Parse(text).RootElement.Clone();
+        }
 
         HttpRequestMessage Cookie(HttpMethod method, string url, object? body = null)
         {
@@ -362,6 +373,20 @@ public sealed partial class GateTests(ITestOutputHelper output) : IDisposable
             }),
             new("POST /auth/enroll/totp/confirm", Kind.Event, "mfa.enrolled", async () =>
                 (await raw.SendAsync(Cookie(HttpMethod.Post, "/api/v1/auth/enroll/totp/confirm", new { code = _api.NextCode(newSecret) }))).EnsureSuccessStatusCode()),
+
+            // a person managing their own sign-in
+            new("PATCH /auth/profile", Kind.Update, "user.updated", () => Mine(HttpMethod.Patch, "/api/v1/auth/profile", new { displayName = "Acct Two" })),
+            new("POST /auth/password", Kind.Event, "user.password_changed", () => Mine(HttpMethod.Post, "/api/v1/auth/password", new { currentPassword = ApiFixture.Password, newPassword = "a different long passphrase" })),
+            new("POST /auth/authenticator/start", Kind.Event, "mfa.replace_started", async () =>
+                acctNewSecret = (await Mine(HttpMethod.Post, "/api/v1/auth/authenticator/start", new { code = _api.NextCode(acct.Secret) })).GetProperty("secret").GetString()!),
+            new("POST /auth/authenticator/confirm", Kind.Event, "mfa.authenticator_replaced", () => Mine(HttpMethod.Post, "/api/v1/auth/authenticator/confirm", new { code = _api.NextCode(acctNewSecret) })),
+
+            // clearing a failed import from the list
+            new("POST /imports/{id:long}/dismiss", Kind.Update, "import.dismissed", async () =>
+            {
+                _api.Execute("INSERT INTO import_batches (source, file_name, started_at, status, error) VALUES ('csv', 'gate-failed.csv', '2026-04-01T00:00:00Z', 'failed', 'a test failure')");
+                await Ok(HttpMethod.Post, $"/api/v1/imports/{_api.Scalar<long>("SELECT MAX(id) FROM import_batches")}/dismiss");
+            }),
         };
 
         var missing = new List<string>();

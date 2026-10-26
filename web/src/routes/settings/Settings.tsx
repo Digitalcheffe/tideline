@@ -12,6 +12,7 @@ import { LogsSettings } from './LogsSettings'
 import { ImportsSettings } from './ImportsSettings'
 import { DataSettings } from './DataSettings'
 import { NotificationsSettings } from './NotificationsSettings'
+import { SimpleFinPanel } from './SimpleFinPanel'
 
 const TABS = [
   { to: 'accounts', label: 'Money accounts' },
@@ -19,6 +20,7 @@ const TABS = [
   { to: 'recurring', label: 'Recurring' },
   { to: 'rules', label: 'Rules' },
   { to: 'imports', label: 'Imports' },
+  { to: 'simplefin', label: 'SimpleFIN' },
   { to: 'people', label: 'People' },
   { to: 'sessions', label: 'Sessions' },
   { to: 'tokens', label: 'API tokens' },
@@ -57,6 +59,7 @@ export function Settings() {
         <Route path="recurring" element={<RecurringSettings />} />
         <Route path="rules" element={<RulesSettings />} />
         <Route path="imports" element={<ImportsSettings />} />
+        <Route path="simplefin" element={<SimpleFinPanel />} />
         <Route path="people" element={<PeopleSettings />} />
         <Route path="sessions" element={<SessionsSettings />} />
         <Route path="tokens" element={<TokensSettings />} />

@@ -62,7 +62,8 @@ public static class AccessPolicy
         !StartsWith(path, "/auth") && !OwnerOnlyPrefixes.Any(p => StartsWith(path, p)) && !(!IsSafe(method) && StartsWith(path, "/accounts"));
 
     public static Role RequiredRole(string method, string path) =>
-        IsOwnerOnly(method, path) ? Role.Owner : IsSafe(method) ? Role.Viewer : Role.Member;
+        // everything under /auth is about the person's own account (sign out, password, authenticator, sessions), so even a viewer may do it
+        IsOwnerOnly(method, path) ? Role.Owner : IsSafe(method) || StartsWith(path, "/auth") ? Role.Viewer : Role.Member;
 
     public static bool IsSafe(string method) => Is(method, "GET") || Is(method, "HEAD") || Is(method, "OPTIONS");
 

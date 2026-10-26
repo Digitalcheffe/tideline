@@ -140,7 +140,7 @@ public sealed class ImportFlags : IFlagFamily
         var since = c.Today.AddDays(-30);
         var failed = c.Conn.Query<(long Id, string? File, string? Error, DateOnly On)>("""
             SELECT b.id, b.file_name, b.error, SUBSTR(b.started_at, 1, 10) FROM import_batches b
-            WHERE b.status = 'failed' AND SUBSTR(b.started_at, 1, 10) >= @since
+            WHERE b.status = 'failed' AND b.dismissed_at IS NULL AND SUBSTR(b.started_at, 1, 10) >= @since
               AND NOT EXISTS (SELECT 1 FROM import_batches ok WHERE ok.status = 'done' AND ok.id > b.id AND COALESCE(ok.file_name, '') = COALESCE(b.file_name, ''))
             """, new { since });
         foreach (var f in failed)

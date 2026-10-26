@@ -83,6 +83,12 @@ test.describe.serial('settings', () => {
 
     await page.getByLabel('CSV file').setInputFiles({ name: 'notes.csv', mimeType: 'text/csv', buffer: Buffer.from('this,is,not\na,bank,file\n') })
     await expect(page.getByText('notes.csv was not imported')).toBeVisible()
+
+    // a failure in the list can be cleared
+    const failed = page.getByRole('row', { name: /notes\.csv/ })
+    await expect(failed).toBeVisible()
+    await failed.getByRole('button', { name: 'Dismiss' }).click()
+    await expect(failed).toBeHidden()
   })
 
   test('a backup is made from the page, checked, and listed; the export downloads', async ({ page }) => {
@@ -128,8 +134,10 @@ test.describe('notifications', () => {
 })
 
 test.describe('simplefin', () => {
-  test('the Imports page offers SimpleFIN and says in words when a token is wrong', async ({ page }) => {
+  test('SimpleFIN has its own tab, the Imports page points to it, and a wrong token is explained in words', async ({ page }) => {
     await page.goto('/settings/imports')
+    await page.getByRole('link', { name: 'Settings, SimpleFIN' }).click()
+    await expect(page).toHaveURL(/\/settings\/simplefin/)
     await expect(page.getByRole('heading', { name: 'SimpleFIN', exact: true })).toBeVisible()
     await expect(page.getByText('make a new setup token for Tideline')).toBeVisible()
     await expect(page.getByText('A token works one time only')).toBeVisible()

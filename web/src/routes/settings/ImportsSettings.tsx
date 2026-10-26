@@ -1,11 +1,11 @@
 import { useRef, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
-import { get, upload } from '../../api'
+import { get, send as post, upload } from '../../api'
 import { Badge, Card, Empty, ErrorBox, Loading } from '../../components'
 import { dollars } from '../../format'
 import { Problem, useAct, when } from './common'
-import { SimpleFinPanel } from './SimpleFinPanel'
+
 
 interface Batch {
   id: number
@@ -117,7 +117,12 @@ export function ImportsSettings() {
         )}
       </Card>
 
-      <SimpleFinPanel />
+      <Card title="Automatic bank sync">
+        <p>
+          Instead of uploading files, Tideline can pull transactions from your bank by itself through SimpleFIN. It has its own tab:{' '}
+          <Link to="/settings/simplefin">Settings, SimpleFIN</Link>.
+        </p>
+      </Card>
 
       <Card title="Inbox folder">
         {!inbox.configured ? (
@@ -198,6 +203,17 @@ export function ImportsSettings() {
                     <td>
                       {b.status === 'done' ? <Badge tone="good">done</Badge> : b.status === 'running' ? <Badge tone="info">running</Badge> : <Badge tone="bad">failed</Badge>}
                       {b.error && <div className="muted">{b.error}</div>}
+                      {b.status === 'failed' && (
+                        <button
+                          className="btn"
+                          type="button"
+                          disabled={busy}
+                          title="Clear this from the list. It also stops the alert about it. A record is kept in the audit log."
+                          onClick={() => run(() => post('POST', `/imports/${b.id}/dismiss`))}
+                        >
+                          Dismiss
+                        </button>
+                      )}
                     </td>
                   </tr>
                 ))}

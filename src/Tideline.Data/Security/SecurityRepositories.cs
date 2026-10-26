@@ -254,6 +254,11 @@ public sealed class MfaRepository(IDbConnection conn, TimeProvider clock, IDbTra
             """, new { userId }, tx).ToList();
     }
 
+    /// <summary>Takes a method away from a person (a replaced authenticator). Returns false if it was not theirs or was already gone.</summary>
+    public bool Revoke(long userId, long methodId) =>
+        conn.Execute("UPDATE user_mfa SET revoked_at = @now WHERE id = @methodId AND user_id = @userId AND revoked_at IS NULL",
+            new { methodId, userId, now = clock.GetUtcNow() }, tx) == 1;
+
     /// <summary>An enrolment that was started but never confirmed is thrown away when a new one starts.</summary>
     public void DeleteAll(long userId)
     {

@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import { get } from '../api'
-import { Badge, Card, Empty, ErrorBox, Loading, Money, Spark } from '../components'
+import { Badge, Card, Empty, ErrorBox, Loading, Money } from '../components'
 import { dateLabel, dollars } from '../format'
 
 interface AssetData {
@@ -165,7 +165,19 @@ function AssetCard({ a }: { a: AssetData }) {
       {a.values.length > 1 && (
         <>
           <h3>Worth over time</h3>
-          <Spark values={a.values.map((v) => v.cents)} label={`${a.name} value over time`} />
+          <div className="table-wrap">
+            <table>
+              <tbody>
+                {[...a.values].reverse().map((v) => (
+                  <tr key={`${v.asOf}-${v.source}`}>
+                    <td>{dateLabel(v.asOf)}</td>
+                    <td className="muted">{v.source === 'estimate' ? 'estimate' : v.source === 'statement' ? 'from a statement' : v.source}</td>
+                    <td className="num">{dollars(v.cents)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </>
       )}
     </Card>

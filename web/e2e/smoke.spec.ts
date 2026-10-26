@@ -169,6 +169,22 @@ test.describe.serial('smoke', () => {
     for (const id of added) await page.request.delete(`/api/v1/transactions/${id}`, { headers: { 'X-CSRF-Token': csrf } })
   })
 
+  test('Help explains the app one topic at a time, from the menu', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 800 })
+    await page.goto(`/?${MARCH}`)
+    await page.getByRole('link', { name: 'Help' }).click()
+    await expect(page).toHaveURL(/\/help\/start$/)
+    await expect(page.getByRole('heading', { name: 'Help' })).toBeVisible()
+    await expect(page.getByText('Every number on every screen is a link')).toBeVisible()
+
+    await page.getByRole('navigation', { name: 'Help topics' }).getByRole('link', { name: 'Importing bank files' }).click()
+    await expect(page).toHaveURL(/\/help\/import$/)
+    await expect(page.getByText('Bank lines can never be edited or deleted')).toBeVisible()
+    // the guides link to the places they talk about
+    await page.getByRole('link', { name: 'Settings, Imports' }).click()
+    await expect(page).toHaveURL(/\/settings\/imports/)
+  })
+
   test('the phone layout has no sideways scrolling on the Overview', async ({ page }) => {
     await page.setViewportSize({ width: 375, height: 812 })
     await page.goto(`/?${MARCH}`)

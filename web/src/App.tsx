@@ -5,6 +5,7 @@ import { monthLabel, wholeMonth, wholeYear } from './format'
 import { AuthGate, useMe, useSignOut } from './auth'
 import { Coming } from './routes/Coming'
 import { ThemeToggle } from './theme'
+import { Avatar, Icon } from './icons'
 
 // each screen loads when it is first opened, so the chart library is only fetched for the screens that draw charts
 const Overview = lazy(() => import('./routes/Overview').then((m) => ({ default: m.Overview })))
@@ -19,6 +20,8 @@ const Budget = lazy(() => import('./routes/Budget').then((m) => ({ default: m.Bu
 const Planning = lazy(() => import('./routes/Planning').then((m) => ({ default: m.Planning })))
 const Retirement = lazy(() => import('./routes/Retirement').then((m) => ({ default: m.Retirement })))
 const Recommendations = lazy(() => import('./routes/Recommendations').then((m) => ({ default: m.Recommendations })))
+const Help = lazy(() => import('./routes/Help').then((m) => ({ default: m.Help })))
+const Account = lazy(() => import('./routes/Account').then((m) => ({ default: m.Account })))
 const Assets = lazy(() => import('./routes/Assets').then((m) => ({ default: m.Assets })))
 const Savings = lazy(() => import('./routes/Savings').then((m) => ({ default: m.Savings })))
 
@@ -50,7 +53,7 @@ const GROUPS: { title: string; items: { to: string; label: string }[] }[] = [
 ]
 
 // screens where the period picker does nothing, so it is not shown
-const NO_PERIOD = ['/savings', '/assets', '/planning', '/retirement', '/settings', '/recommendations']
+const NO_PERIOD = ['/help', '/account', '/savings', '/assets', '/planning', '/retirement', '/settings', '/recommendations']
 
 function Logo() {
   return (
@@ -129,6 +132,9 @@ function Shell() {
         </nav>
 
         <div className="nav-foot">
+          <NavLink to="/help" className={({ isActive }) => `with-icon ${isActive ? 'active' : ''}`}>
+            <Icon name="help" size={18} /> Help
+          </NavLink>
           {me.user.role === 'owner' && (
             <NavLink to="/settings" className={({ isActive }) => (isActive ? 'active' : '')}>
               Settings
@@ -136,13 +142,26 @@ function Shell() {
           )}
           <ThemeToggle />
           <div className="whoami">
-            <div>
-              <strong>{me.user.displayName}</strong>
-              <span className="muted"> · {me.user.role}</span>
-            </div>
+            {me.authDisabled ? (
+              <span className="whoami-who">
+                <Avatar name={me.user.displayName} size={34} />
+                <span className="whoami-text">
+                  <strong>{me.user.displayName}</strong>
+                  <span className="muted">{me.user.role}</span>
+                </span>
+              </span>
+            ) : (
+              <NavLink to="/account" className={({ isActive }) => `whoami-who ${isActive ? 'active' : ''}`} title="Your account: name, password, authenticator, devices">
+                <Avatar name={me.user.displayName} size={34} />
+                <span className="whoami-text">
+                  <strong>{me.user.displayName}</strong>
+                  <span className="muted">{me.user.role}</span>
+                </span>
+              </NavLink>
+            )}
             {!me.authDisabled && (
-              <button className="linklike" type="button" onClick={() => signOut()}>
-                Sign out
+              <button className="icon-btn" type="button" onClick={() => signOut()} title="Sign out" aria-label="Sign out">
+                <Icon name="logout" />
               </button>
             )}
           </div>
@@ -163,6 +182,9 @@ function Shell() {
             <Route path="/lines" element={<Lines />} />
             <Route path="/savings" element={<Savings />} />
             <Route path="/assets" element={<Assets />} />
+            <Route path="/account" element={<Account />} />
+            <Route path="/help" element={<Help />} />
+            <Route path="/help/:topic" element={<Help />} />
             <Route path="/planning" element={<Planning />} />
             <Route path="/budget" element={<Budget period={period} />} />
             <Route path="/retirement" element={<Retirement />} />

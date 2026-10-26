@@ -54,3 +54,9 @@ public class M0005_Recommendations : ScriptMigration
 {
     protected override string ScriptName => "M0005_Recommendations";
 }
+
+[Migration(6, "Imports: a failed one can be dismissed from the list")]
+public class M0006_ImportDismissed : ScriptMigration
+{
+    protected override string ScriptName => "M0006_ImportDismissed";
+}
