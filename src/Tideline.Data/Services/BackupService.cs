@@ -40,7 +40,7 @@ public static class BackupService
         using (var conn = new SqliteConnection(connectionString))
         {
             conn.Open();
-            conn.Execute($"VACUUM INTO '{target.Replace("'", "''")}'");
+            conn.Execute("VACUUM INTO @target", new { target }); // the path is bound, never spliced into the SQL text
         }
 
         string? keysFile = null;

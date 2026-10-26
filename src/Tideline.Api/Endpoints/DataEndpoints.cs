@@ -10,9 +10,10 @@ public static class DataEndpoints
 {
     public static void MapDataEndpoints(this RouteGroupBuilder api)
     {
-        api.MapGet("/backups", (IConfiguration configuration, TidelineOptions options, TimeProvider clock) =>
+        // Where backups go is server configuration, never part of a request. It is read here from the services rather than taken as a handler parameter.
+        api.MapGet("/backups", (HttpContext http, TimeProvider clock) =>
         {
-            var (outDir, _) = Folders(configuration, options);
+            var (outDir, _) = Folders(http);
             var files = BackupService.List(outDir);
             var last = files.FirstOrDefault(f => f.Kind == "database");
             return Results.Ok(new
@@ -26,11 +27,12 @@ public static class DataEndpoints
             });
         });
 
-        api.MapPost("/backups", (HttpContext http, IConfiguration configuration, TidelineOptions options, SqliteConnectionFactory factory, TimeProvider clock) =>
+        api.MapPost("/backups", (HttpContext http, SqliteConnectionFactory factory, TimeProvider clock) =>
         {
-            var (outDir, keysDir) = Folders(configuration, options);
-            var made = BackupService.Create(Connection(configuration), outDir, keysDir, clock.GetUtcNow());
-            var check = BackupService.Verify(made.DatabaseFile, Connection(configuration), clock.GetUtcNow().Year);
+            var (outDir, keysDir) = Folders(http);
+            var connection = Connection(http);
+            var made = BackupService.Create(connection, outDir, keysDir, clock.GetUtcNow());
+            var check = BackupService.Verify(made.DatabaseFile, connection, clock.GetUtcNow().Year);
 
             using var conn = factory.Open();
             using var tx = conn.BeginTransaction();
@@ -57,11 +59,13 @@ public static class DataEndpoints
         });
     }
 
-    private static string Connection(IConfiguration c) => c["Database:ConnectionString"] ?? "Data Source=tideline.db";
+    private static string Connection(HttpContext http) =>
+        http.RequestServices.GetRequiredService<IConfiguration>()["Database:ConnectionString"] ?? "Data Source=tideline.db";
 
-    private static (string Backups, string Keys) Folders(IConfiguration configuration, TidelineOptions options)
+    private static (string Backups, string Keys) Folders(HttpContext http)
     {
-        var db = new SqliteConnectionStringBuilder(Connection(configuration)).DataSource;
+        var options = http.RequestServices.GetRequiredService<TidelineOptions>();
+        var db = new SqliteConnectionStringBuilder(Connection(http)).DataSource;
         var beside = Path.GetDirectoryName(Path.GetFullPath(db))!;
         return (options.BackupPath ?? Path.Combine(beside, "backups"), options.DataProtectionKeys ?? Path.Combine(beside, "keys"));
     }
