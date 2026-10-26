@@ -121,6 +121,7 @@ export interface Line {
   type: string | null
   tags: string[]
   isSplitPart: boolean
+  isLeftOut: boolean
   recurringId: number | null
   planId: number | null
   moveId: number | null
@@ -165,6 +166,7 @@ export interface TransactionDetail {
   unassignedCents: number
   version: string
   audit: { id: number; at: string; user: string | null; action: string; beforeJson: string | null; afterJson: string | null }[]
+  leftOut: { at: string; reason: string | null; importId: number | null } | null
 }
 
 // ---- lookups ---------------------------------------------------------------------------------------------

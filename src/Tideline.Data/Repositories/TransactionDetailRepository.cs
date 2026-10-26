@@ -41,7 +41,10 @@ public sealed record TransactionDetail(
     IReadOnlyList<SplitDetail> Splits,
     long UnassignedCents,
     string Version,
-    IReadOnlyList<AuditEntry> Audit);
+    IReadOnlyList<AuditEntry> Audit,
+    string? LeftOutAt = null,
+    string? LeftOutReason = null,
+    long? LeftOutImportId = null);
 
 public sealed class TransactionDetailRepository(IDbConnection conn, IDbTransaction? tx = null)
 {
@@ -73,6 +76,9 @@ public sealed class TransactionDetailRepository(IDbConnection conn, IDbTransacti
         public string? AssetName { get; set; }
         public long? MoveId { get; set; }
         public string UpdatedAt { get; set; } = "";
+        public string? LeftOutAt { get; set; }
+        public string? LeftOutReason { get; set; }
+        public long? LeftOutImportId { get; set; }
     }
 
     private sealed class SplitRow
@@ -115,7 +121,7 @@ public sealed class TransactionDetailRepository(IDbConnection conn, IDbTransacti
                    t.category_id AS CategoryId, c.name AS CategoryName, t.type AS Type, t.notes AS Notes,
                    t.is_manual_override AS IsManualOverride, t.rule_id AS RuleId, r.name AS RuleName,
                    t.recurring_id AS RecurringId, rc.name AS RecurringName, t.plan_id AS PlanId, t.asset_account_id AS AssetId, aa.name AS AssetName, t.move_id AS MoveId,
-                   t.updated_at AS UpdatedAt
+                   t.updated_at AS UpdatedAt, t.left_out_at AS LeftOutAt, t.left_out_reason AS LeftOutReason, t.left_out_import_id AS LeftOutImportId
             FROM transactions t
             JOIN accounts a ON a.id = t.account_id
             LEFT JOIN accounts aa ON aa.id = t.asset_account_id
@@ -163,6 +169,6 @@ public sealed class TransactionDetailRepository(IDbConnection conn, IDbTransacti
         return new TransactionDetail(t.Id, t.AccountId, t.AccountName, t.PostedOn, t.AmountCents, t.OriginalDescription, t.BankBalanceCents,
             t.CheckNumber, t.ExternalId, t.Source, t.RawJson, t.Payee, t.CategoryId, t.CategoryName, t.Type, tags, t.Notes, t.IsManualOverride,
             t.RuleId, t.RuleName, t.RecurringId, t.RecurringName, t.PlanId, t.AssetId, t.AssetName, t.MoveId, partner, splits,
-            t.AmountCents - splits.Sum(s => s.AmountCents), Services.TransactionVersion.Of(conn, id, tx), audit);
+            t.AmountCents - splits.Sum(s => s.AmountCents), Services.TransactionVersion.Of(conn, id, tx), audit, t.LeftOutAt, t.LeftOutReason, t.LeftOutImportId);
     }
 }

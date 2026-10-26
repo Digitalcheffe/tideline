@@ -23,7 +23,8 @@ A tour of what Tideline does, screen by screen. Pictures are in [screenshots](sc
 
 What happens to every import: lines already there are skipped; each new line goes through your rules; matching transfers are paired; and the
 bank's running balance is compared with the ledger. If it does not add up, the file is refused and says why. A failed import can be dismissed
-from the list once dealt with.
+from the list once dealt with. An import that should not have happened (the wrong file or account) can be undone in one step, which leaves all of its
+lines out of the totals; Restore puts them back.
 
 ## The Ledger
 
@@ -33,7 +34,8 @@ Every line for the period, with filters for account, category, type, direction, 
 - **split** it across categories and types without changing the total;
 - link it to a **plan** or an **asset**;
 - see its raw bank row, which rule set it, and its history;
-- **reset it to the rules**, or **create a rule from it**.
+- **reset it to the rules**, or **create a rule from it**;
+- **leave it out of the totals** (a duplicate, or a line that should not count) with a reason, and bring it back any time. The line is not changed or deleted; find them under **Left out**. A line you added by hand can also be deleted.
 
 Tick several lines to change them together, or, with two ticked, to pair them as a transfer.
 

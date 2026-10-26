@@ -802,6 +802,21 @@ tr.selected {
   background: var(--info-bg);
 }
 
+tr.left-out td {
+  color: var(--muted);
+  text-decoration: line-through;
+  text-decoration-color: var(--border);
+}
+
+.leftout-note {
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--warn);
+  border-radius: var(--radius);
+  padding: 10px 12px;
+  margin-bottom: 12px;
+  background: var(--warn-bg);
+}
+
 .bulkbar {
   display: flex;
   flex-wrap: wrap;

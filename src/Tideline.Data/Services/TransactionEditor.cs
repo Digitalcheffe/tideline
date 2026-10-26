@@ -33,6 +33,11 @@ public sealed record BulkChange(long? CategoryId = null, string? Type = null, IR
 
 public sealed record BulkResult(int Updated, int SkippedTransfers, int NotFound);
 
+/// <summary>Lines left out in one go. Skipped ones are in a transfer or were already left out; a transfer has to be unpaired first.</summary>
+public sealed record LeaveOutResult(int LeftOut, int Skipped, int NotFound);
+
+public sealed record UndoImportResult(int LeftOut, int Unpaired);
+
 public sealed record SplitInput(long AmountCents, long CategoryId, string Type, IReadOnlyList<string>? Tags = null, string? Note = null);
 
 public sealed record ManualEntry(
@@ -71,6 +76,7 @@ public sealed class TransactionEditor(IDbConnection conn, TimeProvider clock, Ac
         public long? MoveId { get; set; }
         public bool IsManualOverride { get; set; }
         public string UpdatedAt { get; set; } = "";
+        public string? LeftOutAt { get; set; }
     }
 
     private Current Load(long id, IDbTransaction tx) =>
@@ -78,10 +84,16 @@ public sealed class TransactionEditor(IDbConnection conn, TimeProvider clock, Ac
             SELECT id AS Id, account_id AS AccountId, amount_cents AS AmountCents, original_description AS OriginalDescription,
                    source AS Source, raw_json AS RawJson, category_id AS CategoryId, type AS Type, payee AS Payee, notes AS Notes,
                    recurring_id AS RecurringId, plan_id AS PlanId, asset_account_id AS AssetId, rule_id AS RuleId, move_id AS MoveId,
-                   is_manual_override AS IsManualOverride, updated_at AS UpdatedAt
+                   is_manual_override AS IsManualOverride, updated_at AS UpdatedAt, left_out_at AS LeftOutAt
             FROM transactions WHERE id = @id
             """, new { id }, tx)
         ?? throw new EditException(EditError.NotFound, $"There is no transaction {id}.");
+
+    private static void RequireNotLeftOut(Current c)
+    {
+        if (c.LeftOutAt is not null)
+            throw new EditException(EditError.Unprocessable, "This line is left out of the totals. Bring it back first to change it.");
+    }
 
     private static void RequireNotMove(Current c)
     {
@@ -151,6 +163,7 @@ public sealed class TransactionEditor(IDbConnection conn, TimeProvider clock, Ac
         using var tx = conn.BeginTransaction();
         var c = Load(id, tx);
         RequireNotMove(c);
+        RequireNotLeftOut(c);
         CheckVersion(c, r.Version, tx);
 
         LineType? type = r.Type is null ? null : ParseType(r.Type);
@@ -219,9 +232,9 @@ public sealed class TransactionEditor(IDbConnection conn, TimeProvider clock, Ac
         int updated = 0, skipped = 0, missing = 0;
         foreach (var id in ids.Distinct())
         {
-            var c = conn.QuerySingleOrDefault<Current>("SELECT id AS Id, move_id AS MoveId FROM transactions WHERE id = @id", new { id }, tx);
+            var c = conn.QuerySingleOrDefault<Current>("SELECT id AS Id, move_id AS MoveId, left_out_at AS LeftOutAt FROM transactions WHERE id = @id", new { id }, tx);
             if (c is null) { missing++; continue; }
-            if (c.MoveId is not null) { skipped++; continue; }
+            if (c.MoveId is not null || c.LeftOutAt is not null) { skipped++; continue; }
 
             var before = Snapshot(id, tx);
             conn.Execute("""
@@ -258,6 +271,7 @@ public sealed class TransactionEditor(IDbConnection conn, TimeProvider clock, Ac
         using var tx = conn.BeginTransaction();
         var c = Load(id, tx);
         RequireNotMove(c);
+        RequireNotLeftOut(c);
 
         var before = Snapshot(id, tx);
         RunRules(c, LineClassifier.Load(conn, clock, tx), tx);
@@ -306,6 +320,8 @@ public sealed class TransactionEditor(IDbConnection conn, TimeProvider clock, Ac
         var a = Load(ids[0], tx);
         var b = Load(ids[1], tx);
         var (outLeg, inLeg) = a.AmountCents < 0 ? (a, b) : (b, a);
+        RequireNotLeftOut(a);
+        RequireNotLeftOut(b);
 
         if (a.AccountId == b.AccountId) throw new EditException(EditError.Unprocessable, "A move goes from one account to another. These two lines are on the same account.");
         if (outLeg.AmountCents >= 0 || inLeg.AmountCents <= 0 || outLeg.AmountCents != -inLeg.AmountCents)
@@ -355,6 +371,13 @@ public sealed class TransactionEditor(IDbConnection conn, TimeProvider clock, Ac
     {
         TypeHandlers.EnsureRegistered();
         using var tx = conn.BeginTransaction();
+        var count = UnpairIn(moveId, tx);
+        tx.Commit();
+        return count;
+    }
+
+    private int UnpairIn(long moveId, IDbTransaction tx)
+    {
         var legs = conn.Query<long>("SELECT id FROM transactions WHERE move_id = @moveId ORDER BY id", new { moveId }, tx).ToList();
         if (legs.Count == 0 && conn.ExecuteScalar<long>("SELECT COUNT(*) FROM moves WHERE id = @moveId", new { moveId }, tx) == 0)
             throw new EditException(EditError.NotFound, $"There is no move {moveId}.");
@@ -372,7 +395,6 @@ public sealed class TransactionEditor(IDbConnection conn, TimeProvider clock, Ac
 
         new AuditWriter(conn, clock, tx, actor).Write("move.unpair", "move", moveId, before,
             new { legs = legs.Select(l => new { Id = l, Snapshot = Snapshot(l, tx) }).ToList() });
-        tx.Commit();
         return legs.Count;
     }
 
@@ -388,6 +410,7 @@ public sealed class TransactionEditor(IDbConnection conn, TimeProvider clock, Ac
         using var tx = conn.BeginTransaction();
         var c = Load(id, tx);
         RequireNotMove(c);
+        RequireNotLeftOut(c);
         CheckVersion(c, version, tx);
 
         var parsed = new List<(SplitInput Input, LineType Type, IReadOnlyList<long> Tags)>();
@@ -473,7 +496,9 @@ public sealed class TransactionEditor(IDbConnection conn, TimeProvider clock, Ac
         using var tx = conn.BeginTransaction();
         var c = Load(id, tx);
         if (c.Source != "manual")
-            throw new EditException(EditError.Conflict, "Lines that came from the bank cannot be deleted. Change what they mean instead.");
+            throw new EditException(EditError.Conflict, "Lines that came from the bank cannot be deleted. Leave them out of the totals instead.");
+        if (c.MoveId is not null)
+            throw new EditException(EditError.Unprocessable, "This line is part of a transfer between your accounts. Unpair it first, then delete it.");
 
         var before = new { Snapshot = Snapshot(id, tx), c.AccountId, c.AmountCents, Description = c.OriginalDescription };
         conn.Execute("DELETE FROM split_line_tags WHERE split_line_id IN (SELECT id FROM split_lines WHERE transaction_id = @id)", new { id }, tx);
@@ -483,5 +508,144 @@ public sealed class TransactionEditor(IDbConnection conn, TimeProvider clock, Ac
 
         new AuditWriter(conn, clock, tx, actor).Write("transaction.delete", "transaction", id, before, null);
         tx.Commit();
+    }
+
+    // ---- leaving a line out of the totals --------------------------------------------------------------------
+
+    public const int MaxReason = 200;
+
+    private enum LeaveOutOutcome { Done, InTransfer, AlreadyLeftOut, Missing }
+
+    private LeaveOutOutcome LeaveOutLine(long id, string? reason, long? importId, IDbTransaction tx, AuditWriter audit)
+    {
+        var row = conn.QuerySingleOrDefault<(long? MoveId, string? LeftOutAt)?>("SELECT move_id, left_out_at FROM transactions WHERE id = @id", new { id }, tx);
+        if (row is null) return LeaveOutOutcome.Missing;
+        if (row.Value.MoveId is not null) return LeaveOutOutcome.InTransfer;
+        if (row.Value.LeftOutAt is not null) return LeaveOutOutcome.AlreadyLeftOut;
+
+        conn.Execute("UPDATE transactions SET left_out_at = @now, left_out_reason = @reason, left_out_import_id = @importId, updated_at = @now WHERE id = @id",
+            new { id, now = clock.GetUtcNow(), reason, importId }, tx);
+        audit.Write("transaction.leave_out", "transaction", id, new { leftOut = false }, new { leftOut = true, reason, importId });
+        return LeaveOutOutcome.Done;
+    }
+
+    /// <summary>
+    /// Takes lines out of every total, count and alert without changing them: the bank fields stay as they were and the line stays
+    /// listed (under "left out") so it can be brought back. For a duplicate, or a line that should never have been counted. A line in
+    /// a transfer has to be unpaired first. One line asked for and not possible is an error; many are counted as skipped.
+    /// </summary>
+    public LeaveOutResult LeaveOut(IReadOnlyList<long> ids, string? reason)
+    {
+        TypeHandlers.EnsureRegistered();
+        var distinct = ids.Distinct().ToList();
+        if (distinct.Count == 0) throw new EditException(EditError.Invalid, "Pick at least one line.");
+        if (distinct.Count > MaxBulk) throw new EditException(EditError.Invalid, $"Leave out {MaxBulk} lines or fewer at a time.");
+        var why = string.IsNullOrWhiteSpace(reason) ? null : reason.Trim();
+        if (why is { Length: > MaxReason }) throw new EditException(EditError.Invalid, $"The reason is too long ({MaxReason} characters at most).");
+
+        using var tx = conn.BeginTransaction();
+        var audit = new AuditWriter(conn, clock, tx, actor);
+        int done = 0, skipped = 0, missing = 0;
+        foreach (var id in distinct)
+        {
+            switch (LeaveOutLine(id, why, null, tx, audit))
+            {
+                case LeaveOutOutcome.Done: done++; break;
+                case LeaveOutOutcome.Missing:
+                    if (distinct.Count == 1) throw new EditException(EditError.NotFound, $"There is no transaction {id}.");
+                    missing++;
+                    break;
+                case LeaveOutOutcome.InTransfer:
+                    if (distinct.Count == 1) throw new EditException(EditError.Unprocessable, "This line is part of a transfer between your accounts. Unpair it first, then leave it out.");
+                    skipped++;
+                    break;
+                default:
+                    if (distinct.Count == 1) throw new EditException(EditError.Conflict, "This line is already left out.");
+                    skipped++;
+                    break;
+            }
+        }
+        tx.Commit();
+        return new LeaveOutResult(done, skipped, missing);
+    }
+
+    /// <summary>Counts the lines again. Returns how many were brought back.</summary>
+    public int BringBack(IReadOnlyList<long> ids)
+    {
+        TypeHandlers.EnsureRegistered();
+        var distinct = ids.Distinct().ToList();
+        if (distinct.Count == 0) throw new EditException(EditError.Invalid, "Pick at least one line.");
+        if (distinct.Count > MaxBulk) throw new EditException(EditError.Invalid, $"Bring back {MaxBulk} lines or fewer at a time.");
+
+        using var tx = conn.BeginTransaction();
+        var back = BringBackIn(distinct, tx);
+        if (back == 0) throw new EditException(EditError.Conflict, distinct.Count == 1 ? "This line is not left out." : "None of those lines are left out.");
+        tx.Commit();
+        return back;
+    }
+
+    private int BringBackIn(IReadOnlyList<long> ids, IDbTransaction tx)
+    {
+        var audit = new AuditWriter(conn, clock, tx, actor);
+        var back = 0;
+        foreach (var id in ids)
+        {
+            var row = conn.QuerySingleOrDefault<(string? Reason, long? ImportId, string? LeftOutAt)?>(
+                "SELECT left_out_reason, left_out_import_id, left_out_at FROM transactions WHERE id = @id", new { id }, tx);
+            if (row is null || row.Value.LeftOutAt is null) continue;
+            conn.Execute("UPDATE transactions SET left_out_at = NULL, left_out_reason = NULL, left_out_import_id = NULL, updated_at = @now WHERE id = @id",
+                new { id, now = clock.GetUtcNow() }, tx);
+            audit.Write("transaction.bring_back", "transaction", id, new { leftOut = true, reason = row.Value.Reason, importId = row.Value.ImportId }, new { leftOut = false });
+            back++;
+        }
+        return back;
+    }
+
+    /// <summary>
+    /// Takes back an import that should not have happened (the wrong account, the wrong file, a double upload): every line it added
+    /// is left out of the totals, in one step. A line of it that was paired as a transfer is unpaired first (its partner on the other
+    /// account stays, back with the rules). Nothing is deleted, so "restore" can put it all back.
+    /// </summary>
+    public UndoImportResult UndoImport(long batchId)
+    {
+        TypeHandlers.EnsureRegistered();
+        using var tx = conn.BeginTransaction();
+        if (conn.ExecuteScalar<long>("SELECT COUNT(*) FROM import_batches WHERE id = @batchId", new { batchId }, tx) == 0)
+            throw new EditException(EditError.NotFound, "There is no such import.");
+
+        var ids = conn.Query<long>("SELECT id FROM transactions WHERE import_batch_id = @batchId AND left_out_at IS NULL ORDER BY id", new { batchId }, tx).ToList();
+        if (ids.Count == 0) throw new EditException(EditError.Conflict, "Nothing from that import is counted, so there is nothing to take out.");
+
+        var audit = new AuditWriter(conn, clock, tx, actor);
+        var unpaired = 0;
+        foreach (var id in ids)
+        {
+            if (conn.ExecuteScalar<long?>("SELECT move_id FROM transactions WHERE id = @id", new { id }, tx) is { } move)
+            {
+                UnpairIn(move, tx);
+                unpaired++;
+            }
+            LeaveOutLine(id, "The import it came in with was undone", batchId, tx, audit);
+        }
+        audit.Write("import.undone", "import_batch", batchId, null, new { leftOut = ids.Count, unpaired });
+        tx.Commit();
+        return new UndoImportResult(ids.Count, unpaired);
+    }
+
+    /// <summary>Counts again the lines an undone import took out. Lines left out one by one stay out.</summary>
+    public int RestoreImport(long batchId)
+    {
+        TypeHandlers.EnsureRegistered();
+        using var tx = conn.BeginTransaction();
+        if (conn.ExecuteScalar<long>("SELECT COUNT(*) FROM import_batches WHERE id = @batchId", new { batchId }, tx) == 0)
+            throw new EditException(EditError.NotFound, "There is no such import.");
+
+        var ids = conn.Query<long>("SELECT id FROM transactions WHERE left_out_import_id = @batchId ORDER BY id", new { batchId }, tx).ToList();
+        if (ids.Count == 0) throw new EditException(EditError.Conflict, "That import has not been undone.");
+
+        var back = BringBackIn(ids, tx);
+        new AuditWriter(conn, clock, tx, actor).Write("import.restored", "import_batch", batchId, null, new { restored = back });
+        tx.Commit();
+        return back;
     }
 }

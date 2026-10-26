@@ -60,3 +60,9 @@ public class M0006_ImportDismissed : ScriptMigration
 {
     protected override string ScriptName => "M0006_ImportDismissed";
 }
+
+[Migration(7, "Lines a person left out of the totals, and the import they were left out with")]
+public class M0007_LeftOut : ScriptMigration
+{
+    protected override string ScriptName => "M0007_LeftOut";
+}

@@ -120,7 +120,7 @@ public sealed class LedgerRepository(IDbConnection conn, TimeProvider clock, IDb
         TypeHandlers.EnsureRegistered();
         return conn.ExecuteScalar<long>("""
             SELECT COALESCE((SELECT opening_balance_cents FROM accounts WHERE id = @accountId), 0)
-                 + COALESCE((SELECT SUM(amount_cents) FROM transactions WHERE account_id = @accountId AND posted_on <= @date), 0)
+                 + COALESCE((SELECT SUM(amount_cents) FROM transactions WHERE account_id = @accountId AND posted_on <= @date AND left_out_at IS NULL), 0)
             """, new { accountId, date }, tx);
     }
 }

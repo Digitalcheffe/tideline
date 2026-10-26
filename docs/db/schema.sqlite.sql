@@ -253,6 +253,8 @@ CREATE TABLE moves (
     created_at          VARCHAR(32) NOT NULL
 );
 
+-- left_out_at, left_out_reason, left_out_import_id (migration M0007): a person left the line out of every total, one by one or by undoing an import.
+-- The bank fields stay as they were and the line stays listed; "bring it back" clears these three.
 CREATE TABLE transactions (
     id                  INTEGER PRIMARY KEY,
     account_id          INTEGER NOT NULL REFERENCES accounts(id),
@@ -279,7 +281,7 @@ CREATE TABLE transactions (
     is_pending          INTEGER NOT NULL DEFAULT 0,
     notes               TEXT,
     created_at          VARCHAR(32) NOT NULL,
-    updated_at          VARCHAR(32) NOT NULL,
+    updated_at          VARCHAR(32) NOT NULL, left_out_at VARCHAR(32), left_out_reason VARCHAR(200), left_out_import_id INTEGER REFERENCES import_batches(id),
     -- a line is either a move or has a type
     CHECK ((move_id IS NULL AND type IS NOT NULL) OR (move_id IS NOT NULL))
 );

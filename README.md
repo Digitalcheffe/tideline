@@ -54,6 +54,7 @@ Click a picture to see it full size, or see [all the screenshots](docs/screensho
 - **Accounts, Cards and Bills.** Each account by month, whether each card was paid in full, and a year grid of every recurring bill.
 - **Required, Extra and Income.** Totals by category and payee, subscriptions and price changes, and expected income against actual.
 - **Ledger.** Every line, filterable. Split a line, tag it, link it to a plan or an asset, pair transfers, edit many at once, add a line by hand.
+- **Take something back.** Leave a duplicate out of the totals (and bring it back), delete a line you added by hand, or undo a whole import that went in wrong. Bank lines are never deleted.
 - **Rules.** Sort lines automatically, and try a rule over past months before you save it.
 - **Budget, plans and savings.** Guidelines per category, saving goals with a date, and savings balances with their interest.
 - **Net worth, loans and assets.** What you own and owe, loan payoff with an extra-payment calculator, and the equity and upkeep cost of a house or car.

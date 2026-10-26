@@ -34,11 +34,11 @@ public static class LinesEndpoints
 public sealed record LineDto(
     long TransactionId, long? SplitLineId, string PostedOn, long AccountId, string AccountName, long AmountCents,
     string Description, string? Payee, long? CategoryId, string? CategoryName, string? Type, IReadOnlyList<string> Tags,
-    bool IsSplitPart, long? RecurringId, long? PlanId, long? MoveId)
+    bool IsSplitPart, long? RecurringId, long? PlanId, long? MoveId, bool IsLeftOut)
 {
     public static LineDto From(LineItem l) => new(l.TransactionId, l.SplitLineId, l.PostedOn.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
         l.AccountId, l.AccountName, l.AmountCents, l.Description, l.Payee, l.CategoryId, l.CategoryName, l.Type, l.Tags,
-        l.IsSplitPart, l.RecurringId, l.PlanId, l.MoveId);
+        l.IsSplitPart, l.RecurringId, l.PlanId, l.MoveId, l.IsLeftOut);
 }
 
 /// <summary>Turns the query string of the drill-down contract into a <see cref="LineFilter"/>.</summary>
@@ -129,7 +129,8 @@ public static class LineFilterParser
 
         filter = new LineFilter(from!.Value, to!.Value, types, categories, List("tag"), accounts, recurring, recurringNone, plan, move,
             string.Equals(q["review"].ToString(), "true", StringComparison.OrdinalIgnoreCase),
-            q["q"].ToString() is { Length: > 0 } text ? text : null, min, max, sort, direction, recurringOther, asset);
+            q["q"].ToString() is { Length: > 0 } text ? text : null, min, max, sort, direction, recurringOther, asset,
+            string.Equals(q["leftOut"].ToString(), "true", StringComparison.OrdinalIgnoreCase));
         return true;
     }
 }

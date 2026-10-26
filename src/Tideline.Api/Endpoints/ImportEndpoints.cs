@@ -23,8 +23,10 @@ public static class ImportEndpoints
             TypeHandlers.EnsureRegistered();
             using var conn = factory.Open();
 
-            var batches = conn.Query<(long Id, string Source, string? FileName, long? AccountId, string? AccountName, string StartedAt, string? FinishedAt, string Status, int Read, int Inserted, int Existing, int Review, string? Error)>("""
-                SELECT b.id, b.source, b.file_name, b.account_id, a.name, b.started_at, b.finished_at, b.status, b.rows_read, b.rows_inserted, b.rows_existing, b.rows_review, b.error
+            var batches = conn.Query<(long Id, string Source, string? FileName, long? AccountId, string? AccountName, string StartedAt, string? FinishedAt, string Status, int Read, int Inserted, int Existing, int Review, string? Error, long Counted, long Undone)>("""
+                SELECT b.id, b.source, b.file_name, b.account_id, a.name, b.started_at, b.finished_at, b.status, b.rows_read, b.rows_inserted, b.rows_existing, b.rows_review, b.error,
+                       (SELECT COUNT(*) FROM transactions t WHERE t.import_batch_id = b.id AND t.left_out_at IS NULL),
+                       (SELECT COUNT(*) FROM transactions t WHERE t.left_out_import_id = b.id)
                 FROM import_batches b LEFT JOIN accounts a ON a.id = b.account_id
                 WHERE b.dismissed_at IS NULL
                 ORDER BY b.id DESC LIMIT 100
@@ -32,6 +34,7 @@ public static class ImportEndpoints
             {
                 b.Id, b.Source, b.FileName, b.AccountId, accountName = b.AccountName, b.StartedAt, b.FinishedAt, b.Status,
                 rowsRead = b.Read, rowsInserted = b.Inserted, rowsExisting = b.Existing, rowsReview = b.Review, b.Error,
+                countedLines = b.Counted, undoneLines = b.Undone,
             }).ToList();
 
             // each account that has bank balances: the latest one the bank gave, against what the ledger adds up to on that day
@@ -56,6 +59,13 @@ public static class ImportEndpoints
             var batch = new ImportBatchRepository(conn, TimeProvider.System).Get(id);
             return batch is null ? Results.Problem(title: "Not found", detail: "There is no such import.", statusCode: 404) : Results.Ok(batch);
         });
+
+        // an import that should not have happened: leave all of its lines out of the totals in one step, or put them back
+        api.MapPost("/imports/{id:long}/undo", (long id, HttpContext http, SqliteConnectionFactory f, TimeProvider t) =>
+            Edits.Run(http, f, t, (c, clock, who) => new TransactionEditor(c, clock, who).UndoImport(id)));
+
+        api.MapPost("/imports/{id:long}/restore", (long id, HttpContext http, SqliteConnectionFactory f, TimeProvider t) =>
+            Edits.Run(http, f, t, (c, clock, who) => new { restored = new TransactionEditor(c, clock, who).RestoreImport(id) }));
 
         // clear a failed import from the list (and stop it raising the alert); the record and the audit entry stay
         api.MapPost("/imports/{id:long}/dismiss", (long id, HttpContext http, SqliteConnectionFactory f, TimeProvider t) =>

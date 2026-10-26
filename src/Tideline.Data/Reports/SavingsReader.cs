@@ -41,7 +41,7 @@ public sealed class SavingsReader(IDbConnection conn)
         {
             var byMonth = conn.Query<(string Month, long Cents)>("""
                 SELECT SUBSTR(posted_on, 1, 7), SUM(amount_cents) FROM transactions
-                WHERE account_id = @id AND amount_cents > 0 AND posted_on >= @from GROUP BY 1
+                WHERE account_id = @id AND amount_cents > 0 AND posted_on >= @from AND left_out_at IS NULL GROUP BY 1
                 """, new { id = a.Id, from }).ToDictionary(x => x.Month, x => x.Cents);
             var deposits = Enumerable.Range(0, 12).Select(i => DebtCountdown.AddMonths(firstMonth, i)).Select(m => new DepositMonth(m, byMonth.GetValueOrDefault(m))).ToList();
 

@@ -20,6 +20,9 @@ interface Batch {
   rowsExisting: number
   rowsReview: number
   error: string | null
+  /** lines of this import that count in the totals, and lines it took out when it was undone */
+  countedLines: number
+  undoneLines: number
 }
 
 interface Check {
@@ -213,6 +216,34 @@ export function ImportsSettings() {
                         >
                           Dismiss
                         </button>
+                      )}
+                      {b.status === 'done' && b.countedLines > 0 && (
+                        <button
+                          className="btn"
+                          type="button"
+                          disabled={busy}
+                          title="For the wrong file or the wrong account: takes every line of this import out of the totals. Nothing is deleted, and Restore puts them back."
+                          onClick={() => {
+                            if (window.confirm(`Take ${b.countedLines} line${b.countedLines === 1 ? '' : 's'} of ${b.fileName ?? 'this import'} out of the totals?\n\nNothing is deleted. A line of it that was paired as a transfer is unpaired first. You can restore it afterwards.`))
+                              void run(() => post('POST', `/imports/${b.id}/undo`))
+                          }}
+                        >
+                          Undo this import
+                        </button>
+                      )}
+                      {b.undoneLines > 0 && (
+                        <>
+                          <Badge tone="warn">{b.undoneLines} left out</Badge>{' '}
+                          <button
+                            className="btn"
+                            type="button"
+                            disabled={busy}
+                            title="Count these lines again"
+                            onClick={() => run(() => post('POST', `/imports/${b.id}/restore`))}
+                          >
+                            Restore
+                          </button>
+                        </>
                       )}
                     </td>
                   </tr>

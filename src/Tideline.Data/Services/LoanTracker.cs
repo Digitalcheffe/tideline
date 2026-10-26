@@ -43,7 +43,7 @@ public static class LoanTracker
 
         var payments = conn.Query<DateOnly>("""
             SELECT posted_on FROM transactions
-            WHERE category_id = @category AND amount_cents < 0 AND move_id IS NULL AND posted_on > @since AND posted_on <= @date
+            WHERE category_id = @category AND amount_cents < 0 AND move_id IS NULL AND left_out_at IS NULL AND posted_on > @since AND posted_on <= @date
             ORDER BY posted_on, id
             """, new { category = loan.CategoryId, since = a.AsOn, date }).ToList();
         if (payments.Count == 0) return a;
@@ -76,7 +76,7 @@ public static class LoanTracker
 
             var payments = conn.Query<DateOnly>("""
                 SELECT posted_on FROM transactions
-                WHERE category_id = @category AND amount_cents < 0 AND move_id IS NULL AND posted_on > @since
+                WHERE category_id = @category AND amount_cents < 0 AND move_id IS NULL AND left_out_at IS NULL AND posted_on > @since
                 ORDER BY posted_on, id
                 """, new { category = loan.CategoryId, since }, tx).ToList();
 

@@ -55,7 +55,8 @@ export function Lines() {
     setParams(next)
   }
 
-  const filterKeys = ['type', 'category', 'account', 'asset', 'tag', 'review', 'recurring', 'direction', 'q', 'minCents', 'maxCents', 'move']
+  const filterKeys = ['type', 'category', 'account', 'asset', 'tag', 'review', 'recurring', 'direction', 'q', 'minCents', 'maxCents', 'move', 'leftOut']
+  const leftOutView = apiParams.get('leftOut') === 'true'
   const filtersActive = filterKeys.some((k) => apiParams.has(k))
   const clearFilters = () => {
     const next = new URLSearchParams(params)
@@ -77,6 +78,7 @@ export function Lines() {
   if (apiParams.get('recurring')) chips.push(apiParams.get('recurring') === 'none' ? 'not a recurring item' : apiParams.get('recurring') === 'other' ? 'not in a bill row' : 'one recurring item')
   if (apiParams.get('move') === 'include') chips.push('with transfers')
   if (apiParams.get('move') === 'only') chips.push('transfers only')
+  if (leftOutView) chips.push('left out of the totals')
   if (apiParams.get('direction')) chips.push(apiParams.get('direction') === 'in' ? 'money in' : 'money out')
   if (apiParams.get('q')) chips.push(`“${apiParams.get('q')}”`)
   if (apiParams.get('minCents')) chips.push(`at least ${dollars(Number(apiParams.get('minCents')))}`)
@@ -149,7 +151,10 @@ export function Lines() {
           ))}
         </select>
         <label>
-          <input type="checkbox" checked={apiParams.get('move') === 'include'} onChange={(e) => set('move', e.target.checked ? 'include' : null)} /> Show transfers
+          <input type="checkbox" checked={apiParams.get('move') === 'include'} disabled={leftOutView} onChange={(e) => set('move', e.target.checked ? 'include' : null)} /> Show transfers
+        </label>
+        <label title="Lines you took out of every total, such as a duplicate. Open one to bring it back.">
+          <input type="checkbox" checked={leftOutView} onChange={(e) => set('leftOut', e.target.checked ? 'true' : null)} /> Left out
         </label>
       </div>
 
@@ -159,9 +164,9 @@ export function Lines() {
       >
         {lines.isLoading && <Loading what="lines" />}
         {lines.error && <ErrorBox error={lines.error} />}
-        {lines.data && lines.data.items.length === 0 && <Empty>No lines match.</Empty>}
+        {lines.data && lines.data.items.length === 0 && <Empty>{leftOutView ? 'Nothing is left out.' : 'No lines match.'}</Empty>}
         {selected.size > 0 && categories.data && (
-          <BulkBar ids={[...selected]} categories={categories.data} onDone={() => setSelected(new Set())} />
+          <BulkBar ids={[...selected]} categories={categories.data} leftOut={leftOutView} onDone={() => setSelected(new Set())} />
         )}
         {lines.data && lines.data.items.length > 0 && (
           <div className="table-wrap">
@@ -187,7 +192,7 @@ export function Lines() {
                 {lines.data.items.map((l) => (
                   <tr
                     key={`${l.transactionId}-${l.splitLineId ?? 'r'}`}
-                    className={`clickable ${selected.has(l.transactionId) ? 'selected' : ''}`}
+                    className={`clickable ${selected.has(l.transactionId) ? 'selected' : ''} ${l.isLeftOut ? 'left-out' : ''}`}
                     tabIndex={0}
                     onClick={() => set('tx', String(l.transactionId))}
                     onKeyDown={(e) => e.key === 'Enter' && set('tx', String(l.transactionId))}
@@ -280,7 +285,7 @@ function Pick({ onPick, title, children }: { onPick: () => void; title: string; 
 }
 
 /** Change several lines at once: the quick way to fix a pile of tags or categories. */
-function BulkBar({ ids, categories, onDone }: { ids: number[]; categories: CategoryInfo[]; onDone: () => void }) {
+function BulkBar({ ids, categories, leftOut, onDone }: { ids: number[]; categories: CategoryInfo[]; leftOut: boolean; onDone: () => void }) {
   const client = useQueryClient()
   const [categoryId, setCategoryId] = useState('')
   const [type, setType] = useState('')
@@ -323,6 +328,40 @@ function BulkBar({ ids, categories, onDone }: { ids: number[]; categories: Categ
     const chosen = categories.find((c) => String(c.id) === value)
     if (chosen && !type) setType(chosen.type)
   }
+
+  const [reason, setReason] = useState('')
+  const out = useMutation({
+    mutationFn: () => send<{ leftOut: number; skipped: number }>('POST', '/transactions/leave-out', { ids, reason: reason.trim() || undefined }),
+    onSuccess: () => {
+      client.invalidateQueries()
+      onDone()
+    },
+  })
+  const back = useMutation({
+    mutationFn: () => send('POST', '/transactions/bring-back', { ids }),
+    onSuccess: () => {
+      client.invalidateQueries()
+      onDone()
+    },
+  })
+
+  if (leftOut)
+    return (
+      <div className="bulkbar">
+        <strong>{ids.length} selected</strong>
+        <button className="btn primary" type="button" disabled={back.isPending} onClick={() => back.mutate()}>
+          {back.isPending ? 'Working…' : 'Bring back into the totals'}
+        </button>
+        <button className="btn" type="button" onClick={onDone}>
+          Clear selection
+        </button>
+        {back.error && (
+          <span className="problem" role="alert">
+            {back.error.message}
+          </span>
+        )}
+      </div>
+    )
 
   return (
     <form
@@ -376,12 +415,22 @@ function BulkBar({ ids, categories, onDone }: { ids: number[]; categories: Categ
           {pair.isPending ? 'Pairing…' : 'Pair as a transfer'}
         </button>
       )}
+      <input type="text" placeholder="Why leave out? (optional)" aria-label="Why leave these out" maxLength={200} value={reason} onChange={(e) => setReason(e.target.value)} />
+      <button
+        className="btn"
+        type="button"
+        disabled={out.isPending}
+        title="Takes the selected lines out of every total without changing them. Find them again under Left out."
+        onClick={() => out.mutate()}
+      >
+        {out.isPending ? 'Working…' : 'Leave out of the totals'}
+      </button>
       <button className="btn" type="button" onClick={onDone}>
         Clear selection
       </button>
-      {(apply.error ?? pair.error) && (
+      {(apply.error ?? pair.error ?? out.error) && (
         <span className="problem" role="alert">
-          {(apply.error ?? pair.error)!.message}
+          {(apply.error ?? pair.error ?? out.error)!.message}
         </span>
       )}
     </form>

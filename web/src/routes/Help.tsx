@@ -82,6 +82,15 @@ const TOPICS: Topic[] = [
         <p>
           Bank lines can never be edited or deleted. You change what they <em>mean</em> (category, type, tags, notes, splits), never the amount or date.
         </p>
+        <h3>If something should not be counted</h3>
+        <p>
+          A duplicate, or a line that should never have been counted: open it in the <L to="/lines">Ledger</L> and press <strong>Leave out of the totals</strong> (you can give a reason).
+          Nothing is deleted. The line stays as the bank gave it, but is in no total, balance or alert. Tick <strong>Left out</strong> in the Ledger to see them, and <strong>Bring it back</strong> any time.
+          Several lines can be ticked and left out together. A line that is part of a transfer has to be unpaired first.
+        </p>
+        <p>
+          A whole file that went in wrong (the wrong account, or twice): in <strong>Recent imports</strong> press <strong>Undo this import</strong>. Every line of it leaves the totals in one step, and <strong>Restore</strong> puts them back.
+        </p>
       </>
     ),
   },
@@ -113,7 +122,7 @@ const TOPICS: Topic[] = [
         </p>
         <h3>Adding a line by hand</h3>
         <p>
-          On <L to="/accounts">Accounts</L>, each account has an <strong>Add a line</strong> button, for cash or anything the bank file does not have. A hand-added line can be deleted later.
+          On <L to="/accounts">Accounts</L>, each account has an <strong>Add a line</strong> button, for cash or anything the bank file does not have. A hand-added line can be deleted from its drawer, or just left out of the totals.
         </p>
       </>
     ),

@@ -30,7 +30,8 @@ public sealed record LineFilter(
     LineSort Sort = LineSort.DateDesc,
     LineDirection Direction = LineDirection.Any,
     bool RecurringOutsideBills = false,
-    long? AssetId = null);
+    long? AssetId = null,
+    bool LeftOutOnly = false);
 
 public sealed record LineItem(
     long TransactionId,
@@ -48,7 +49,8 @@ public sealed record LineItem(
     bool IsSplitPart,
     long? RecurringId,
     long? PlanId,
-    long? MoveId);
+    long? MoveId,
+    bool IsLeftOut = false);
 
 public sealed record LineSummary(long Count, long SumCents);
 
@@ -91,8 +93,12 @@ public sealed class LinesRepository(IDbConnection conn, IDbTransaction? tx = nul
         var wantsSavings = types?.Contains(LineType.Savings) == true;
 
         var sets = new List<string>();
-        switch (f.Move)
+        switch (f.LeftOutOnly ? (MoveMode?)null : f.Move)
         {
+            case null:
+                // the lines a person left out: whole lines, listed so they can be brought back, and counted nowhere else
+                sets.Add($"SELECT {EffectiveSql.Columns} FROM left_out_lines");
+                break;
             case MoveMode.Exclude:
                 sets.Add($"SELECT {EffectiveSql.Columns} FROM effective");
                 if (wantsSavings) sets.Add($"SELECT {EffectiveSql.Columns} FROM savings_legs");
@@ -195,7 +201,7 @@ public sealed class LinesRepository(IDbConnection conn, IDbTransaction? tx = nul
         var tagsByLine = LoadTags(rows);
         var items = rows.Select(r => new LineItem(r.TransactionId, r.SplitLineId, r.PostedOn, r.AccountId, r.AccountName, r.AmountCents,
             r.Description, r.Payee, r.CategoryId, r.CategoryName, r.Type,
-            tagsByLine.GetValueOrDefault((r.TransactionId, r.SplitLineId)) ?? [], r.IsSplitPart, r.RecurringId, r.PlanId, r.MoveId)).ToList();
+            tagsByLine.GetValueOrDefault((r.TransactionId, r.SplitLineId)) ?? [], r.IsSplitPart, r.RecurringId, r.PlanId, r.MoveId, filter.LeftOutOnly)).ToList();
 
         return new LinePage(items, page, pageSize, summary.Count, new LineSummary(summary.Count, summary.Sum));
     }

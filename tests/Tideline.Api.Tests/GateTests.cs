@@ -280,6 +280,8 @@ public sealed partial class GateTests(ITestOutputHelper output) : IDisposable
             new("PUT /transactions/{id:long}/splits", Kind.Update, "transaction.splits", async () =>
                 await Ok(HttpMethod.Put, $"/api/v1/transactions/{coffee}/splits", new { version = await _api.VersionOf(coffee), splits = new[] { new { amountCents = (await _api.Get($"/api/v1/transactions/{coffee}")).GetProperty("bank").GetProperty("amountCents").GetInt64(), categoryId = groceries, type = "extra" } } })),
             new("POST /transactions/bulk", Kind.Update, "transaction.update", () => Ok(HttpMethod.Post, "/api/v1/transactions/bulk", new { ids = new[] { mystery }, set = new { type = "one_time" } })),
+            new("POST /transactions/leave-out", Kind.Update, "transaction.leave_out", () => Ok(HttpMethod.Post, "/api/v1/transactions/leave-out", new { ids = new[] { mystery }, reason = "gate" })),
+            new("POST /transactions/bring-back", Kind.Update, "transaction.bring_back", () => Ok(HttpMethod.Post, "/api/v1/transactions/bring-back", new { ids = new[] { mystery } })),
             new("POST /moves", Kind.Create, "move.pair", async () =>
             {
                 var partner = (await Ok(HttpMethod.Post, "/api/v1/transactions", new { accountId = savings, postedOn = "2026-03-21", amountCents = 1234, description = "GATE PARTNER", categoryId = groceries, type = "extra" }, HttpStatusCode.Created)).GetProperty("id").GetInt64();
@@ -387,6 +389,15 @@ public sealed partial class GateTests(ITestOutputHelper output) : IDisposable
                 _api.Execute("INSERT INTO import_batches (source, file_name, started_at, status, error) VALUES ('csv', 'gate-failed.csv', '2026-04-01T00:00:00Z', 'failed', 'a test failure')");
                 await Ok(HttpMethod.Post, $"/api/v1/imports/{_api.Scalar<long>("SELECT MAX(id) FROM import_batches")}/dismiss");
             }),
+
+            // taking back an import that should not have happened
+            new("POST /imports/{id:long}/undo", Kind.Event, "import.undone", async () =>
+            {
+                _api.Execute("INSERT INTO import_batches (source, file_name, started_at, status) VALUES ('csv', 'gate-undo.csv', '2026-04-01T00:00:00Z', 'done')");
+                _api.Execute("UPDATE transactions SET import_batch_id = (SELECT MAX(id) FROM import_batches) WHERE id = @mystery", new { mystery });
+                await Ok(HttpMethod.Post, $"/api/v1/imports/{_api.Scalar<long>("SELECT MAX(id) FROM import_batches")}/undo");
+            }),
+            new("POST /imports/{id:long}/restore", Kind.Event, "import.restored", () => Ok(HttpMethod.Post, $"/api/v1/imports/{_api.Scalar<long>("SELECT MAX(id) FROM import_batches")}/restore")),
         };
 
         var missing = new List<string>();

@@ -250,7 +250,7 @@ public sealed class RuleEditor(IDbConnection conn, TimeProvider clock, Actor? ac
                a.bank_number_hash AS BankNumber, a.kind AS AccountKind, t.raw_json AS RawJson, t.category_id AS CategoryId, c.name AS CategoryName,
                t.type AS Type, t.payee AS Payee, t.rule_id AS RuleId, t.recurring_id AS RecurringId, t.plan_id AS PlanId
         FROM transactions t JOIN accounts a ON a.id = t.account_id LEFT JOIN categories c ON c.id = t.category_id
-        WHERE t.move_id IS NULL AND t.is_manual_override = 0 AND t.posted_on BETWEEN @from AND @to
+        WHERE t.move_id IS NULL AND t.left_out_at IS NULL AND t.is_manual_override = 0 AND t.posted_on BETWEEN @from AND @to
         ORDER BY t.posted_on, t.id
         """, new { from, to }, tx).ToList();
 

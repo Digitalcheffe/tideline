@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import { get, send, type TransactionDetail } from '../api'
@@ -35,6 +35,85 @@ export function TransactionDrawer({ id, onClose }: { id: number; onClose: () => 
   )
 }
 
+/** A line a person took out of the totals: why, and the way back. */
+function LeftOutNotice({ t }: { t: TransactionDetail }) {
+  const client = useQueryClient()
+  const back = useMutation({
+    mutationFn: () => send('POST', '/transactions/bring-back', { ids: [t.id] }),
+    onSuccess: () => client.invalidateQueries(),
+  })
+  return (
+    <div className="leftout-note" role="status">
+      <Badge tone="warn">Left out of the totals</Badge> Since {dateLabel(t.leftOut!.at.slice(0, 10))}
+      {t.leftOut!.reason ? `: ${t.leftOut!.reason}` : '.'} It is in no total, count or alert. Nothing about it has changed.
+      <p>
+        <button className="btn primary" type="button" disabled={back.isPending} onClick={() => back.mutate()}>
+          {back.isPending ? 'Working…' : 'Bring it back'}
+        </button>
+        {back.error && (
+          <span className="problem" role="alert">
+            {' '}
+            {back.error.message}
+          </span>
+        )}
+      </p>
+    </div>
+  )
+}
+
+/**
+ * Taking a line out. A bank line is never deleted, so it is left out of the totals (and can be brought back); a line added by
+ * hand can be deleted outright.
+ */
+function RemoveLine({ t }: { t: TransactionDetail }) {
+  const client = useQueryClient()
+  const [reason, setReason] = useState('')
+  const leaveOut = useMutation({
+    mutationFn: () => send('POST', '/transactions/leave-out', { ids: [t.id], reason: reason.trim() || undefined }),
+    onSuccess: () => client.invalidateQueries(),
+  })
+  const remove = useMutation({
+    mutationFn: () => send('DELETE', `/transactions/${t.id}`),
+    onSuccess: () => client.invalidateQueries(),
+  })
+  const error = leaveOut.error ?? remove.error
+  const manual = t.bank.source === 'manual'
+
+  return (
+    <>
+      <h3>Remove this line</h3>
+      <p className="muted">
+        {manual
+          ? 'You added this line by hand, so you can delete it, or just leave it out of the totals.'
+          : 'This came from the bank, so it is never deleted. For a duplicate or a line that should not count, leave it out of the totals. You can bring it back at any time.'}
+      </p>
+      <div className="toolbar">
+        <input type="text" placeholder="Why? (optional)" aria-label="Why leave this line out" maxLength={200} value={reason} onChange={(e) => setReason(e.target.value)} />
+        <button className="btn" type="button" disabled={leaveOut.isPending} onClick={() => leaveOut.mutate()}>
+          {leaveOut.isPending ? 'Working…' : 'Leave out of the totals'}
+        </button>
+        {manual && (
+          <button
+            className="btn"
+            type="button"
+            disabled={remove.isPending}
+            onClick={() => {
+              if (window.confirm('Delete this line for good? A record of it stays in the history log.')) remove.mutate()
+            }}
+          >
+            {remove.isPending ? 'Deleting…' : 'Delete this line'}
+          </button>
+        )}
+      </div>
+      {error && (
+        <p className="problem" role="alert">
+          {error.message}
+        </p>
+      )}
+    </>
+  )
+}
+
 function Detail({ t }: { t: TransactionDetail }) {
   const client = useQueryClient()
   const unpair = useMutation({
@@ -57,6 +136,7 @@ function Detail({ t }: { t: TransactionDetail }) {
 
   return (
     <>
+      {t.leftOut && <LeftOutNotice t={t} />}
       <div className="frombank">
         <strong>From the bank</strong> <span className="muted">(never changes)</span>
         <dl className="kv" style={{ marginTop: 6 }}>
@@ -147,7 +227,8 @@ function Detail({ t }: { t: TransactionDetail }) {
         </dl>
       )}
 
-      {!t.moveId && <EditPanel t={t} />}
+      {!t.moveId && !t.leftOut && <EditPanel t={t} />}
+      {!t.moveId && !t.leftOut && <RemoveLine t={t} />}
 
       <h3>Splits as they stand</h3>
       {t.splits.length === 0 ? (

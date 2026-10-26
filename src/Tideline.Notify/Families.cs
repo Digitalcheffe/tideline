@@ -98,7 +98,7 @@ public sealed class CardFlags : IFlagFamily
         var since = EvalContext.FirstOf(c.RecentMonths[0]);
         var lines = c.Conn.Query<(long Id, string Account, DateOnly On, long Cents)>("""
             SELECT t.id, a.name, t.posted_on, t.amount_cents FROM transactions t JOIN accounts a ON a.id = t.account_id
-            WHERE a.kind = 'credit_card' AND t.category_id = @interest AND t.amount_cents < 0 AND t.move_id IS NULL AND t.posted_on >= @since
+            WHERE a.kind = 'credit_card' AND t.category_id = @interest AND t.amount_cents < 0 AND t.move_id IS NULL AND t.left_out_at IS NULL AND t.posted_on >= @since
             """, new { interest, since });
         foreach (var l in lines)
             yield return new FlagCandidate(FlagKinds.CardInterest, "transaction", l.Id, l.On.ToString("yyyy-MM"), Severity.Alert,
@@ -182,7 +182,7 @@ public sealed class DebtFlags : IFlagFamily
         var since = c.Today.AddDays(-45);
         var lines = c.Conn.Query<(long Id, string Description, DateOnly On, long Cents, long? Category)>("""
             SELECT id, original_description, posted_on, amount_cents, category_id FROM transactions
-            WHERE amount_cents < 0 AND move_id IS NULL AND posted_on >= @since
+            WHERE amount_cents < 0 AND move_id IS NULL AND left_out_at IS NULL AND posted_on >= @since
             """, new { since });
         foreach (var l in lines)
         {
@@ -210,7 +210,7 @@ public sealed class NewRecurringFlags : IFlagFamily
 
         var lines = c.Conn.Query<(string Payee, string Month, long Cents)>("""
             SELECT COALESCE(NULLIF(payee, ''), original_description), SUBSTR(posted_on, 1, 7), -amount_cents FROM transactions
-            WHERE amount_cents < 0 AND move_id IS NULL AND recurring_id IS NULL AND posted_on BETWEEN @from AND @to AND type <> 'income'
+            WHERE amount_cents < 0 AND move_id IS NULL AND left_out_at IS NULL AND recurring_id IS NULL AND posted_on BETWEEN @from AND @to AND type <> 'income'
             """, new { from, to }).ToList();
 
         foreach (var g in lines.GroupBy(l => l.Payee.ToUpperInvariant()))
@@ -286,7 +286,7 @@ public sealed class OneTimeFlags : IFlagFamily
         var lines = c.Conn.Query<(long Id, string Description, DateOnly On, long Cents, string? PlanName)>("""
             SELECT t.id, COALESCE(NULLIF(t.payee, ''), t.original_description), t.posted_on, -t.amount_cents, p.name
             FROM transactions t LEFT JOIN plans p ON p.id = t.plan_id
-            WHERE t.type = 'one_time' AND t.move_id IS NULL AND t.amount_cents < 0 AND -t.amount_cents >= @threshold AND t.posted_on >= @since
+            WHERE t.type = 'one_time' AND t.move_id IS NULL AND t.left_out_at IS NULL AND t.amount_cents < 0 AND -t.amount_cents >= @threshold AND t.posted_on >= @since
             """, new { threshold, since });
         foreach (var l in lines)
             yield return new FlagCandidate(FlagKinds.OneTimeReview, "transaction", l.Id, l.On.ToString("yyyy-MM"), Severity.Info,

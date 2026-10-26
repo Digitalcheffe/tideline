@@ -49,6 +49,7 @@ public static class TransactionEndpoints
                 t.UnassignedCents,
                 version = t.Version,
                 audit = t.Audit,
+                leftOut = t.LeftOutAt is null ? null : new { at = t.LeftOutAt, reason = t.LeftOutReason, importId = t.LeftOutImportId },
             });
         });
 
@@ -77,7 +78,18 @@ public static class TransactionEndpoints
 
         api.MapDelete("/transactions/{id:long}", (long id, SqliteConnectionFactory factory, TimeProvider time, HttpContext http) =>
             Edit(http, factory, time, e => { e.DeleteManual(id); return new { deleted = true }; }));
+
+        // leave lines out of every total without touching them, and bring them back (docs/07-api.md, "Ledger")
+        api.MapPost("/transactions/leave-out", (LeaveOutRequest request, SqliteConnectionFactory factory, TimeProvider time, HttpContext http) =>
+            Edit(http, factory, time, e => e.LeaveOut(request.Ids ?? [], request.Reason)));
+
+        api.MapPost("/transactions/bring-back", (IdsRequest request, SqliteConnectionFactory factory, TimeProvider time, HttpContext http) =>
+            Edit(http, factory, time, e => new { broughtBack = e.BringBack(request.Ids ?? []) }));
     }
+
+    public sealed record LeaveOutRequest(IReadOnlyList<long>? Ids, string? Reason);
+
+    public sealed record IdsRequest(IReadOnlyList<long>? Ids);
 
     public sealed record BulkRequest(IReadOnlyList<long>? Ids, BulkChange? Set);
 

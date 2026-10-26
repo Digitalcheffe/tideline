@@ -135,7 +135,7 @@ public sealed class ReportRepository(IDbConnection conn, IDbTransaction? tx = nu
                    SUM(CASE WHEN t.amount_cents < 0 THEN -t.amount_cents ELSE 0 END),
                    SUM(t.amount_cents)
             FROM transactions t
-            WHERE t.posted_on BETWEEN @start AND @end
+            WHERE t.posted_on BETWEEN @start AND @end AND t.left_out_at IS NULL
             GROUP BY t.account_id, SUBSTR(t.posted_on, 1, 7)
             ORDER BY 1, 2
             """, new { start, end }, tx)
@@ -146,7 +146,7 @@ public sealed class ReportRepository(IDbConnection conn, IDbTransaction? tx = nu
     public long NetBefore(long accountId, DateOnly date)
     {
         TypeHandlers.EnsureRegistered();
-        return conn.ExecuteScalar<long>("SELECT COALESCE(SUM(amount_cents), 0) FROM transactions WHERE account_id = @accountId AND posted_on < @date",
+        return conn.ExecuteScalar<long>("SELECT COALESCE(SUM(amount_cents), 0) FROM transactions WHERE account_id = @accountId AND posted_on < @date AND left_out_at IS NULL",
             new { accountId, date }, tx);
     }
 
@@ -201,7 +201,7 @@ public sealed class ReportRepository(IDbConnection conn, IDbTransaction? tx = nu
         TypeHandlers.EnsureRegistered();
         return conn.ExecuteScalar<long>("""
             SELECT COALESCE(SUM(amount_cents), 0) FROM transactions
-            WHERE account_id = @accountId AND move_id IS NOT NULL AND amount_cents > 0 AND posted_on BETWEEN @start AND @end
+            WHERE account_id = @accountId AND move_id IS NOT NULL AND amount_cents > 0 AND posted_on BETWEEN @start AND @end AND left_out_at IS NULL
             """, new { accountId, start, end }, tx);
     }
 }
