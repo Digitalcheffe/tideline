@@ -38,7 +38,7 @@ export function Bills({ period }: { period: Period }) {
           <p className="muted">No bills yet. Add recurring items with `tideline setup`, and import some exports.</p>
         ) : (
           <div className="table-wrap">
-            <table>
+            <table className="bills-grid">
               <thead>
                 <tr>
                   <th className="sticky-col">Bill</th>
@@ -47,7 +47,8 @@ export function Bills({ period }: { period: Period }) {
                       {shortMonth(m)}
                     </th>
                   ))}
-                  <th className="num">Total</th>
+                  <th className="num sticky-total">Total</th>
+                  <th className="num sticky-average" title="The year's total divided by 12">Avg a month</th>
                 </tr>
               </thead>
               <tbody>
@@ -72,10 +73,11 @@ export function Bills({ period }: { period: Period }) {
                         </td>
                       )
                     })}
-                    <td className="num">
+                    <td className="num sticky-total">
                       <strong>{dollars(r.totalCents)}</strong>
                       {r.totalProjectedCents > 0 && <span className="cell-note">incl. {dollars(r.totalProjectedCents)} projected</span>}
                     </td>
+                    <td className="num sticky-average">{dollars(Math.round(r.totalCents / 12))}</td>
                   </tr>
                 ))}
               </tbody>
@@ -90,12 +92,13 @@ export function Bills({ period }: { period: Period }) {
                       {c.projectedCents > 0 && <span className="cell-note">incl. {dollars(c.projectedCents)} projected</span>}
                     </td>
                   ))}
-                  <td className="num">
+                  <td className="num sticky-total">
                     {dollars(data.grandTotalCents)}
                     <span className="cell-note">
                       {dollars(data.totalPaidCents)} paid{data.totalProjectedCents > 0 ? ` + ${dollars(data.totalProjectedCents)} projected` : ''}
                     </span>
                   </td>
+                  <td className="num sticky-average">{dollars(Math.round(data.grandTotalCents / 12))}</td>
                 </tr>
               </tfoot>
             </table>

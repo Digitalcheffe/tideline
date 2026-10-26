@@ -549,6 +549,33 @@ tbody tr.clickable:hover {
   background: var(--surface);
 }
 
+/* the Bills grid: Total and Average a month stay in view on the right while the months scroll */
+.bills-grid th,
+.bills-grid td {
+  padding: 0.35rem 0.3rem;
+}
+
+.bills-grid td {
+  font-size: 0.84rem;
+}
+
+.bills-grid .sticky-total,
+.bills-grid .sticky-average {
+  position: sticky;
+  background: var(--surface);
+  border-left: 1px solid var(--border);
+}
+
+.bills-grid .sticky-average {
+  right: 0;
+  min-width: 5rem;
+}
+
+.bills-grid .sticky-total {
+  right: 5rem;
+  min-width: 6.2rem;
+}
+
 .projected {
   opacity: 0.65;
   font-style: italic;

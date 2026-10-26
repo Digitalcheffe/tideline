@@ -43,6 +43,10 @@ test.describe.serial('smoke', () => {
     await expect(grid.locator('tfoot')).toContainText('$130.99 paid')
     await expect(grid.locator('tbody tr', { hasText: 'City Power' })).toContainText('Paid')
     await expect(grid.locator('tbody tr', { hasText: 'City Power' })).toContainText('Missing')
+
+    // the year's Total and the Average a month stay in view on the right, without scrolling sideways
+    await expect(grid.getByRole('columnheader', { name: 'Total', exact: true })).toBeInViewport()
+    await expect(grid.getByRole('columnheader', { name: 'Avg a month' })).toBeInViewport()
   })
 
   test('splitting $10 of groceries moves it from Required to Extra and the total does not change', async ({ page }) => {
