@@ -52,7 +52,7 @@ public sealed class CliApp(TextWriter output, TimeProvider clock)
         var rest = positional.Skip(1).ToList();
 
         // account numbers are kept as keyed hashes; the key file sits with the other keys, beside the database unless told otherwise
-        AccountNumbers.ConfigureOnce(() => AccountNumberKeys.LoadOrCreate(Path.Combine(options.GetValueOrDefault("keys") ?? BesideDatabase(connectionString, "keys"), "account-numbers.key")));
+        AccountNumbers.ConfigureOnce(() => AccountNumberKeys.LoadOrCreate(Path.Combine(KeysFolder(options, connectionString), "account-numbers.key")));
 
         try
         {
@@ -106,6 +106,13 @@ public sealed class CliApp(TextWriter output, TimeProvider clock)
         }
     }
 
+    /// <summary>
+    /// Where the keys are: --keys, else the same setting the app reads (Tideline__DataProtectionKeys, which the container sets), else beside the
+    /// database. The command line and the app have to agree, or the tool would make a second set of keys the app never uses.
+    /// </summary>
+    private static string KeysFolder(IReadOnlyDictionary<string, string?> options, string connectionString) =>
+        options.GetValueOrDefault("keys") ?? Environment.GetEnvironmentVariable("Tideline__DataProtectionKeys") ?? BesideDatabase(connectionString, "keys");
+
     private static string BesideDatabase(string connectionString, string folder) =>
         Path.Combine(Path.GetDirectoryName(Path.GetFullPath(new Microsoft.Data.Sqlite.SqliteConnectionStringBuilder(connectionString).DataSource))!, folder);
 
@@ -121,8 +128,8 @@ public sealed class CliApp(TextWriter output, TimeProvider clock)
             return check.Ok ? 0 : 1;
         }
 
-        var outDir = options.GetValueOrDefault("out") ?? BesideDatabase(connectionString, "backups");
-        var keys = options.GetValueOrDefault("keys") ?? BesideDatabase(connectionString, "keys");
+        var outDir = options.GetValueOrDefault("out") ?? Environment.GetEnvironmentVariable("Tideline__BackupPath") ?? BesideDatabase(connectionString, "backups");
+        var keys = KeysFolder(options, connectionString);
         var made = Data.Services.BackupService.Create(connectionString, outDir, keys, clock.GetUtcNow());
         output.WriteLine($"Database copy: {made.DatabaseFile} ({made.Bytes / 1024} KB)");
         output.WriteLine(made.KeysFile is null ? $"Keys: none found in {keys}, so nothing was copied." : $"Keys: {made.KeysFile}");
