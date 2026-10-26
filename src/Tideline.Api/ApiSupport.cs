@@ -25,6 +25,13 @@ public sealed class TidelineOptions
     public int IdleHours { get; set; } = 12;
     public int AbsoluteDays { get; set; } = 14;
     public int AuthRequestsPerMinute { get; set; } = 10;
+
+    /// <summary>
+    /// The address or addresses of the reverse proxy in front of the app, comma separated (an address like 172.18.0.5, or a range like 172.18.0.0/16).
+    /// Only requests that come from one of these are believed when they say who the real visitor is (X-Forwarded-For) and whether it was https
+    /// (X-Forwarded-Proto). Empty means there is no proxy, and those headers are ignored. Without this, behind a proxy every visitor looks like the proxy.
+    /// </summary>
+    public string? TrustedProxies { get; set; }
     public int MaxFailedLogins { get; set; } = 5;
     public int LockoutMinutes { get; set; } = 15;
 

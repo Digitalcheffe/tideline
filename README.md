@@ -123,6 +123,7 @@ Settings use the `Section__Name` form, which is how .NET reads them from the env
 | Variable | Description | Default |
 |---|---|---|
 | `Tideline__PublicUrl` | The address people use. Used in setup links and notifications | `http://localhost:5173` (the compose file sets `http://localhost:8080`) |
+| `Tideline__TrustedProxies` | Your reverse proxy's address or range, comma separated (`172.18.0.5`, `172.18.0.0/16`). Only these are believed about who the visitor is. Leave empty with no proxy | empty |
 | `Tideline__Timezone` | IANA time zone for "today" and month boundaries | `America/New_York` |
 | `Database__ConnectionString` | The SQLite file | `Data Source=tideline.db` (`/data/db/tideline.db` in the container) |
 | `Tideline__DataProtectionKeys` | Where the encryption keys live. Back these up with the database | beside the database (`/data/keys` in the container) |

@@ -22,6 +22,8 @@ services:
       - "127.0.0.1:8080:8080"
     environment:
       Tideline__PublicUrl: http://localhost:8080
+      # behind a reverse proxy, put its address (or range) here, via TIDELINE_TRUSTED_PROXIES in deploy/.env, so the real visitor is known
+      Tideline__TrustedProxies: ${TIDELINE_TRUSTED_PROXIES:-}
       Tideline__Timezone: America/New_York
       TZ: America/New_York
       Notify__Enabled: "true"

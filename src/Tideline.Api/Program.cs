@@ -60,6 +60,10 @@ builder.Services.AddRateLimiter(o =>
 
 var options = builder.Configuration.GetSection("Tideline").Get<TidelineOptions>() ?? new TidelineOptions();
 
+// behind a reverse proxy: believe it about the real visitor, but only the addresses listed (Tideline__TrustedProxies)
+var behindProxy = TrustedProxies.IsSet(options.TrustedProxies);
+if (behindProxy) builder.Services.Configure<Microsoft.AspNetCore.Builder.ForwardedHeadersOptions>(o => TrustedProxies.Configure(o, options.TrustedProxies));
+
 if (!string.IsNullOrWhiteSpace(options.InboxPath))
 {
     builder.Services.AddSingleton(sp => new InboxProcessor(options.InboxPath, sp.GetRequiredService<ImportPipeline>(),
@@ -121,6 +125,12 @@ if (devNoAuth)
     app.Logger.LogWarning("SIGN-IN IS SWITCHED OFF (Tideline:DevNoAuth). Everyone on this computer is the owner. Never use this with real data on a shared machine.");
 }
 
+if (behindProxy)
+{
+    // first of all, so everything after it (the sign-in limit, the audit log, the security headers) sees the real visitor and whether it was https
+    app.Services.GetRequiredService<IOptions<Microsoft.AspNetCore.Builder.ForwardedHeadersOptions>>(); // reads the setting now, so a mistake stops the app at start
+    app.UseForwardedHeaders();
+}
 app.UseMiddleware<SecurityHeadersMiddleware>();
 app.UseRateLimiter();
 app.UseMiddleware<AuthMiddleware>();
