@@ -41,7 +41,7 @@ Tick several lines to change them together, or, with two ticked, to pair them as
 
 ## Rules
 
-Conditions (description contains, amount range, check number, account) decide the category, type, payee and tags. They run in order and the first
+Conditions (words in the description, amount range, account, direction) decide the category, type, payee and tags. They run in order and the first
 match wins. Before saving, **See what it would change** lists every past line a draft rule would change. **Apply** then updates past lines, and
 skips any you set by hand.
 
