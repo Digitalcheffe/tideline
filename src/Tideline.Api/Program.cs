@@ -64,14 +64,19 @@ var options = builder.Configuration.GetSection("Tideline").Get<TidelineOptions>(
 var behindProxy = TrustedProxies.IsSet(options.TrustedProxies);
 if (behindProxy) builder.Services.Configure<Microsoft.AspNetCore.Builder.ForwardedHeadersOptions>(o => TrustedProxies.Configure(o, options.TrustedProxies));
 
-if (!string.IsNullOrWhiteSpace(options.InboxPath))
-{
-    builder.Services.AddSingleton(sp => new InboxProcessor(options.InboxPath, sp.GetRequiredService<ImportPipeline>(),
-        sp.GetRequiredService<SqliteConnectionFactory>(), sp.GetRequiredService<TimeProvider>(),
-        sp.GetService<ILogger<InboxProcessor>>()));
-    builder.Services.AddHostedService(sp => new InboxWatcher(sp.GetRequiredService<InboxProcessor>(),
-        TimeSpan.FromSeconds(Math.Max(10, options.InboxIntervalSeconds)), sp.GetService<ILogger<InboxWatcher>>()));
-}
+// the address the app listens on: TIDELINE_URL, in the compose file. (The framework's own ASPNETCORE_URLS and --urls still work when it is not set.)
+if (builder.Configuration["TIDELINE_URL"] is { Length: > 0 } listenOn)
+    builder.WebHost.UseUrls(listenOn.Split([';', ','], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries));
+
+// options that start from compose and can be changed in the app (Settings): sign-in timing and limits, the inbox folder
+builder.Services.AddSingleton<RuntimeSettings>();
+
+// the inbox folder and how often it is looked at are asked for each time round, so changing them in the app needs no restart; with no folder a run does nothing
+builder.Services.AddSingleton(sp => new InboxProcessor(() => sp.GetRequiredService<TidelineOptions>().InboxPath, sp.GetRequiredService<ImportPipeline>(),
+    sp.GetRequiredService<SqliteConnectionFactory>(), sp.GetRequiredService<TimeProvider>(),
+    sp.GetService<ILogger<InboxProcessor>>()));
+builder.Services.AddHostedService(sp => new InboxWatcher(sp.GetRequiredService<InboxProcessor>(),
+    () => TimeSpan.FromSeconds(Math.Max(10, sp.GetRequiredService<TidelineOptions>().InboxIntervalSeconds)), sp.GetService<ILogger<InboxWatcher>>()));
 
 // flags, notifications and the monthly summary. Notify:Enabled=false leaves the schedule off (the tests drive it by hand).
 var notify = builder.Configuration.GetSection("Notify").Get<NotifyOptions>() ?? new NotifyOptions();
@@ -117,6 +122,12 @@ if (!string.Equals(app.Configuration["Database:AutoMigrate"], "false", StringCom
     AccountNumbers.SecureExisting(secure, app.Services.GetRequiredService<TimeProvider>());
 }
 
+// take the compose values first, then lay what was saved in the app over them
+{
+    var runtime = app.Services.GetRequiredService<RuntimeSettings>();
+    if (!string.Equals(app.Configuration["Database:AutoMigrate"], "false", StringComparison.OrdinalIgnoreCase)) runtime.Apply();
+}
+
 var devNoAuth = app.Services.GetRequiredService<TidelineOptions>().DevNoAuth;
 if (devNoAuth)
 {
@@ -142,6 +153,7 @@ var api = app.MapGroup("/api/v1");
 api.MapAuthEndpoints();
 api.MapAdminEndpoints();
 api.MapSetupEndpoints();
+api.MapAppSettingsEndpoints();
 api.MapImportEndpoints();
 api.MapDataEndpoints();
 api.MapPlanningEndpoints();

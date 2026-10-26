@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom'
 import { get, send as post, upload } from '../../api'
 import { Badge, Card, Empty, ErrorBox, Loading } from '../../components'
 import { dollars } from '../../format'
+import { AppSettingsCard } from './AppSettings'
 import { Problem, useAct, when } from './common'
 
 
@@ -129,7 +130,7 @@ export function ImportsSettings() {
 
       <Card title="Inbox folder">
         {!inbox.configured ? (
-          <p className="muted">No inbox folder is set (Tideline:InboxPath), so files can only be sent from this page.</p>
+          <p className="muted">No inbox folder is set, so files can only be sent from this page. Set one below (or in the compose file with Tideline__InboxPath).</p>
         ) : (
           <p>
             <code>{inbox.path}</code>: {inbox.waiting} waiting, {inbox.settling} still being written, {inbox.failed} in the Failed folder.
@@ -174,6 +175,12 @@ export function ImportsSettings() {
           </>
         )}
       </Card>
+
+      <AppSettingsCard
+        keys={['inbox_path', 'inbox_interval_seconds']}
+        title="Inbox folder setting"
+        intro="The folder is the path inside the container, so it has to be one the compose file has mounted. It starts from the compose file; a value saved here wins until you go back to the compose value, and applies at the next look."
+      />
 
       <Card title="Recent imports">
         {batches.length === 0 ? (

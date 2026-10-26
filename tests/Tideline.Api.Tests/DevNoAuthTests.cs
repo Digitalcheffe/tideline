@@ -18,12 +18,13 @@ public sealed class DevNoAuthTests : IDisposable
 
     public void Dispose() => _api.Dispose();
 
-    private WebApplicationFactory<Program> WithSwitch(string environment = "Development", string? urls = null) =>
+    private WebApplicationFactory<Program> WithSwitch(string environment = "Development", string? urls = null, string? tidelineUrl = null) =>
         _api.Host.WithWebHostBuilder(b =>
         {
             b.UseEnvironment(environment);
             b.UseSetting("Tideline:DevNoAuth", "true");
             if (urls is not null) b.UseSetting("urls", urls);
+            if (tidelineUrl is not null) b.UseSetting("TIDELINE_URL", tidelineUrl);
         });
 
     [Fact]
@@ -107,6 +108,17 @@ public sealed class DevNoAuthTests : IDisposable
     public void It_refuses_to_start_if_the_app_could_be_reached_from_another_computer(string urls)
     {
         using var host = WithSwitch(urls: urls);
+
+        FluentActions.Invoking(() => host.CreateClient())
+            .Should().Throw<Exception>().Where(e => e.ToString().Contains("may only listen on this computer"));
+    }
+
+    [Theory]
+    [InlineData("http://0.0.0.0:5130")]
+    [InlineData("http://localhost:5130,http://0.0.0.0:5131")]
+    public void TIDELINE_URL_is_checked_too_because_it_is_what_the_app_listens_on(string tidelineUrl)
+    {
+        using var host = WithSwitch(tidelineUrl: tidelineUrl);
 
         FluentActions.Invoking(() => host.CreateClient())
             .Should().Throw<Exception>().Where(e => e.ToString().Contains("may only listen on this computer"));

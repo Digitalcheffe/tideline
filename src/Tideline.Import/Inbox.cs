@@ -13,7 +13,7 @@ public sealed record InboxRunSummary(int Imported, int Failed, int Waiting);
 /// next run, good files to <c>Done/YYYY-MM/</c>, bad files to <c>Failed/</c> with a <c>.error.txt</c> beside them.
 /// </summary>
 public sealed class InboxProcessor(
-    string inboxPath,
+    Func<string?> currentPath,
     ImportPipeline pipeline,
     SqliteConnectionFactory factory,
     TimeProvider clock,
@@ -22,8 +22,17 @@ public sealed class InboxProcessor(
     public static readonly TimeSpan SettleTime = TimeSpan.FromSeconds(60);
     private readonly SemaphoreSlim _lock = new(1, 1);
 
+    /// <summary>A folder that never changes (the tests use this).</summary>
+    public InboxProcessor(string inboxPath, ImportPipeline pipeline, SqliteConnectionFactory factory, TimeProvider clock, ILogger<InboxProcessor>? logger = null)
+        : this(() => inboxPath, pipeline, factory, clock, logger)
+    {
+    }
+
+    /// <summary>The folder is asked for on every run, so changing it in the app applies at the next one. No folder means nothing to do.</summary>
     public async Task<InboxRunSummary> RunOnceAsync(CancellationToken ct = default)
     {
+        var inboxPath = currentPath();
+        if (string.IsNullOrWhiteSpace(inboxPath)) return new InboxRunSummary(0, 0, 0);
         if (!await _lock.WaitAsync(0, ct)) return new InboxRunSummary(0, 0, 0); // a run is already going
         try
         {
@@ -39,7 +48,7 @@ public sealed class InboxProcessor(
 
                 try
                 {
-                    var result = await ProcessAsync(path, name, ct);
+                    var result = await ProcessAsync(inboxPath, path, name, ct);
                     if (result is null) continue; // database unreachable: leave it for the next run
                     if (result.Succeeded) imported++; else failed++;
                 }
@@ -57,7 +66,7 @@ public sealed class InboxProcessor(
         }
     }
 
-    private async Task<ImportResult?> ProcessAsync(string path, string name, CancellationToken ct)
+    private async Task<ImportResult?> ProcessAsync(string inboxPath, string path, string name, CancellationToken ct)
     {
         ImportResult result;
         if (!string.Equals(Path.GetExtension(name), ".csv", StringComparison.OrdinalIgnoreCase))
@@ -113,13 +122,15 @@ public sealed class InboxProcessor(
     }
 }
 
-/// <summary>Runs the inbox every <paramref name="interval"/> (default five minutes); not registered when no path is configured.</summary>
-public sealed class InboxWatcher(InboxProcessor processor, TimeSpan interval, ILogger<InboxWatcher>? logger = null) : BackgroundService
+/// <summary>
+/// Runs the inbox every <paramref name="interval"/> (default five minutes). The interval is asked for each time round, so a change made in the
+/// app applies without a restart; with no folder set a run does nothing.
+/// </summary>
+public sealed class InboxWatcher(InboxProcessor processor, Func<TimeSpan> interval, ILogger<InboxWatcher>? logger = null) : BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        using var timer = new PeriodicTimer(interval);
-        do
+        while (!stoppingToken.IsCancellationRequested)
         {
             try
             {
@@ -130,7 +141,9 @@ public sealed class InboxWatcher(InboxProcessor processor, TimeSpan interval, IL
             {
                 logger?.LogError(e, "Inbox run failed");
             }
+
+            try { await Task.Delay(interval(), stoppingToken); }
+            catch (OperationCanceledException) { break; }
         }
-        while (await timer.WaitForNextTickAsync(stoppingToken));
     }
 }

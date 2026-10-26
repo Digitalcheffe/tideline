@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { get, send } from '../../api'
 import { Badge, Card, ErrorBox, Loading } from '../../components'
+import { AppSettingsCard } from './AppSettings'
 import { Problem, useAct, when } from './common'
 
 interface SessionRow {
@@ -33,6 +34,7 @@ export function SessionsSettings() {
   if (sessions.error || !sessions.data) return <ErrorBox error={sessions.error} />
 
   return (
+    <>
     <Card title="Signed-in sessions">
       <p className="muted">Every browser that is signed in right now. Sign one out if you do not recognise it or a phone is lost.</p>
       <Problem message={error} />
@@ -79,5 +81,12 @@ export function SessionsSettings() {
         </table>
       </div>
     </Card>
+
+    <AppSettingsCard
+      keys={['idle_hours', 'absolute_days', 'max_failed_logins', 'lockout_minutes', 'auth_requests_per_minute']}
+      title="Sign-in timing and limits"
+      intro="How long someone stays signed in, and how the app guards against guessing. Each starts from the compose file; a value saved here wins until you go back to the compose value. A change applies at once."
+    />
+    </>
   )
 }

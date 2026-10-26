@@ -39,7 +39,7 @@ COPY --from=web /src/web/dist/ ./wwwroot/
 # `tideline ...` works inside the container: docker exec tideline_app tideline migrate
 RUN printf '#!/bin/sh\nexec dotnet /app/cli/tideline.dll "$@"\n' > /usr/local/bin/tideline && chmod +x /usr/local/bin/tideline
 
-ENV ASPNETCORE_URLS=http://0.0.0.0:8080 \
+ENV TIDELINE_URL=http://0.0.0.0:8080 \
     ASPNETCORE_ENVIRONMENT=Production \
     DOTNET_EnableDiagnostics=0 \
     Database__ConnectionString="Data Source=/data/db/tideline.db" \

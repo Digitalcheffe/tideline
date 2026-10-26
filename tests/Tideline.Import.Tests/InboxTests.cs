@@ -153,6 +153,24 @@ public sealed class InboxTests : IDisposable
         Directory.Exists(Path.Combine(_inbox, "Failed")).Should().BeFalse();
     }
 
+    [Fact]
+    public async Task The_folder_is_asked_for_on_every_run_so_it_can_be_changed_or_switched_off()
+    {
+        Drop("acct_1111_03_01_2026_to_03_31_2026.csv");
+        string? folder = null;
+        TimeProvider clock = new FixedClock(Now);
+        var processor = new InboxProcessor(() => folder, new ImportPipeline(_factory, new WriteGate(), clock), _factory, clock);
+
+        (await processor.RunOnceAsync()).Should().Be(new InboxRunSummary(0, 0, 0), "no folder means nothing to do");
+        File.Exists(Path.Combine(_inbox, "acct_1111_03_01_2026_to_03_31_2026.csv")).Should().BeTrue();
+
+        folder = _inbox;
+        (await processor.RunOnceAsync()).Imported.Should().Be(1, "once a folder is set, the next run uses it");
+
+        folder = "";
+        (await processor.RunOnceAsync()).Should().Be(new InboxRunSummary(0, 0, 0));
+    }
+
     public void Dispose()
     {
         SqliteConnection.ClearAllPools();

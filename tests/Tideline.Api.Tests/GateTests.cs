@@ -254,6 +254,7 @@ public sealed partial class GateTests(ITestOutputHelper output) : IDisposable
             new("POST /recurring", Kind.Create, "recurring.created", async () => recurring = (await Ok(HttpMethod.Post, "/api/v1/recurring", new { name = "Gate bill", categoryId = utilities, expectedMinCents = 1, expectedMaxCents = 2, dueDay = 5, firstDueOn = "2026-01-05" }, HttpStatusCode.Created)).GetProperty("id").GetInt64()),
             new("PATCH /recurring/{id:long}", Kind.Update, "recurring.updated", () => Ok(HttpMethod.Patch, $"/api/v1/recurring/{recurring}", new { expectedMaxCents = 3 })),
             new("PUT /settings", Kind.Update, "settings.updated", () => Ok(HttpMethod.Put, "/api/v1/settings", new { oneTimeAttentionCents = 12345 })),
+            new("PUT /settings/app", Kind.Update, "settings.app_updated", () => Ok(HttpMethod.Put, "/api/v1/settings/app", new { values = new Dictionary<string, string?> { ["idle_hours"] = "10" } })),
 
             // rules
             new("POST /rules", Kind.Create, "rule.created", async () => rule = (await Ok(HttpMethod.Post, "/api/v1/rules", ruleBody("Gate rule", "MYSTERY VENDOR"), HttpStatusCode.Created)).GetProperty("id").GetInt64()),

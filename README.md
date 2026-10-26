@@ -108,15 +108,17 @@ Settings use the `Section__Name` form, which is how .NET reads them from the env
 | `Database__ConnectionString` | The SQLite file | `Data Source=tideline.db` (`/data/db/tideline.db` in the container) |
 | `Tideline__DataProtectionKeys` | Where the encryption keys live. Back these up with the database | beside the database (`/data/keys` in the container) |
 | `Tideline__BackupPath` | Where backups are written | `backups` beside the database (`/backups` in the container) |
-| `Tideline__InboxPath` | A folder to watch for CSV exports. Empty turns the watcher off | off |
-| `Tideline__InboxIntervalSeconds` | How often the inbox is looked at | `300` |
+| `Tideline__InboxPath` * | A folder to watch for CSV exports. Empty turns the watcher off | off |
+| `Tideline__InboxIntervalSeconds` * | How often the inbox is looked at | `300` |
 | `Tideline__SecureCookie` | Mark the sign-in cookie Secure. Keep on, including behind HTTPS | `true` |
-| `Tideline__IdleHours` / `Tideline__AbsoluteDays` | Sign out after this long idle, or this long in total | `12` / `14` |
-| `Tideline__AuthRequestsPerMinute` | Limit on sign-in attempts per address | `10` |
-| `Tideline__MaxFailedLogins` / `Tideline__LockoutMinutes` | Wrong tries before a lock, and how long it lasts | `5` / `15` |
+| `Tideline__IdleHours` * / `Tideline__AbsoluteDays` * | Sign out after this long idle, or this long in total | `12` / `14` |
+| `Tideline__AuthRequestsPerMinute` * | Limit on sign-in attempts per address | `10` |
+| `Tideline__MaxFailedLogins` * / `Tideline__LockoutMinutes` * | Wrong tries before a lock, and how long it lasts | `5` / `15` |
 | `Notify__Enabled` | Run the nightly alert check, notifications and monthly summary | `true` |
 | `SimpleFin__Enabled` | Run the automatic bank sync | `true` |
-| `ASPNETCORE_URLS` | What the app listens on | `http://0.0.0.0:8080` in the container |
+| `TIDELINE_URL` | What the app listens on (comma separated if more than one). The framework's own `ASPNETCORE_URLS` is used when this is not set | `http://0.0.0.0:8080` in the container |
+
+* Starts from this value but can be changed in the app (Settings, Sessions and Imports). A value saved there wins until you press **Use the compose value**, and applies at once with no restart. The compose value is always shown beside it.
 
 ### In-app settings
 

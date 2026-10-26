@@ -218,10 +218,11 @@ public static class DevAuth
         if (!environment.IsDevelopment())
             throw new InvalidOperationException("Tideline:DevNoAuth switches sign-in off, so it only works when ASPNETCORE_ENVIRONMENT is Development. Remove it, or run in Development.");
 
-        var urls = configuration["urls"] ?? configuration["ASPNETCORE_URLS"];
+        // TIDELINE_URL is what the app listens on when it is set, so it is the one to check
+        var urls = configuration["TIDELINE_URL"] ?? configuration["urls"] ?? configuration["ASPNETCORE_URLS"];
         if (string.IsNullOrWhiteSpace(urls)) return; // the default is localhost only
 
-        foreach (var url in urls.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        foreach (var url in urls.Split([';', ','], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
         {
             var host = url.Replace("+", "0.0.0.0").Replace("*", "0.0.0.0");
             if (!Uri.TryCreate(host, UriKind.Absolute, out var uri) || !(uri.IsLoopback || uri.Host == "localhost"))
