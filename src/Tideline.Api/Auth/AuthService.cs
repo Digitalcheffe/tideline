@@ -1,4 +1,5 @@
 using System.Data;
+using Dapper;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Identity;
 using QRCoder;
@@ -119,6 +120,52 @@ public sealed class AuthService(SqliteConnectionFactory factory, TimeProvider cl
         var signedIn = users.Get(user.Id);
         tx.Commit();
         return new LoginResult(LoginOutcome.Ok, token, signedIn);
+    }
+
+    // ---- first run ---------------------------------------------------------------------------------------------
+
+    private static readonly object FirstRunLock = new();
+
+    /// <summary>True only while the app has no users at all. The moment there is one, the first-run page is gone for good.</summary>
+    public bool FirstRunOpen()
+    {
+        using var conn = factory.Open();
+        return conn.ExecuteScalar<long>("SELECT COUNT(*) FROM users") == 0;
+    }
+
+    /// <summary>
+    /// The first person to arrive in an empty app makes the owner account (docs/09-security.md, "First run"). They then go on to the same second
+    /// step as everyone: nothing is open until the authenticator is set up. Only works while there are no users.
+    /// </summary>
+    public LoginResult FirstRun(string? email, string? displayName, string? password, string? ip, string? userAgent)
+    {
+        email = email?.Trim() ?? "";
+        displayName = displayName?.Trim() ?? "";
+        if (email.Length is 0 or > 254 || !email.Contains('@') || email.Contains(' ')) throw new AuthException("That does not look like an email address.", 422);
+        if (displayName.Length is 0 or > 100) throw new AuthException("Give a name (100 characters at most).", 422);
+        if (PasswordPolicy.Check(password, email, displayName) is { } problem) throw new AuthException(problem, 422);
+
+        // two people arriving together cannot both become the owner: the check and the insert happen under one lock
+        lock (FirstRunLock)
+        {
+            using var conn = factory.Open();
+            using var tx = conn.BeginTransaction();
+            var users = new UserRepository(conn, clock, tx);
+            var audit = new AuditWriter(conn, clock, tx, new Actor(Ip: ip));
+
+            if (conn.ExecuteScalar<long>("SELECT COUNT(*) FROM users", transaction: tx) > 0)
+                throw new AuthException("This app is already set up. Sign in instead.", 410);
+
+            var id = users.Create(email, displayName, Role.Owner);
+            users.SetPassword(id, Hasher.HashPassword(users.Get(id)!, password!));
+            var session = Tokens.NewSessionToken();
+            new SessionRepository(conn, clock, tx).Create(id, Tokens.Hash(session), SessionEnd, ip, userAgent);
+            audit.Write("user.created", "user", id.ToString(), null, new { email = UserRepository.NormalizeEmail(email), displayName, role = "owner", via = "first run" });
+            audit.Write("user.password_set", "user", id.ToString(), null, new { via = "first run" });
+            var created = users.Get(id);
+            tx.Commit();
+            return new LoginResult(LoginOutcome.Ok, session, created);
+        }
     }
 
     // ---- setup link ------------------------------------------------------------------------------------------

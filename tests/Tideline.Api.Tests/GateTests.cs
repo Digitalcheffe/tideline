@@ -36,7 +36,8 @@ public sealed partial class GateTests(ITestOutputHelper output) : IDisposable
     private static string Relative(Route r) => r.Pattern["api/v1".Length..];
 
     private static bool IsPublic(Route r) =>
-        (r.Method == "POST" && Relative(r) == "/auth/login") || (Relative(r) == "/auth/setup" && r.Method is "GET" or "POST");
+        (r.Method == "POST" && Relative(r) == "/auth/login") || (Relative(r) == "/auth/setup" && r.Method is "GET" or "POST")
+        || (Relative(r) == "/auth/first-run" && r.Method is "GET" or "POST"); // an empty app: the first person makes the owner account
 
     private static bool IsBeforeSecondStep(Route r)
     {
@@ -76,7 +77,7 @@ public sealed partial class GateTests(ITestOutputHelper output) : IDisposable
             if (response.StatusCode != HttpStatusCode.Unauthorized) open.Add($"{route} -> {(int)response.StatusCode}");
         }
 
-        open.Should().BeEmpty("every route but sign-in and the setup link needs a person who is signed in");
+        open.Should().BeEmpty("every route but sign-in and the setup link needs a person who is signed in (or is the first-run page of an empty app)");
     }
 
     [Fact]
@@ -175,6 +176,9 @@ public sealed partial class GateTests(ITestOutputHelper output) : IDisposable
     private sealed record Case(string Key, Kind Kind, string Action, Func<Task> Act);
 
     /// <summary>The routes that change nothing, so they have nothing to audit.</summary>
+    /// <summary>Only works on an app with no users, which this test's app is not. FirstRunTests does it and checks its audit rows (user.created, user.password_set).</summary>
+    private static readonly string[] CoveredElsewhere = ["POST /auth/first-run"];
+
     private static readonly string[] ReadOnlyPosts = ["POST /rules/test", "POST /budgets/{year:int}/fill-from-averages", "POST /notify/test", "POST /imports/simplefin/dry-run"];
 
     private long Id(string table, string name) => _api.Scalar<long>($"SELECT id FROM {table} WHERE name = @name", new { name });
@@ -384,6 +388,7 @@ public sealed partial class GateTests(ITestOutputHelper output) : IDisposable
         // and no route was left out of the list above
         var changing = Routes().Where(r => r.Method is not ("GET" or "HEAD" or "OPTIONS")).Select(r => $"{r.Method} {Relative(r).TrimEnd('/')}").ToHashSet();
         changing.ExceptWith(ReadOnlyPosts);
+        changing.ExceptWith(CoveredElsewhere);
         changing.Should().BeSubsetOf(cases.Select(c => c.Key), "a new route that changes data has to be added to this test, with its audit action");
     }
 }

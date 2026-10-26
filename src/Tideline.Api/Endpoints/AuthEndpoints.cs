@@ -10,6 +10,7 @@ public static class AuthEndpoints
 {
     public sealed record LoginRequest(string? Email, string? Password);
     public sealed record SetupRequest(string? Token, string? Password);
+    public sealed record FirstRunRequest(string? Email, string? DisplayName, string? Password);
     public sealed record CodeRequest(string? Code, string? RecoveryCode);
 
     public static void MapAuthEndpoints(this RouteGroupBuilder api)
@@ -43,7 +44,18 @@ public static class AuthEndpoints
                 return Results.Ok(new { mfaRequired = true, mfaEnrolled = result.User!.MfaEnrolledAt is not null, methods = new[] { "totp" } });
             }));
 
-        auth.MapGet("/me", (HttpContext http, Csrf csrf, SqliteConnectionFactory factory, TimeProvider clock, TidelineOptions options) =>
+        // an empty app: the first visitor makes the owner account, and from then on this answers "already set up"
+        auth.MapGet("/first-run", (AuthService service) => Results.Ok(new { needed = service.FirstRunOpen(), minPasswordLength = PasswordPolicy.MinLength }));
+
+        auth.MapPost("/first-run", (FirstRunRequest request, HttpContext http, AuthService service, TidelineOptions options, TimeProvider clock) =>
+            Guard(() =>
+            {
+                var result = service.FirstRun(request.Email, request.DisplayName, request.Password, http.ClientIp(), http.Request.Headers.UserAgent.ToString());
+                SetCookie(http, options, clock, result.SessionToken!);
+                return Results.Ok(new { mfaRequired = true, mfaEnrolled = false, methods = new[] { "totp" } });
+            }));
+
+        auth.MapGet("/me",(HttpContext http, Csrf csrf, SqliteConnectionFactory factory, TimeProvider clock, TidelineOptions options) =>
         {
             var who = http.Principal()!;
             using var conn = factory.Open();

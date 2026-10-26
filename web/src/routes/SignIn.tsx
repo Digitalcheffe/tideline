@@ -46,10 +46,16 @@ export function LoginPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
 
+  // an app with nobody in it asks for the first account instead of a sign-in
+  const first = useQuery({ queryKey: ['first-run'], queryFn: () => get<{ needed: boolean; minPasswordLength: number }>('/auth/first-run'), retry: false })
+
   const login = useMutation({
     mutationFn: () => send<{ mfaRequired: boolean }>('POST', '/auth/login', { email, password }),
     onSuccess: refresh,
   })
+
+  if (first.isLoading) return <Shell title="Sign in"><Loading /></Shell>
+  if (first.data?.needed) return <FirstRunPage minLength={first.data.minPasswordLength} />
 
   return (
     <Shell title="Sign in">
@@ -74,6 +80,64 @@ export function LoginPage() {
         <Problem error={login.error} />
       </form>
       <p className="muted">There is no sign-up page. Someone with access to the server adds you and gives you a setup link.</p>
+    </Shell>
+  )
+}
+
+// ---- first run ----------------------------------------------------------------------------------------------
+
+/** Nobody exists yet, so whoever is here makes the owner account. The authenticator is set up straight afterwards, like for everyone. */
+function FirstRunPage({ minLength }: { minLength: number }) {
+  const client = useQueryClient()
+  const [email, setEmail] = useState('')
+  const [name, setName] = useState('')
+  const [password, setPassword] = useState('')
+  const [again, setAgain] = useState('')
+  const mismatch = again !== '' && again !== password
+
+  const create = useMutation({
+    mutationFn: () => send('POST', '/auth/first-run', { email, displayName: name, password }),
+    onSuccess: async () => {
+      await client.invalidateQueries({ queryKey: ['first-run'] })
+      await client.invalidateQueries({ queryKey: ['me'] })
+    },
+  })
+
+  return (
+    <Shell title="Welcome to Tideline">
+      <p>
+        Nothing is set up yet. Create the first account: you will be the owner, and can invite other people later. Next you will set up an authenticator
+        app, which is needed every time you sign in.
+      </p>
+      <form
+        className="form"
+        onSubmit={(e: FormEvent) => {
+          e.preventDefault()
+          if (!mismatch) create.mutate()
+        }}
+      >
+        <label>
+          Your name
+          <input type="text" autoComplete="name" autoFocus required maxLength={100} value={name} onChange={(e) => setName(e.target.value)} />
+        </label>
+        <label>
+          Email <span className="muted">(this is what you sign in with)</span>
+          <input type="email" autoComplete="username" required value={email} onChange={(e) => setEmail(e.target.value)} />
+        </label>
+        <label>
+          Password <span className="muted">(at least {minLength} characters; a few random words works well)</span>
+          <input type="password" autoComplete="new-password" required minLength={minLength} value={password} onChange={(e) => setPassword(e.target.value)} />
+        </label>
+        <label>
+          Again
+          <input type="password" autoComplete="new-password" required value={again} onChange={(e) => setAgain(e.target.value)} />
+        </label>
+        {mismatch && <Badge tone="warn">The two do not match</Badge>}
+        <button className="btn primary" type="submit" disabled={create.isPending || mismatch || password.length < minLength}>
+          {create.isPending ? 'Creating…' : 'Create the account'}
+        </button>
+        <Problem error={create.error} />
+      </form>
     </Shell>
   )
 }

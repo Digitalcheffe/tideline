@@ -1,10 +1,9 @@
 # Try Tideline on this computer with Docker (the real server stack comes later, once the Docker host and network are chosen).
 #
 #   docker compose -f deploy/compose.local.yaml up -d --build
-#   docker exec tideline_app tideline user add --email you@example.com --name You --role owner
-#   (open the setup link it prints, choose a password, set up the authenticator app)
 #
-# Open http://localhost:8080. Nothing is reachable from other computers: the port is bound to this machine only.
+# Then open http://localhost:8080. An empty app asks you to create the first account, then to set up the authenticator app.
+# Nothing is reachable from other computers: the port is bound to this machine only.
 # Stop with `docker compose -f deploy/compose.local.yaml down` (your data stays); add `-v` to delete the data as well.
 #
 # The data lives in named Docker volumes here, not bind mounts: SQLite does not behave well on a Windows folder mounted into

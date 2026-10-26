@@ -361,6 +361,19 @@ public sealed class AuthTests : IDisposable
         statuses.Take(3).Should().OnlyContain(s => s == HttpStatusCode.Unauthorized);
         statuses.Skip(3).Should().OnlyContain(s => s == (HttpStatusCode)429);
         (await raw.GetAsync("/health")).StatusCode.Should().Be(HttpStatusCode.OK, "only /auth is limited");
+        (await raw.GetAsync("/api/v1/auth/first-run")).StatusCode.Should().Be(HttpStatusCode.OK, "only changes are limited, not reading");
+    }
+
+    [Fact]
+    public async Task Looking_at_who_is_signed_in_is_never_turned_away_however_often_the_page_asks()
+    {
+        using var strict = _api.Host.WithWebHostBuilder(b => b.UseSetting("Tideline:AuthRequestsPerMinute", "3"));
+        var raw = _api.RawClient(strict);
+
+        var statuses = new List<HttpStatusCode>();
+        for (var i = 0; i < 12; i++) statuses.Add((await raw.GetAsync("/api/v1/auth/me")).StatusCode);
+
+        statuses.Should().NotContain((HttpStatusCode)429, "the page asks every time the tab gets focus");
     }
 
     // ---- who may do what -----------------------------------------------------------------------------------------

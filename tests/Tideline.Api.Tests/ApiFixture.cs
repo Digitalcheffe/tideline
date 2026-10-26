@@ -93,7 +93,8 @@ public sealed class ApiFixture : IDisposable
     public long OwnerId { get; }
     public string KeysFolder => Path.Combine(_dir, "keys");
 
-    public ApiFixture(bool importFixtures = true, int? demoLines = null)
+    /// <param name="withOwner">False leaves the app with no users at all, as on the very first run.</param>
+    public ApiFixture(bool importFixtures = true, int? demoLines = null, bool withOwner = true)
     {
         Directory.CreateDirectory(_dir);
         ConnectionString = $"Data Source={Path.Combine(_dir, "t.db")};Pooling=False";
@@ -130,15 +131,22 @@ public sealed class ApiFixture : IDisposable
 
         // the owner: set up the way a real one would be, then signed in through the real endpoints
         OwnerSecret = Totp.NewSecret();
-        using (var conn = new SqliteConnectionFactory(ConnectionString).Open())
+        if (withOwner)
         {
-            var users = new UserRepository(conn, clock);
-            OwnerId = users.Create(OwnerEmail, "Test Owner", Role.Owner);
-            users.SetPassword(OwnerId, AuthService.HashPassword(Password));
-            new MfaRepository(conn, clock).AddTotp(OwnerId, "Authenticator app", _factory.Services.GetRequiredService<SecretBox>().Protect(OwnerSecret));
-            users.SetMfaEnrolled(OwnerId, clock.GetUtcNow());
+            using (var conn = new SqliteConnectionFactory(ConnectionString).Open())
+            {
+                var users = new UserRepository(conn, clock);
+                OwnerId = users.Create(OwnerEmail, "Test Owner", Role.Owner);
+                users.SetPassword(OwnerId, AuthService.HashPassword(Password));
+                new MfaRepository(conn, clock).AddTotp(OwnerId, "Authenticator app", _factory.Services.GetRequiredService<SecretBox>().Protect(OwnerSecret));
+                users.SetMfaEnrolled(OwnerId, clock.GetUtcNow());
+            }
+            Client = SignInAsync(OwnerEmail, Password, OwnerSecret).GetAwaiter().GetResult();
         }
-        Client = SignInAsync(OwnerEmail, Password, OwnerSecret).GetAwaiter().GetResult();
+        else
+        {
+            Client = _factory.CreateClient(); // nobody is signed in, because nobody exists
+        }
 
         if (demoLines is not null)
         {

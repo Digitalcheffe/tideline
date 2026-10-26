@@ -39,14 +39,15 @@ builder.Services.AddSingleton<SecretBox>();
 builder.Services.AddSingleton<Csrf>();
 builder.Services.AddSingleton<AuthService>();
 
-// 10 requests a minute per address on everything under /auth (docs/09-security.md)
+// 10 requests a minute per address on what can be guessed at under /auth: every change (sign-in, codes, setup, first run). Reading
+// who is signed in (GET /auth/me, and the page asking it when the tab gets focus) is not a guess, so it is not counted (docs/09-security.md)
 builder.Services.AddRateLimiter(o =>
 {
     o.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
     o.OnRejected = async (context, _) => await Problems.Write(context.HttpContext, 429, "Slow down", "Too many tries. Wait a minute and try again.", "rate_limited");
     o.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(ctx =>
     {
-        if (!ctx.Request.Path.StartsWithSegments("/api/v1/auth")) return RateLimitPartition.GetNoLimiter("open");
+        if (!ctx.Request.Path.StartsWithSegments("/api/v1/auth") || HttpMethods.IsGet(ctx.Request.Method)) return RateLimitPartition.GetNoLimiter("open");
         var limit = ctx.RequestServices.GetRequiredService<TidelineOptions>().AuthRequestsPerMinute;
         return RateLimitPartition.GetFixedWindowLimiter(ctx.Connection.RemoteIpAddress?.ToString() ?? "unknown", _ => new FixedWindowRateLimiterOptions
         {

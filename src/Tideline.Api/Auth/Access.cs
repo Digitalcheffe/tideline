@@ -43,7 +43,8 @@ public static class AccessPolicy
     /// <summary>Open to anyone: signing in and following a setup link.</summary>
     public static bool IsPublic(string method, string path) =>
         (Is(method, "POST") && Same(path, "/auth/login")) ||
-        (Same(path, "/auth/setup") && (Is(method, "GET") || Is(method, "POST")));
+        (Same(path, "/auth/setup") && (Is(method, "GET") || Is(method, "POST"))) ||
+        (Same(path, "/auth/first-run") && (Is(method, "GET") || Is(method, "POST")));
 
     /// <summary>What a session may call before the second step has passed.</summary>
     public static bool IsAllowedBeforeSecondStep(string path) =>
