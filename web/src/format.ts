@@ -54,6 +54,20 @@ export function currentMonth(now: Date = new Date()): string {
   return `${now.getFullYear()}-${pad(now.getMonth() + 1)}`
 }
 
+/**
+ * Today on the person's own clock, as 2026-03-31. Not toISOString(), which is the UTC date and so is already tomorrow in the
+ * evening in the Americas: a figure entered "as of today" would be dated in the future and not counted until the next day.
+ */
+export function todayLocal(now: Date = new Date()): string {
+  return `${currentMonth(now)}-${pad(now.getDate())}`
+}
+
+/** The local date some days ago (or ahead, if negative). */
+export function daysAgoLocal(days: number, now: Date = new Date()): string {
+  const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - days)
+  return todayLocal(d)
+}
+
 /** "2026-03-01".."2026-03-31" is a whole month. Returns "2026-03" or null. */
 export function wholeMonth(from: string, to: string): string | null {
   const ym = from.slice(0, 7)

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { addMonths, dateLabel, dollars, monthLabel, monthRange, percent, typeLabel, wholeMonth, wholeYear } from './format'
+import { addMonths, dateLabel, daysAgoLocal, dollars, monthLabel, monthRange, percent, todayLocal, typeLabel, wholeMonth, wholeYear } from './format'
 
 describe('dollars', () => {
   it('formats cents as US dollars with cents', () => {
@@ -61,5 +61,16 @@ describe('parseDollars', () => {
     expect(parseDollars('')).toBeNull()
     expect(parseDollars('ten')).toBeNull()
     expect(parseDollars('1.234')).toBeNull()
+  })
+})
+
+describe('todayLocal', () => {
+  it('is the date on the person\'s own clock, even late in the evening when the UTC date is already tomorrow', () => {
+    expect(todayLocal(new Date(2026, 9, 25, 23, 59))).toBe('2026-10-25')
+    expect(todayLocal(new Date(2026, 0, 1, 0, 1))).toBe('2026-01-01')
+  })
+  it('counts days back across month and year ends', () => {
+    expect(daysAgoLocal(90, new Date(2026, 2, 31, 22, 0))).toBe('2025-12-31')
+    expect(daysAgoLocal(0, new Date(2026, 5, 5))).toBe('2026-06-05')
   })
 })

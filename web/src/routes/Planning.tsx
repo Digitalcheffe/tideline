@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { get, send } from '../api'
 import { Badge, Card, Empty, ErrorBox, Loading } from '../components'
-import { dateLabel, dollars, monthLabel, parseDollars } from '../format'
+import { dateLabel, dollars, monthLabel, parseDollars, todayLocal } from '../format'
 import { useMe } from '../auth'
 import { STATUS_LABEL, STATUS_TONE, type PlanData } from '../phase4'
 import { Panel, Problem, centsText, useAct } from './settings/common'
@@ -146,7 +146,7 @@ function PlanForm({ plan, accounts, onClose }: { plan: PlanData | null; accounts
   const { run, error, busy } = useAct(onClose)
   const [name, setName] = useState(plan?.name ?? '')
   const [target, setTarget] = useState(centsText(plan?.targetCents))
-  const [startOn, setStartOn] = useState(plan?.startOn ?? new Date().toISOString().slice(0, 10))
+  const [startOn, setStartOn] = useState(plan?.startOn ?? todayLocal())
   const [targetOn, setTargetOn] = useState(plan?.targetOn ?? '')
   const [startAmount, setStartAmount] = useState(centsText(plan?.startAmountCents ?? 0))
   const [mode, setMode] = useState(plan?.progressMode ?? 'linked_lines')

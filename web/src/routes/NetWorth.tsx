@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { get, send } from '../api'
 import { Badge, Card, ErrorBox, Loading } from '../components'
-import { dateLabel, dollars, monthLabel, parseDollars, shortMonth } from '../format'
+import { dateLabel, dollars, monthLabel, parseDollars, shortMonth, todayLocal } from '../format'
 import { useMe } from '../auth'
 import { bpsText, type Countdown, type LoanView, type NetWorthData, type NwLine } from '../phase4'
 import { Panel, Problem, useAct } from './settings/common'
@@ -23,7 +23,7 @@ const KIND_LABEL: Record<string, string> = {
   retirement: 'Retirement',
 }
 
-const today = () => new Date().toISOString().slice(0, 10)
+const today = () => todayLocal()
 
 /** Type in what a loan, a house or a retirement account is worth on a day. Owners only: the server says no to everyone else. */
 export function SnapshotForm({ accounts, accountId, onClose }: { accounts: Pickable[]; accountId?: number; onClose: () => void }) {

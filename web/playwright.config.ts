@@ -14,6 +14,8 @@ export default defineConfig({
   globalSetup: './e2e/global-setup.ts',
   use: {
     baseURL: `http://localhost:${WEB_PORT}`,
+    // the app's "today" is the household's time zone (America/New_York by default); the browser has to agree, whatever zone the machine is in
+    timezoneId: 'America/New_York',
     // locally: PW_CHANNEL=msedge (or chrome) uses the browser already installed; CI installs Playwright's chromium
     channel: process.env.PW_CHANNEL || undefined,
     trace: 'retain-on-failure',

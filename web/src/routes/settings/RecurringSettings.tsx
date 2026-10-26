@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { get, send } from '../../api'
 import { Badge, Card, ErrorBox, Loading } from '../../components'
-import { dollars, parseDollars, typeLabel } from '../../format'
+import { dollars, parseDollars, todayLocal, typeLabel } from '../../format'
 import { Panel, Problem, centsText, useAct } from './common'
 
 interface RecurringRow {
@@ -110,7 +110,7 @@ function RecurringForm({ item, categories, accounts, onClose }: { item: Recurrin
   const [frequency, setFrequency] = useState(item?.frequency ?? 'monthly')
   const [everyN, setEveryN] = useState(String(item?.everyN ?? 1))
   const [dueDay, setDueDay] = useState(String(item?.dueDay ?? 1))
-  const [firstDueOn, setFirstDueOn] = useState(item?.firstDueOn ?? new Date().toISOString().slice(0, 10))
+  const [firstDueOn, setFirstDueOn] = useState(item?.firstDueOn ?? todayLocal())
   const [grace, setGrace] = useState(String(item?.graceDays ?? 5))
   const [accountId, setAccountId] = useState(item?.accountId?.toString() ?? '')
   const [active, setActive] = useState(item?.isActive ?? true)

@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { get, send } from '../../api'
 import { Badge, Card, ErrorBox, Loading } from '../../components'
-import { dollars, typeLabel } from '../../format'
+import { daysAgoLocal, dollars, todayLocal, typeLabel } from '../../format'
 import { Panel, Problem, TYPE_CHOICES, useAct } from './common'
 
 type Value = string | number | string[]
@@ -218,8 +218,8 @@ function RuleForm({ rule, prefill, categories, onClose }: { rule: RuleRow | null
   const [rows, setRows] = useState<Row[]>(
     rule?.conditions.map((c) => ({ key: keyOf(c), text: textOf(c) })) ?? [{ key: 'contains', text: prefill?.get('contains') ?? '' }],
   )
-  const [from, setFrom] = useState(() => new Date(Date.now() - 90 * 86400000).toISOString().slice(0, 10))
-  const [to, setTo] = useState(() => new Date().toISOString().slice(0, 10))
+  const [from, setFrom] = useState(() => daysAgoLocal(90))
+  const [to, setTo] = useState(() => todayLocal())
   const [result, setResult] = useState<TestResult | null>(null)
   const [applied, setApplied] = useState<number | null>(null)
   const check = useAct()

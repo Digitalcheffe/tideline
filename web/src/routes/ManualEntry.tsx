@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { get, send, type CategoryInfo } from '../api'
-import { parseDollars, typeLabel } from '../format'
+import { parseDollars, todayLocal, typeLabel } from '../format'
 
 const TYPES = ['income', 'bill', 'required', 'extra', 'one_time', 'savings']
 
@@ -10,7 +10,7 @@ export function ManualEntry({ accountId, accountName, onClose }: { accountId: nu
   const client = useQueryClient()
   const categories = useQuery({ queryKey: ['categories'], queryFn: () => get<CategoryInfo[]>('/categories') })
 
-  const [date, setDate] = useState(new Date().toISOString().slice(0, 10))
+  const [date, setDate] = useState(todayLocal())
   const [direction, setDirection] = useState<'out' | 'in'>('out')
   const [amount, setAmount] = useState('')
   const [description, setDescription] = useState('')
