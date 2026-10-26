@@ -6,6 +6,7 @@ import { AuthGate, useMe, useSignOut } from './auth'
 import { Coming } from './routes/Coming'
 import { ThemeToggle } from './theme'
 import { Avatar, Icon } from './icons'
+import { LogoMark, Wordmark } from './logo'
 
 // each screen loads when it is first opened, so the chart library is only fetched for the screens that draw charts
 const Overview = lazy(() => import('./routes/Overview').then((m) => ({ default: m.Overview })))
@@ -56,12 +57,7 @@ const GROUPS: { title: string; items: { to: string; label: string }[] }[] = [
 const NO_PERIOD = ['/help', '/account', '/savings', '/assets', '/planning', '/retirement', '/settings', '/recommendations']
 
 function Logo() {
-  return (
-    <svg viewBox="0 0 32 32" aria-hidden>
-      <path d="M2 20c4-6 8-6 12 0s8 6 16-2" fill="none" stroke="var(--accent)" strokeWidth="3" strokeLinecap="round" />
-      <path d="M2 12c4-6 8-6 12 0s8 6 16-2" fill="none" stroke="var(--accent)" strokeWidth="3" strokeLinecap="round" opacity="0.45" />
-    </svg>
-  )
+  return <LogoMark />
 }
 
 export default function App() {
@@ -104,7 +100,7 @@ function Shell() {
           <span />
         </button>
         <Link to="/" className="brand">
-          <Logo /> Tideline
+          <Logo /> <Wordmark />
         </Link>
         {showPeriod && <span className="muted mobile-period">{periodLabel}</span>}
       </header>
@@ -113,7 +109,7 @@ function Shell() {
 
       <aside className={`sidebar ${menuOpen ? 'open' : ''}`} aria-label="Menu">
         <Link to="/" className="brand desktop-only">
-          <Logo /> Tideline
+          <Logo /> <Wordmark />
         </Link>
 
         {showPeriod && <PeriodPicker period={period} />}

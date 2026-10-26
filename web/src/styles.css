@@ -1244,3 +1244,24 @@ button.btn .icon {
 .sidebar a.whoami-who .muted {
   color: var(--muted);
 }
+
+/* the name with its water drop (the dot of the second i) */
+.wordmark {
+  white-space: nowrap;
+}
+
+.wordmark .drop-i {
+  position: relative;
+  display: inline-block;
+}
+
+.wordmark .drop-i::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 0.17em;
+  width: 0.23em;
+  height: 0.32em;
+  transform: translateX(-50%);
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 14'%3E%3Cpath d='M5 0C5 0 0 6.5 0 9.2a5 5 0 0 0 10 0C10 6.5 5 0 5 0z' fill='%23e0a458'/%3E%3C/svg%3E") center / contain no-repeat;
+}

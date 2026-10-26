@@ -1,5 +1,8 @@
-# Tideline
-### A private household money ledger
+<h1 align="center">
+  <img src="docs/logo/tideline-logo.webp" alt="Tideline" width="460">
+</h1>
+
+<p align="center"><strong>A private household money ledger</strong></p>
 
 > Know where the money went, and what needs you, without it becoming a hobby.
 
@@ -27,64 +30,40 @@ Tideline is three things in one app:
 
 ![Tideline Overview](docs/screenshots/01-overview.png)
 
-More views: see [docs/screenshots/](docs/screenshots/README.md).
+<table>
+  <tr>
+    <td align="center"><a href="docs/screenshots/02-bills.png"><img src="docs/screenshots/02-bills.png" alt="Bills grid" width="150"></a><br><sub>Bills grid</sub></td>
+    <td align="center"><a href="docs/screenshots/05-ledger-line.png"><img src="docs/screenshots/05-ledger-line.png" alt="A line" width="150"></a><br><sub>A line</sub></td>
+    <td align="center"><a href="docs/screenshots/10-assets.png"><img src="docs/screenshots/10-assets.png" alt="Assets" width="150"></a><br><sub>Assets</sub></td>
+    <td align="center"><a href="docs/screenshots/08-retirement.png"><img src="docs/screenshots/08-retirement.png" alt="Retirement" width="150"></a><br><sub>Retirement</sub></td>
+    <td align="center"><a href="docs/screenshots/11-recommendations.png"><img src="docs/screenshots/11-recommendations.png" alt="Suggestions" width="150"></a><br><sub>Suggestions</sub></td>
+    <td align="center"><a href="docs/screenshots/15-overview-dark.png"><img src="docs/screenshots/15-overview-dark.png" alt="Dark mode" width="150"></a><br><sub>Dark mode</sub></td>
+  </tr>
+</table>
+
+Click a picture to see it full size, or see [all the screenshots](docs/screenshots/README.md).
 
 ---
 
 ## Features
 
-### Your ledger
-- **Import bank files.** Upload a CSV export, or drop files in an inbox folder and they are picked up on their own. The account is found from the file name, lines already imported are skipped, so overlapping files are safe.
-- **Bank rows never change.** Imported fields are written once, and database triggers refuse any attempt to change or delete them.
-- **One meaning per line.** Each line is exactly one of Income, Bill, Required, Extra, One-time or Savings. Free-form tags never change the totals.
-- **Transfers paired for you.** The two sides of a move between your own accounts are matched by amount and date window, and pairing can be done or undone by hand.
-- **Rules that learn your habits.** Conditions on the description, amount range, check number or account set a category, type, payee and tags. Try a draft rule over a past period and see every line it would change before you save it. Make a rule straight from a line.
-- **Split a line** across categories and types without changing its total. Edit many lines at once. Add a line by hand for cash. Tag lines for review.
-- **The bank's balance is the check.** After every import the ledger is compared with the bank's running balance, to the cent. A file that does not add up is refused, with the reason.
+- **Bank imports.** Upload a CSV, drop files in a folder, or sync automatically with SimpleFIN. Repeats are skipped, and every file is checked against the bank's balance.
+- **One meaning per line.** Income, Bill, Required, Extra, One-time or Savings, set by rules you control, so each month always adds up.
+- **Transfers are not spending.** Money moving between your own accounts is paired and left out of the totals.
+- **Overview.** Where the month's money went, a chart, your plans, and what needs you.
+- **Accounts, Cards and Bills.** Each account by month, whether each card was paid in full, and a year grid of every recurring bill.
+- **Required, Extra and Income.** Totals by category and payee, subscriptions and price changes, and expected income against actual.
+- **Ledger.** Every line, filterable. Split a line, tag it, link it to a plan or an asset, pair transfers, edit many at once, add a line by hand.
+- **Rules.** Sort lines automatically, and try a rule over past months before you save it.
+- **Budget, plans and savings.** Guidelines per category, saving goals with a date, and savings balances with their interest.
+- **Net worth, loans and assets.** What you own and owe, loan payoff with an extra-payment calculator, and the equity and upkeep cost of a house or car.
+- **Retirement.** What you will need, what you are on course for, the gap, and the extra per month that closes it.
+- **Alerts and suggestions.** Sixteen things it watches for (a late bill, a card balance carried over, a plan slipping), a plain suggestion for each, and optional webhook or email messages with a monthly summary.
+- **Every number is a link** to the lines behind it.
+- **Private and secure.** Two-step sign-in for everyone, roles, an audit log nobody can edit, account numbers never stored, secrets encrypted, and backups you can verify.
+- **Runs at home.** One Docker container and one SQLite file, on Linux or Windows, with light and dark colours, a phone-friendly layout, and Help built in.
 
-### Where the money went
-- **Overview.** The month at a glance: In, Bills, Required, Extra, One-time, Savings and Left over, the monthly spread chart, your plans, and what needs you.
-- **Accounts by month**, **Credit cards** (was each one paid in full, and what was bought), a **Bills grid** (one row per recurring bill, one column per month, with paid, due, missing, unusual and projected clearly shown), **Required**, **Extra** (with subscriptions and price changes), and **Income** (expected against actual).
-- **Everything drills down.** Click any number and see the lines behind it.
-
-### Looking ahead
-- **Budget** guidelines per category, checked against what you actually spent, with a heads-up when a category pops. One click proposes guidelines from your own history.
-- **Plans.** Save toward a furnace or a trip with a target and a date. See whether you are on track and how much a month would finish it on time.
-- **Savings** balances, monthly deposits and the interest they earn.
-- **Net worth** with a month-end trend, what you own and what you owe, each figure dated and flagged when it is an old estimate.
-- **Loans.** See the payoff month and the interest left, and try an extra amount each month to see the time and interest saved.
-- **Assets.** For a house or a car: what it is worth, what is owed on it, the equity, and what you have put into it over its life, compared with how its value changed. Link a repair or a set of tires to an asset from the line.
-- **Retirement.** What you will need, what you are on course for, the gap, the extra per month that closes it, and how long the money lasts. A projection to think with, with every assumption editable.
-
-### Alerts, suggestions and notifications
-- **Sixteen kinds of alert**, all quiet by default: a bill not paid or paid at an odd amount, a card not paid in full or charged interest, a ledger that disagrees with the bank, a failed import, an unpaired transfer, a payment that looks like a new loan or a new recurring charge, a budget that popped, short income, a plan that slipped, a large one-time item, lines to review, and a retirement gap that grew.
-- **Needs you.** Acknowledge an alert with a note and it stops asking. It clears by itself when the cause is fixed.
-- **Recommendations.** A plain suggestion for each kind of alert, such as what to check when a bill is late. Dismiss, edit, switch off or write your own.
-- **Webhook and email.** Choose per kind whether to send now, hold for the monthly summary, or turn off. Quiet hours, digests, retries, and a monthly summary with the real numbers.
-
-### Getting data in
-- **CSV upload** from any browser, including a phone, and an **inbox folder** you can point at a shared folder.
-- **SimpleFIN** for automatic sync every few hours, with a takeover day per account, a request limit, and a "try a month first" comparison against your files before you switch.
-- **Manual entry** for anything the bank does not report.
-
-### Security and privacy
-- **Two steps every time.** A password and an authenticator app code, for every person. It cannot be turned off. Ten single-use recovery codes, shown once.
-- **Your own account page.** Change your name and password, move to a new phone, make new recovery codes, and see and end the devices signed in as you.
-- **Roles.** Owner, member and viewer. Deny by default, with a test that checks every route.
-- **Every change is recorded.** An append-only audit log with before and after, that nobody can edit. Sign-ins, failures and lockouts are in it too.
-- **Account numbers are never stored.** Only the last four digits, as a keyed hash plus a sealed copy, and the app only ever shows `••••1111`.
-- **Secrets sealed.** Authenticator secrets, webhook addresses, mail passwords and the SimpleFIN address are encrypted at rest.
-- **Sessions and guards.** Strict cookies, anti-forgery on every change, sign-in rate limits and lockout, and security headers.
-- **Read-only API tokens** for dashboards and automations, shown once and stored only as a hash.
-- **Backups you can check.** A consistent copy while the app runs, verified by opening it and adding it up, 30 days kept. Export everything as CSV at any time.
-
-### Made to live at home
-- **One container**, one data folder, runs as an unprivileged user on a read-only file system. SQLite, so there is no database server to run.
-- **Runs on Linux and Windows.** The test suite runs on both.
-- **Light and dark**, and it works on a phone.
-- **Help built in.** Plain-words guides for each part of the app, from the menu.
-
-For a fuller tour of each screen, see [docs/FEATURES.md](docs/FEATURES.md).
+The full tour, screen by screen, is in [docs/FEATURES.md](docs/FEATURES.md).
 
 ---
 

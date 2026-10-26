@@ -3,17 +3,15 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { ApiError, get, send, setCsrf, type Me } from '../api'
 import { Badge, Loading } from '../components'
+import { LogoMark, Wordmark } from '../logo'
 
 function Shell({ title, children }: { title: string; children: ReactNode }) {
   return (
     <main className="signin">
       <div className="signin-card">
         <div className="signin-brand">
-          <svg viewBox="0 0 32 32" aria-hidden width="28" height="28">
-            <path d="M2 20c4-6 8-6 12 0s8 6 16-2" fill="none" stroke="var(--accent)" strokeWidth="3" strokeLinecap="round" />
-            <path d="M2 12c4-6 8-6 12 0s8 6 16-2" fill="none" stroke="var(--accent)" strokeWidth="3" strokeLinecap="round" opacity="0.45" />
-          </svg>
-          Tideline
+          <LogoMark />
+          <Wordmark />
         </div>
         <h1>{title}</h1>
         {children}
