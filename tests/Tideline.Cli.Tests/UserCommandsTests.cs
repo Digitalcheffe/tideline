@@ -64,14 +64,14 @@ public sealed class UserCommandsTests : IDisposable
     }
 
     [Fact]
-    public async Task A_link_runs_out_after_a_day()
+    public async Task A_link_runs_out_after_fifteen_minutes()
     {
         var text = (await Run("user", "add", "--email", "a@example.com", "--name", "A")).Text;
         var token = TokenIn(text);
 
         using var conn = new SqliteConnectionFactory(_cs).Open();
-        new SetupLinks(conn, new Later(TimeSpan.FromHours(23))).Resolve(token).Should().NotBeNull();
-        new SetupLinks(conn, new Later(TimeSpan.FromHours(25))).Resolve(token).Should().BeNull();
+        new SetupLinks(conn, new Later(TimeSpan.FromMinutes(14))).Resolve(token).Should().NotBeNull();
+        new SetupLinks(conn, new Later(TimeSpan.FromMinutes(16))).Resolve(token).Should().BeNull();
     }
 
     [Fact]

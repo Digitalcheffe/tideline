@@ -59,7 +59,7 @@ export function PeopleSettings() {
         }
       >
         <p className="muted">
-          Everyone signs in with a password and a code from an authenticator app. A new person gets a one-time setup link that lasts 24 hours.
+          Everyone signs in with a password and a code from an authenticator app. A new person gets a one-time setup link that lasts 15 minutes. If it runs out, make another.
         </p>
         <div className="table-wrap">
           <table>

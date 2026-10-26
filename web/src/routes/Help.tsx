@@ -287,7 +287,7 @@ const TOPICS: Topic[] = [
         </p>
         <h3>Adding people</h3>
         <p>
-          An owner invites someone in <L to="/settings/people">Settings, People</L>: it gives a one-time link that lasts a day, where the person chooses a password and sets up their authenticator.
+          An owner invites someone in <L to="/settings/people">Settings, People</L>: it gives a one-time link that lasts 15 minutes, where the person chooses a password and sets up their authenticator. If it runs out, make another; the new one cancels the old.
           Roles: <strong>owner</strong> can do everything, <strong>member</strong> can change lines and plans, <strong>viewer</strong> can only look.
         </p>
       </>

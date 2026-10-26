@@ -5,12 +5,12 @@ namespace Tideline.Data.Security;
 
 /// <summary>
 /// One-time links that let a new person choose a password and set up their authenticator (docs/09-security.md). They last
-/// 24 hours and work once. Only a hash of the link is stored, in the settings table.
+/// 15 minutes and work once; making another cancels the old one. Only a hash of the link is stored, in the settings table.
 /// </summary>
 public sealed class SetupLinks(IDbConnection conn, TimeProvider clock, IDbTransaction? tx = null)
 {
     public const string Prefix = "setup_link:";
-    public static readonly TimeSpan Lifetime = TimeSpan.FromHours(24);
+    public static readonly TimeSpan Lifetime = TimeSpan.FromMinutes(15);
 
     private sealed record Stored(long UserId, DateTimeOffset ExpiresAt);
 
