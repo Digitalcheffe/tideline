@@ -1,0 +1,16 @@
+# keep the build context to what the image needs
+**/bin/
+**/obj/
+**/node_modules/
+web/dist/
+web/test-results/
+web/playwright-report/
+.git/
+.github/
+.claude/
+.vs/
+data/
+deploy/.env
+*.db
+*.db-wal
+*.db-shm
