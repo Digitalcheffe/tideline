@@ -223,3 +223,11 @@ Tideline stands on these open-source projects:
 | [React Router](https://reactrouter.com/) | Navigation |
 | [Recharts](https://recharts.org/) | Charts |
 | [xUnit](https://xunit.net/), [FluentAssertions](https://fluentassertions.com/), [Vitest](https://vitest.dev/), [Playwright](https://playwright.dev/) | Tests |
+
+---
+
+## License
+
+MIT. See [LICENSE](LICENSE).
+
+Tideline is a tool for organising your own household's records. It is not financial, tax or legal advice, and the retirement and planning screens are projections to think with.
