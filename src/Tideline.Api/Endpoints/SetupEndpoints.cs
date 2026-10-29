@@ -61,6 +61,14 @@ public static class SetupEndpoints
             Edits.Run(http, f, t, (c, clock, who) => { new RuleEditor(c, clock, who).Update(id, input); return new { updated = true }; }));
         api.MapDelete("/rules/{id:long}", (long id, HttpContext http, SqliteConnectionFactory f, TimeProvider t) =>
             Edits.Run(http, f, t, (c, clock, who) => { new RuleEditor(c, clock, who).Delete(id); return new { deleted = true }; }));
+        // the starter categories and rules that ship with the program: owner only, because it adds dozens of rows at once
+        api.MapGet("/rules/starter", (SqliteConnectionFactory f, TimeProvider t) =>
+        {
+            using var conn = f.Open();
+            return Results.Ok(new StarterPackEditor(conn, t).Status());
+        });
+        api.MapPost("/rules/starter", (HttpContext http, SqliteConnectionFactory f, TimeProvider t) =>
+            Edits.Run(http, f, t, (c, clock, who) => new StarterPackEditor(c, clock, who).Load()));
         api.MapPost("/rules/reorder", (ReorderRequest request, HttpContext http, SqliteConnectionFactory f, TimeProvider t) =>
             Edits.Run(http, f, t, (c, clock, who) => { new RuleEditor(c, clock, who).Reorder(request.Ids ?? []); return new { reordered = true }; }));
         api.MapPost("/rules/test", (RuleTestRequest request, HttpContext http, SqliteConnectionFactory f, TimeProvider t) =>

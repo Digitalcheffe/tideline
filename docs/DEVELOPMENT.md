@@ -37,7 +37,8 @@ dotnet run --project src/Tideline.Cli -- status --db "Data Source=/path/to/tidel
 shows the household file format, with made-up data. Keep your own household file and exports outside the repository.
 
 `starter` adds the categories and rules that ship with the program, so a new household does not start from nothing: about 40 categories and 50
-rules for the usual national shops, bills and bank wording. They live in `src/Tideline.Cli/Starter/starter-pack.json`, in the same format as a
+rules for the usual national shops, bills and bank wording. The same thing is a button in Settings, Rules for an owner (`GET` and `POST
+/api/v1/rules/starter`, owner only, one `starter_pack.loaded` audit entry). They live in `src/Tideline.Data/Starter/starter-pack.json`, in the same format as a
 household file. The rules are named `Starter: ...` and sit at priority 1000 and up, so a rule you make yourself is always tried first. Run it
 before the first import; running it again adds only what is missing. The pack holds no household data. When you add to it, use brand names and
 bank wording only (never a person, an employer, an account or a local shop), keep each word long enough not to match by accident, and add a

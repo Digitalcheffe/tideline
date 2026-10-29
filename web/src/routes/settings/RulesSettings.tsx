@@ -48,6 +48,18 @@ interface Named {
   name: string
 }
 
+interface StarterStatus {
+  categoriesInPack: number
+  categoriesToAdd: number
+  rulesInPack: number
+  rulesToAdd: number
+}
+
+interface StarterResult {
+  categoriesAdded: string[]
+  rulesAdded: string[]
+}
+
 /** What a condition looks like in a sentence. */
 export function describe(c: Condition): string {
   const list = (v: Value) => (Array.isArray(v) ? v.join(' or ') : String(v))
@@ -79,6 +91,10 @@ export function RulesSettings() {
   const [params, setParams] = useSearchParams()
   const [editing, setEditing] = useState<RuleRow | 'new' | null>(params.get('new') ? 'new' : null)
   const move = useAct()
+  // owners only: for anyone else the call is refused, and the section just stays out of sight
+  const starter = useQuery({ queryKey: ['settings', 'rules', 'starter'], queryFn: () => get<StarterStatus>('/rules/starter'), retry: false })
+  const loadStarter = useAct()
+  const [loaded, setLoaded] = useState<StarterResult | null>(null)
 
   // "Create rule from this line" in the ledger arrives here with the line's words and what was picked already filled in
   const prefill = editing === 'new' && params.get('new') ? params : null
@@ -116,6 +132,36 @@ export function RulesSettings() {
           changed by a rule.
         </p>
         <Problem message={move.error} />
+        {loaded && (
+          <p role="status">
+            Added {loaded.categoriesAdded.length} categor{loaded.categoriesAdded.length === 1 ? 'y' : 'ies'} and {loaded.rulesAdded.length} rule
+            {loaded.rulesAdded.length === 1 ? '' : 's'}. They are in the audit log.
+          </p>
+        )}
+        {starter.data && starter.data.rulesToAdd + starter.data.categoriesToAdd > 0 && (
+          <section className="panel" aria-label="Starter set">
+            <strong>Start from a ready-made set</strong>
+            <p className="muted">
+              {starter.data.categoriesToAdd} categories and {starter.data.rulesToAdd} rules for common shops, bills and the words banks use. The rules are named “Starter: …” and
+              come after your own, so yours always win. Anything they cannot tell goes to review. You can change or switch off any of them.
+            </p>
+            <div className="toolbar">
+              <button
+                type="button"
+                className="btn primary"
+                disabled={loadStarter.busy}
+                onClick={async () => {
+                  if (!window.confirm(`Add ${starter.data!.categoriesToAdd} categories and ${starter.data!.rulesToAdd} rules? Nothing you made is changed.`)) return
+                  const done = await loadStarter.run(() => send<StarterResult>('POST', '/rules/starter'))
+                  if (done) setLoaded(done)
+                }}
+              >
+                Add the starter set
+              </button>
+            </div>
+            <Problem message={loadStarter.error} />
+          </section>
+        )}
         <div className="table-wrap">
           <table>
             <thead>

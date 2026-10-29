@@ -4,10 +4,9 @@ using System.Text.Json.Serialization;
 using Tideline.Core;
 using Tideline.Core.Moves;
 using Tideline.Core.Rules;
-using Tideline.Data;
 using Tideline.Data.Repositories;
 
-namespace Tideline.Cli;
+namespace Tideline.Data.Services;
 
 /// <summary>
 /// Loads a household (accounts, categories, rules, move patterns) from a local JSON file so the ledger can be tried
@@ -116,9 +115,17 @@ public static class HouseholdSetup
     /// <returns>One line per thing added or already there.</returns>
     public static IReadOnlyList<string> Apply(Household h, SqliteConnectionFactory factory, TimeProvider clock)
     {
-        var log = new List<string>();
         using var conn = factory.Open();
         using var tx = conn.BeginTransaction();
+        var log = Apply(h, conn, tx, clock);
+        tx.Commit();
+        return log;
+    }
+
+    /// <summary>The same, inside a transaction the caller owns (and commits), so the change and its audit entry stand or fall together.</summary>
+    public static IReadOnlyList<string> Apply(Household h, IDbConnection conn, IDbTransaction tx, TimeProvider clock)
+    {
+        var log = new List<string>();
 
         var accounts = new AccountRepository(conn, clock, tx);
         var categories = new CategoryRepository(conn, tx);
@@ -202,7 +209,6 @@ public static class HouseholdSetup
             log.Add($"move pattern {p.From} to {p.To}: added");
         }
 
-        tx.Commit();
         return log;
     }
 

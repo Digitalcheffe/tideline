@@ -399,6 +399,9 @@ public sealed partial class GateTests(ITestOutputHelper output) : IDisposable
                 await Ok(HttpMethod.Post, $"/api/v1/imports/{_api.Scalar<long>("SELECT MAX(id) FROM import_batches")}/undo");
             }),
             new("POST /imports/{id:long}/restore", Kind.Event, "import.restored", () => Ok(HttpMethod.Post, $"/api/v1/imports/{_api.Scalar<long>("SELECT MAX(id) FROM import_batches")}/restore")),
+
+            // last, because it adds dozens of rules that would change what the cases above do to lines
+            new("POST /rules/starter", Kind.Create, "starter_pack.loaded", () => Ok(HttpMethod.Post, "/api/v1/rules/starter")),
         };
 
         var missing = new List<string>();

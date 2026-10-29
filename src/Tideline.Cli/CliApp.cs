@@ -3,6 +3,7 @@ using Tideline.Core;
 using Tideline.Data;
 using Tideline.Data.Repositories;
 using Tideline.Data.Security;
+using Tideline.Data.Services;
 using Tideline.Import;
 
 namespace Tideline.Cli;
@@ -180,11 +181,11 @@ public sealed class CliApp(TextWriter output, TimeProvider clock)
 
     private int Starter(string connectionString)
     {
-        var log = HouseholdSetup.Apply(StarterPack.Load(), new SqliteConnectionFactory(connectionString), clock);
-        int Count(string kind, string result) => log.Count(l => l.StartsWith(kind + " ", StringComparison.Ordinal) && l.EndsWith(result, StringComparison.Ordinal));
+        using var conn = new SqliteConnectionFactory(connectionString).Open();
+        var result = new StarterPackEditor(conn, clock).Load();
 
-        output.WriteLine($"Categories: {Count("category", ": added")} added, {Count("category", ": already there")} already there.");
-        output.WriteLine($"Rules: {Count("rule", ": added")} added, {Count("rule", ": already there")} already there.");
+        output.WriteLine($"Categories: {result.CategoriesAdded.Count} added, {result.CategoriesAlreadyThere} already there.");
+        output.WriteLine($"Rules: {result.RulesAdded.Count} added, {result.RulesAlreadyThere} already there.");
         output.WriteLine("The starter rules are named \"" + StarterPack.RuleNamePrefix + "...\" and come after any rule you made yourself. Change or switch off any of them in Settings, Rules.");
         return 0;
     }

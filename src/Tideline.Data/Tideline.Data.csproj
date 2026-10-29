@@ -15,6 +15,7 @@
 
   <ItemGroup>
     <EmbeddedResource Include="Migrations\Scripts\*.sql" />
+    <EmbeddedResource Include="Starter\starter-pack.json" LogicalName="starter-pack.json" />
   </ItemGroup>
 
 </Project>

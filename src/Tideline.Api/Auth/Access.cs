@@ -52,7 +52,7 @@ public static class AccessPolicy
 
     /// <summary>People who may read and change these: owners only.</summary>
     public static readonly string[] OwnerOnlyPrefixes =
-        ["/users", "/tokens", "/sessions", "/audit", "/system-events", "/settings", "/backups", "/export", "/notify", "/import-batches", "/imports", "/move-patterns"];
+        ["/users", "/tokens", "/sessions", "/audit", "/system-events", "/settings", "/backups", "/export", "/notify", "/import-batches", "/imports", "/move-patterns", "/rules/starter"];
 
     public static bool IsOwnerOnly(string method, string path) =>
         OwnerOnlyPrefixes.Any(p => StartsWith(path, p)) || (!IsSafe(method) && StartsWith(path, "/accounts"));

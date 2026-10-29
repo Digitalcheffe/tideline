@@ -2,6 +2,7 @@ using FluentAssertions;
 using Microsoft.Data.Sqlite;
 using Tideline.Cli;
 using Tideline.Data;
+using Tideline.Data.Services;
 using Tideline.Import;
 
 namespace Tideline.Cli.Tests;

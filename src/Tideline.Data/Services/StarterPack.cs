@@ -1,8 +1,9 @@
-namespace Tideline.Cli;
+namespace Tideline.Data.Services;
 
 /// <summary>
 /// The starter categories and rules that ship inside the program (Starter/starter-pack.json). It is a household file with only categories and
-/// rules, so <see cref="HouseholdSetup.Apply"/> loads it and adds only what is missing. It holds no household data: national brands and plain bank wording.
+/// rules, so <see cref="HouseholdSetup.Apply(HouseholdSetup.Household, System.Data.IDbConnection, System.Data.IDbTransaction, TimeProvider)"/> loads it and
+/// adds only what is missing. It holds no household data: national brands and plain bank wording.
 /// </summary>
 public static class StarterPack
 {
