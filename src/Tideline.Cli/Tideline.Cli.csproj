@@ -5,6 +5,10 @@
     <ProjectReference Include="..\Tideline.Notify\Tideline.Notify.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <EmbeddedResource Include="Starter\starter-pack.json" LogicalName="starter-pack.json" />
+  </ItemGroup>
+
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <AssemblyName>tideline</AssemblyName>

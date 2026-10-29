@@ -28,12 +28,20 @@ The period picker is at the top of the menu on the left; every number is a link 
 ```bash
 dotnet run --project src/Tideline.Cli -- migrate --db "Data Source=/path/to/tideline.db"
 dotnet run --project src/Tideline.Cli -- setup my-household.json --db "Data Source=/path/to/tideline.db"
+dotnet run --project src/Tideline.Cli -- starter --db "Data Source=/path/to/tideline.db"
 dotnet run --project src/Tideline.Cli -- import /path/to/exports --db "Data Source=/path/to/tideline.db"
 dotnet run --project src/Tideline.Cli -- status --db "Data Source=/path/to/tideline.db"
 ```
 
 `status` lists each account's ledger balance next to the bank's last balance; they should match to the cent. `tests/fixtures/household.json`
 shows the household file format, with made-up data. Keep your own household file and exports outside the repository.
+
+`starter` adds the categories and rules that ship with the program, so a new household does not start from nothing: about 40 categories and 50
+rules for the usual national shops, bills and bank wording. They live in `src/Tideline.Cli/Starter/starter-pack.json`, in the same format as a
+household file. The rules are named `Starter: ...` and sit at priority 1000 and up, so a rule you make yourself is always tried first. Run it
+before the first import; running it again adds only what is missing. The pack holds no household data. When you add to it, use brand names and
+bank wording only (never a person, an employer, an account or a local shop), keep each word long enough not to match by accident, and add a
+made-up line to `StarterPackTests` that shows what it does.
 
 Users, when you want to add one without the web app (it prints a one-time setup link):
 

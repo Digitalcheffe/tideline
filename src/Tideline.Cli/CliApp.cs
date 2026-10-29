@@ -17,6 +17,8 @@ public sealed class CliApp(TextWriter output, TimeProvider clock)
 
           migrate                         create or update the database
           setup <household.json>          add accounts, categories, rules and move patterns from a local file
+          starter                         add the starter categories and rules that ship with the program (safe to run again;
+                                          they sit below any rule you made yourself)
           import <file-or-folder>...      import Truist CSV exports (folders: every acct_*.csv inside)
           status                          every account: ledger balance against the bank's last balance
           lines [--account 1234] [--random N | --take N]
@@ -78,6 +80,8 @@ public sealed class CliApp(TextWriter output, TimeProvider clock)
                 case "setup":
                     if (rest.Count != 1) return Bad("setup needs one file: tideline setup household.json");
                     return Setup(rest[0], connectionString);
+                case "starter":
+                    return Starter(connectionString);
                 case "import":
                     if (rest.Count == 0) return Bad("import needs at least one file or folder.");
                     return await ImportAsync(rest, connectionString);
@@ -171,6 +175,17 @@ public sealed class CliApp(TextWriter output, TimeProvider clock)
         var household = HouseholdSetup.Parse(File.ReadAllText(file));
         foreach (var line in HouseholdSetup.Apply(household, new SqliteConnectionFactory(connectionString), clock))
             output.WriteLine(line);
+        return 0;
+    }
+
+    private int Starter(string connectionString)
+    {
+        var log = HouseholdSetup.Apply(StarterPack.Load(), new SqliteConnectionFactory(connectionString), clock);
+        int Count(string kind, string result) => log.Count(l => l.StartsWith(kind + " ", StringComparison.Ordinal) && l.EndsWith(result, StringComparison.Ordinal));
+
+        output.WriteLine($"Categories: {Count("category", ": added")} added, {Count("category", ": already there")} already there.");
+        output.WriteLine($"Rules: {Count("rule", ": added")} added, {Count("rule", ": already there")} already there.");
+        output.WriteLine("The starter rules are named \"" + StarterPack.RuleNamePrefix + "...\" and come after any rule you made yourself. Change or switch off any of them in Settings, Rules.");
         return 0;
     }
 

@@ -139,6 +139,10 @@ const TOPICS: Topic[] = [
           <li>A rule has <strong>conditions</strong> (the description contains some words, the amount is in a range, the account is a certain one) and what to <strong>set</strong> when they all match.</li>
           <li>Rules are tried <strong>in order from the top</strong>, and the first match wins. Put specific rules above general ones. Use the arrows to move them.</li>
           <li>A last catch-all rule sends anything unmatched to Uncategorized with the <em>review</em> tag.</li>
+          <li>
+            A new Tideline can start with a ready-made set of categories and rules. They are called <em>Starter: ...</em> and come after your own rules, so yours win. Whoever runs the server adds them
+            with <code>tideline starter</code> (in the container: <code>docker exec tideline_app tideline starter</code>), before the first import. You can change or switch off any of them.
+          </li>
         </ul>
         <h3>Try before you save</h3>
         <p>
