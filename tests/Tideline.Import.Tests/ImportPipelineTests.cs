@@ -173,10 +173,10 @@ public sealed class ImportPipelineTests : IDisposable
 
         byType.Should().BeEquivalentTo(new Dictionary<string, long>
         {
-            ["income"] = 200000,
+            ["income"] = 200125,                 // pay 2,000.00, and the unmatched deposit 1.25 (money in on checking with no rule is income)
             ["bill"] = -13099,                   // power 120.00 + Spotify 10.99
             ["required"] = -58540,               // rent check 500.00 + groceries 85.40
-            ["extra"] = -2325,                   // mystery -20.00, interest +1.25, coffee -4.50
+            ["extra"] = -2450,                   // mystery -20.00, coffee -4.50
         });
         Scalar<long>("SELECT COUNT(*) FROM transactions WHERE move_id IS NOT NULL AND type IS NOT NULL").Should().Be(0);
     }

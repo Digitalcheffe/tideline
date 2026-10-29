@@ -48,7 +48,9 @@ skips any you set by hand.
 A new household can start from a **starter set** of about 40 categories and 50 rules for national shops, bills and the wording banks use. An
 owner adds it with one button in Settings, Rules (or `tideline starter`); it is audited, adds only what is missing, and the button goes away
 once everything is there. They come after any rule you make, so yours always win. Anything they cannot tell goes to Uncategorized with the review tag,
-including checks, Zelle payments and small local shops, which a person has to decide.
+including checks, Zelle payments and small local shops, which a person has to decide. Money coming into a checking or savings account that no
+rule knows is counted as **Income** until a person decides (a card credit stays Extra, since it is usually a refund). In the Ledger, a line to
+review has a **Make a rule** link that opens a new rule with the line's words already filled in (the words before the store number or date).
 
 ## Where the money went
 

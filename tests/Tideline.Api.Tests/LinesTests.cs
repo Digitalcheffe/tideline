@@ -39,7 +39,7 @@ public sealed class LinesTests : IDisposable
     [Fact]
     public async Task Filters_narrow_by_type_category_account_text_amount_and_tag()
     {
-        Descriptions(await Lines("type=income")).Should().Equal("PAYROLL ACME CORP");
+        Descriptions(await Lines("type=income")).Should().BeEquivalentTo(["PAYROLL ACME CORP", "INTEREST PAID"], "money coming in that no rule knows is income until a person decides");
         Descriptions(await Lines("type=bill&sort=date_asc")).Should().Equal("CITY POWER AUTOPAY", "SPOTIFY USA");
         Descriptions(await Lines("q=spot")).Should().Equal("SPOTIFY USA");
         Descriptions(await Lines("q=landlord")).Should().Equal(["Check #1042"], "the payee is searched too");

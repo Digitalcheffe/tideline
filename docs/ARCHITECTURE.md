@@ -57,7 +57,7 @@ Nothing reaches the ledger without passing these, in order:
 2. **Check the file**: rebuild the running balance against the bank's daily balance. Any mismatch refuses the whole file, in words, before anything is written.
 3. **Dedupe** by an external id per row, so a file imported twice adds nothing. A cutover date per account stops CSV and SimpleFIN covering the same days.
 4. **Pair moves**: matching out and in lines on two of your accounts become one move.
-5. **Rules**: the first matching rule sets category, type, payee, tags and links. No match means a catch-all category and a `review` tag.
+5. **Rules**: the first matching rule sets category, type, payee, tags and links. No match means a catch-all category (Uncategorized) and a `review` tag; the type is Extra, except for money coming into a checking or savings account, which is Income until a person decides.
 6. **Write and reconcile**: store the rows, record a bank balance snapshot, raise an alert if the ledger and the bank disagree.
 
 A bad file is moved to `Failed` with a reason. An import that went in wrong (the wrong file or account) can be undone in one step, which

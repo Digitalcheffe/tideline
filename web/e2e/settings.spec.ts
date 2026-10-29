@@ -56,6 +56,15 @@ test.describe.serial('settings', () => {
     await expect(page.getByLabel('Name')).toHaveValue(/Lines like MYSTERY/)
   })
 
+  test('a line to review has a "Make a rule" link that fills in the words before the store number', async ({ page }) => {
+    await page.goto('/lines?from=2026-03-01&to=2026-03-31&review=true')
+    await expect(page.getByText(/Press Make a rule beside a line/)).toBeVisible()
+    await page.getByRole('row', { name: /MYSTERY VENDOR/ }).getByRole('link', { name: 'Make a rule' }).click()
+    await expect(page).toHaveURL(/\/settings\/rules/)
+    await expect(page.getByLabel('Value')).toHaveValue('MYSTERY VENDOR')
+    await expect(page.getByRole('button', { name: 'Save' })).toBeDisabled()
+  })
+
   test('inviting someone gives a setup link once, and a token is shown once', async ({ page }) => {
     await page.goto('/settings/people')
     await page.getByRole('button', { name: 'Invite someone' }).click()

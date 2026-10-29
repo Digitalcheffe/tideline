@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useMe } from '../auth'
 import { get, send, type AccountInfo, type CategoryInfo, type TransactionDetail } from '../api'
 import { Badge } from '../components'
-import { dollars, parseDollars, typeLabel } from '../format'
+import { dollars, parseDollars, ruleWords, typeLabel } from '../format'
 
 const TYPES = ['income', 'bill', 'required', 'extra', 'one_time', 'savings']
 
@@ -149,7 +149,7 @@ function MeaningForm({ t }: { t: TransactionDetail }) {
             title="Start a rule from this line and what you have picked above"
             to={`/settings/rules?${new URLSearchParams({
               new: '1',
-              contains: t.bank.description,
+              contains: ruleWords(t.bank.description),
               ...(categoryId ? { category: categoryId } : {}),
               type,
               ...(payee ? { payee } : {}),

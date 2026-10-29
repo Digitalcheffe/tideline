@@ -47,7 +47,27 @@ describe('helpers', () => {
   })
 })
 
-import { parseDollars } from './format'
+import { parseDollars, ruleWords } from './format'
+
+describe('ruleWords', () => {
+  it('keeps the words before the first store number, date or reference', () => {
+    expect(ruleWords('KROGER #501 03-22-26 ANYTOWN DEBIT CARD PURCHASE-PIN')).toBe('KROGER')
+    expect(ruleWords('ACH PMT SOME-SERVICER 7535 ACH DEBIT')).toBe('ACH PMT SOME-SERVICER')
+    expect(ruleWords('AMAZON MKTPL*AB12CDAmzn.com/bill WA')).toBe('AMAZON')
+    expect(ruleWords('WALMART.COM 800-925-6278 AR')).toBe('WALMART.COM')
+    expect(ruleWords('PAYROLL ACME INC 12AB ACH CREDIT')).toBe('PAYROLL ACME INC')
+  })
+
+  it('uses the whole description when nothing useful comes before a number', () => {
+    expect(ruleWords('7-ELEVEN 1234 ANYTOWN')).toBe('7-ELEVEN 1234 ANYTOWN')
+    expect(ruleWords('INTEREST PAID')).toBe('INTEREST PAID')
+    expect(ruleWords('  Check   #2210 ')).toBe('Check #2210')
+  })
+
+  it('drops a dangling dash or star and squeezes the spaces', () => {
+    expect(ruleWords('DD *   DOORDASH  - 12')).toBe('DD * DOORDASH')
+  })
+})
 
 describe('parseDollars', () => {
   it('reads plain money amounts to cents', () => {

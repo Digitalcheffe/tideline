@@ -8,13 +8,14 @@ test.describe.serial('smoke', () => {
     await page.goto(`/?${MARCH}`)
 
     const spread = page.locator('.spread')
-    await expect(spread).toContainText('$2,000.00')
+    // pay 2,000.00 plus a 1.25 deposit no rule knows, which counts as income until a person decides; extra is the 20.00 and 4.50 spent
+    await expect(spread).toContainText('$2,001.25')
     await expect(spread).toContainText('$130.99')
     await expect(spread).toContainText('$585.40')
-    await expect(spread).toContainText('$23.25')
+    await expect(spread).toContainText('$24.50')
     await expect(spread).toContainText('$300.00')
     await expect(spread).toContainText('$960.36')
-    await expect(page.locator('.equation')).toContainText('In $2,000.00 = Bills $130.99 + Required $585.40 + Extra $23.25 + One-time $0.00 + Savings $300.00 + Left over $960.36')
+    await expect(page.locator('.equation')).toContainText('In $2,001.25 = Bills $130.99 + Required $585.40 + Extra $24.50 + One-time $0.00 + Savings $300.00 + Left over $960.36')
   })
 
   test('a number drills to the lines behind it, and a line opens in the drawer', async ({ page }) => {
@@ -66,7 +67,7 @@ test.describe.serial('smoke', () => {
     await page.goto(`/?${MARCH}`)
     const spread = page.locator('.spread')
     await expect(spread).toContainText('$575.40') // Required, was $585.40
-    await expect(spread).toContainText('$33.25') // Extra, was $23.25
+    await expect(spread).toContainText('$34.50') // Extra, was $24.50
     await expect(spread).toContainText('$960.36') // Left over, unchanged
   })
 

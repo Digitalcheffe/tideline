@@ -21,10 +21,10 @@ public sealed class ScreenTests : IDisposable
         var o = await _api.Get($"/api/v1/overview?{March}");
         var s = o.GetProperty("spread");
 
-        s.GetProperty("in").Cents().Should().Be(200000);
+        s.GetProperty("in").Cents().Should().Be(200000 + 125, "pay 2,000.00, plus the 1.25 deposit no rule knows, which counts as income until a person decides");
         s.GetProperty("bills").Cents().Should().Be(13099);
         s.GetProperty("required").Cents().Should().Be(58540);
-        s.GetProperty("extra").Cents().Should().Be(2325);
+        s.GetProperty("extra").Cents().Should().Be(2450, "mystery 20.00 and coffee 4.50");
         s.GetProperty("oneTime").Cents().Should().Be(0);
         s.GetProperty("savings").Cents().Should().Be(30000, "the checking leg of the savings move counts: deposit to savings adds");
         s.GetProperty("leftOver").Cents().Should().Be(96036);
@@ -241,7 +241,7 @@ public sealed class ScreenTests : IDisposable
 
     [Theory]
     [InlineData("required", 58540)]
-    [InlineData("extra", 2325)]
+    [InlineData("extra", 2450)]
     public async Task Required_and_extra_totals_equal_the_overview_bucket_and_their_categories(string screen, long expected)
     {
         var r = await _api.Get($"/api/v1/{screen}?{March}");
@@ -273,9 +273,10 @@ public sealed class ScreenTests : IDisposable
     {
         var i = await _api.Get("/api/v1/income?year=2026");
 
-        i.GetProperty("total").Cents().Should().Be(200000);
-        (await _api.Drill(i.GetProperty("total").Drill())).SumCents.Should().Be(200000);
-        i.GetProperty("months")[2].GetProperty("actualCents").GetInt64().Should().Be(200000);
+        // pay 2,000.00 plus the 1.25 deposit no rule recognises, which counts as income and is also listed below for review
+        i.GetProperty("total").Cents().Should().Be(200125);
+        (await _api.Drill(i.GetProperty("total").Drill())).SumCents.Should().Be(200125);
+        i.GetProperty("months")[2].GetProperty("actualCents").GetInt64().Should().Be(200125);
         i.GetProperty("months")[2].GetProperty("expectedCents").ValueKind.Should().Be(JsonValueKind.Null, "no budget yet");
 
         var review = i.GetProperty("reviewDeposits");

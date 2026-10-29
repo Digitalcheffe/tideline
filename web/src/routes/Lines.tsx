@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useSearchParams } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
+import { useMe } from '../auth'
 import { getLines, get, send, type AccountInfo, type CategoryInfo } from '../api'
 import { Badge, Card, Empty, ErrorBox, Loading, Money } from '../components'
-import { dateLabel, dollars, typeLabel } from '../format'
+import { dateLabel, dollars, ruleWords, typeLabel } from '../format'
 import { usePeriod } from '../period'
 import { TransactionDrawer } from './TransactionDrawer'
 
@@ -21,6 +22,7 @@ const SORTS: { key: string; label: string }[] = [
 export function Lines() {
   const [params, setParams] = useSearchParams()
   const period = usePeriod()
+  const isOwner = useMe().user.role === 'owner' // making a rule is an owner's job
   const open = params.get('tx')
   const apiParams = new URLSearchParams(params)
   apiParams.delete('tx')
@@ -165,6 +167,11 @@ export function Lines() {
         {lines.isLoading && <Loading what="lines" />}
         {lines.error && <ErrorBox error={lines.error} />}
         {lines.data && lines.data.items.length === 0 && <Empty>{leftOutView ? 'Nothing is left out.' : 'No lines match.'}</Empty>}
+        {isOwner && apiParams.get('review') === 'true' && lines.data && lines.data.items.length > 0 && (
+          <p className="muted">
+            Press <strong>Make a rule</strong> beside a line to teach Tideline its words, so the next one sorts itself. You pick the category, and can try the rule on past lines before you save it.
+          </p>
+        )}
         {selected.size > 0 && categories.data && (
           <BulkBar ids={[...selected]} categories={categories.data} leftOut={leftOutView} onDone={() => setSelected(new Set())} />
         )}
@@ -216,6 +223,18 @@ export function Lines() {
                         </span>
                       )}
                       {l.isSplitPart && <Badge tone="info">Split part</Badge>}
+                      {isOwner && l.type && l.tags.includes('review') && (
+                        <span className="cell-note">
+                          <Link
+                            className="pick"
+                            title={`Start a rule for lines like “${ruleWords(l.description)}”`}
+                            to={`/settings/rules?${new URLSearchParams({ new: '1', contains: ruleWords(l.description), ...(l.payee ? { payee: l.payee } : {}) }).toString()}`}
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            Make a rule
+                          </Link>
+                        </span>
+                      )}
                     </td>
                     <td>
                       {l.type ? (

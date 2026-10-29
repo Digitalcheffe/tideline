@@ -32,7 +32,7 @@ const TOPICS: Topic[] = [
             <strong>Import a bank export</strong> from <L to="/settings/imports">Settings, Imports</L>. Start with one month of one account.
           </li>
           <li>
-            <strong>Look at what came in.</strong> Lines the rules could not place are tagged <em>review</em>. Open the <L to="/lines?review=true">Ledger</L>, fix them, and teach the
+            <strong>Look at what came in.</strong> Lines the rules could not place are tagged <em>review</em>. Open the <L to="/lines?review=true">Ledger</L>, fix them, and press <strong>Make a rule</strong> beside a line to teach the
             rules so the next import is better.
           </li>
           <li>
@@ -138,7 +138,10 @@ const TOPICS: Topic[] = [
         <ul>
           <li>A rule has <strong>conditions</strong> (the description contains some words, the amount is in a range, the account is a certain one) and what to <strong>set</strong> when they all match.</li>
           <li>Rules are tried <strong>in order from the top</strong>, and the first match wins. Put specific rules above general ones. Use the arrows to move them.</li>
-          <li>A last catch-all rule sends anything unmatched to Uncategorized with the <em>review</em> tag.</li>
+          <li>
+            A last catch-all rule sends anything unmatched to Uncategorized with the <em>review</em> tag. Money coming into a checking or savings account counts as Income until you decide; anything else counts
+            as Extra.
+          </li>
           <li>
             A new Tideline can start with a ready-made set of categories and rules. They are called <em>Starter: ...</em> and come after your own rules, so yours win. An owner adds them with the
             <strong> Add the starter set</strong> button at the top of this page, best before the first import. It shows only while something is still missing. You can change or switch off any of them.
@@ -343,7 +346,10 @@ const TOPICS: Topic[] = [
         <h3>A transfer is counted as spending</h3>
         <p>It has not been paired. Select both lines in the Ledger and press <strong>Pair as a transfer</strong>.</p>
         <h3>What does the review tag mean?</h3>
-        <p>No rule matched, so the line went to Uncategorized and was tagged for you to look at. Fix it, and make a rule if it will happen again.</p>
+        <p>
+          No rule matched, so the line went to Uncategorized and was tagged for you to look at. Money coming into a checking or savings account is counted as Income until you decide, so a first paycheck is not
+          shown as spending. Fix it, and press <strong>Make a rule</strong> beside it in the Ledger if it will happen again.
+        </p>
         <h3>I imported the same file twice</h3>
         <p>Nothing doubles. Lines already in the ledger are skipped.</p>
         <h3>Can I change an amount or a date?</h3>

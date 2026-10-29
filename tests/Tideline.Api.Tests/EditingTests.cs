@@ -42,7 +42,7 @@ public sealed class EditingTests : IDisposable
 
         var spread = (await _api.Get($"/api/v1/overview?{March}")).GetProperty("spread");
         spread.GetProperty("required").Cents().Should().Be(58540 + 2000);
-        spread.GetProperty("extra").Cents().Should().Be(2325 - 2000);
+        spread.GetProperty("extra").Cents().Should().Be(2450 - 2000);
         spread.GetProperty("leftOver").Cents().Should().Be(96036, "moving a line between types does not change what is left over");
     }
 

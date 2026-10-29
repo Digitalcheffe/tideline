@@ -102,6 +102,22 @@ export function plural(n: number, one: string, many = `${one}s`): string {
   return `${n} ${n === 1 ? one : many}`
 }
 
+/**
+ * The words of a bank description worth teaching a rule: everything before the first store number, date or reference.
+ * "KROGER #501 03-22-26 ANYTOWN" gives "KROGER", so the rule still matches next month's line. A description that starts with a
+ * number, or leaves almost nothing, is used whole. So is a check ("Check #2210"), where the word alone would match every check.
+ */
+export function ruleWords(description: string): string {
+  const text = description.replace(/\s+/g, ' ').trim()
+  const kept: string[] = []
+  for (const word of text.split(' ')) {
+    if (/[\d#]/.test(word)) break
+    kept.push(word)
+  }
+  const words = kept.join(' ').replace(/[\s\-*]+$/, '')
+  return words.length >= 4 && !/^check$/i.test(words) ? words : text
+}
+
 /** "10", "10.5", "$1,000.25" or "-4" to cents; null when it is not a plain money amount. */
 export function parseDollars(text: string): number | null {
   const cleaned = text.trim().replace(/[$,\s]/g, '')

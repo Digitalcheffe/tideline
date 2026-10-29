@@ -17,8 +17,9 @@ public sealed record Classification(
     bool MatchedARule);
 
 /// <summary>
-/// Gives a bank line its meaning: the first matching rule wins; anything unmatched goes to Uncategorized (extra)
-/// with the <c>review</c> tag (docs/ARCHITECTURE.md). Used by the import and by "reset to rules".
+/// Gives a bank line its meaning: the first matching rule wins; anything unmatched goes to Uncategorized with the <c>review</c> tag
+/// (docs/ARCHITECTURE.md). Unmatched money coming into a checking or savings account is typed Income, so a first paycheck is not
+/// counted as spending before anyone has written a rule; anything else unmatched is Extra. Used by the import and by "reset to rules".
 /// </summary>
 public sealed class LineClassifier
 {
@@ -48,6 +49,9 @@ public sealed class LineClassifier
         return new LineClassifier(new RuleRepository(conn, clock, tx).All(), categories.DefaultTypes(), uncategorized, review);
     }
 
+    /// <summary>A deposit into a checking or savings account. A credit on a card is a refund, not income, so it stays out.</summary>
+    private static bool IsMoneyIn(RuleLine line) => line.AmountCents > 0 && line.AccountKind is AccountKind.Checking or AccountKind.Savings;
+
     public Classification Classify(RuleLine line, string merchantName)
     {
         var decision = RulesEngine.Decide(line, _rules, c => _categoryTypes.TryGetValue(c, out var t) ? t : LineType.Extra);
@@ -58,7 +62,7 @@ public sealed class LineClassifier
         if (decision is null || type is null)
         {
             categoryId ??= UncategorizedId;
-            type ??= _categoryTypes.GetValueOrDefault(categoryId.Value, LineType.Extra);
+            type ??= decision is null && IsMoneyIn(line) ? LineType.Income : _categoryTypes.GetValueOrDefault(categoryId.Value, LineType.Extra);
             if (decision is null) tags.Add(ReviewTagId);
         }
 

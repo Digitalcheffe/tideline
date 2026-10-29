@@ -201,6 +201,46 @@ public sealed class StarterPackTests : IDisposable
         result.Type.Should().Be(type);
     }
 
+    // What SimpleFIN sends is not known yet (issue #62), so these are the differences it plausibly has from the bank's CSV text: any case,
+    // the merchant alone with no store number or place, a bank prefix in front, or the name the shop uses online. Each must land where the CSV style does.
+    [Theory]
+    [InlineData("kroger", -5000, AccountKind.Checking, "Groceries")]
+    [InlineData("Kroger Fuel Center", -4000, AccountKind.CreditCard, "Gas and fuel")]
+    [InlineData("POS DEBIT KROGER 0123 ANYTOWN", -5000, AccountKind.Checking, "Groceries")]
+    [InlineData("PURCHASE AUTHORIZED ON 03/22 SHEETZ 0123 ANYTOWN PA", -3000, AccountKind.Checking, "Gas and fuel")]
+    [InlineData("Netflix", -1549, AccountKind.CreditCard, "Subscriptions")]
+    [InlineData("netflix.com", -1549, AccountKind.CreditCard, "Subscriptions")]
+    [InlineData("Spotify USA", -1099, AccountKind.Checking, "Subscriptions")]
+    [InlineData("Recurring Payment Spotify", -1099, AccountKind.Checking, "Subscriptions")]
+    [InlineData("Amazon.com", -2500, AccountKind.CreditCard, "Shopping")]
+    [InlineData("Amazon Prime Membership", -13900, AccountKind.CreditCard, "Subscriptions")]
+    [InlineData("AMZN Mktp US", -2500, AccountKind.CreditCard, "Shopping")]
+    [InlineData("Walmart", -4000, AccountKind.CreditCard, "Shopping")]
+    [InlineData("Target", -4000, AccountKind.CreditCard, "Shopping")]
+    [InlineData("McDonald's", -1200, AccountKind.CreditCard, "Dining")]
+    [InlineData("Starbucks", -600, AccountKind.CreditCard, "Coffee")]
+    [InlineData("DoorDash", -2500, AccountKind.CreditCard, "Delivery")]
+    [InlineData("Uber Eats", -2500, AccountKind.CreditCard, "Delivery")]
+    [InlineData("Uber Trip", -1500, AccountKind.CreditCard, "Rideshare and taxi")]
+    [InlineData("Lyft", -1500, AccountKind.CreditCard, "Rideshare and taxi")]
+    [InlineData("CVS Pharmacy", -1800, AccountKind.CreditCard, "Medical")]
+    [InlineData("Walgreens", -1800, AccountKind.CreditCard, "Medical")]
+    [InlineData("Verizon Wireless", -8000, AccountKind.Checking, "Internet and phone")]
+    [InlineData("Comcast Xfinity", -9000, AccountKind.Checking, "Internet and phone")]
+    [InlineData("Home Depot", -9000, AccountKind.CreditCard, "Home improvement")]
+    [InlineData("Southwest Airlines", -19900, AccountKind.CreditCard, "Travel")]
+    [InlineData("Delta Air Lines", -45000, AccountKind.CreditCard, "Travel")]
+    [InlineData("Payroll - Acme Inc", 250000, AccountKind.Checking, "Salary")]
+    [InlineData("Direct Deposit Acme Inc", 250000, AccountKind.Checking, "Salary")]
+    [InlineData("Interest Paid", 123, AccountKind.Savings, "Interest and dividends")]
+    [InlineData("IRS TREAS 310 TAX REF", 120000, AccountKind.Checking, "Tax refund")]
+    public async Task Other_styles_of_the_same_description_land_in_the_same_place(string description, long cents, AccountKind kind, string category)
+    {
+        await Loaded();
+
+        Classify(description, cents, kind).Category.Should().Be(category);
+    }
+
     [Fact]
     public async Task A_line_no_rule_matches_is_marked_for_review_not_guessed()
     {
