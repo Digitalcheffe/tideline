@@ -57,7 +57,7 @@ public sealed class Evaluator(IEnumerable<IFlagFamily> families)
     public static IReadOnlyList<IFlagFamily> StandardFamilies { get; } =
     [
         new RecurringFlags(), new CardFlags(), new BalanceFlags(), new ImportFlags(), new MoveFlags(), new DebtFlags(), new NewRecurringFlags(),
-        new BudgetFlags(), new PlanFlags(), new OneTimeFlags(), new ReviewFlags(), new RetirementFlags(),
+        new BudgetFlags(), new PlanFlags(), new OneTimeFlags(), new ReviewFlags(), new CheckFlags(), new RetirementFlags(),
     ];
 
     public Evaluator() : this(StandardFamilies) { }

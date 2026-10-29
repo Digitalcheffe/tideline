@@ -1,0 +1,3 @@
+-- A starter suggestion for the new alert kind "a check that needs a name" (check_unknown). Only text: edit, switch off or delete it in the app.
+INSERT INTO recommendation_rules (name, flag_kind, min_severity, suggestion, sort_order, created_at, updated_at) VALUES
+('A check needs a name', 'check_unknown', 'info', 'The bank only says a check number and an amount. Open it and pick what it was for, and who it went to if you know. If you write a check for the same amount every time, such as rent or a sitter, make a rule that starts with Check # and has that amount, so the next one sorts itself.', 170, strftime('%Y-%m-%dT%H:%M:%SZ', 'now'), strftime('%Y-%m-%dT%H:%M:%SZ', 'now'));

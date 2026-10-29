@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useMe } from '../auth'
 import { get, send, type AccountInfo, type CategoryInfo, type TransactionDetail } from '../api'
 import { Badge } from '../components'
-import { dollars, parseDollars, ruleWords, typeLabel } from '../format'
+import { dollars, parseDollars, ruleParams, typeLabel } from '../format'
 
 const TYPES = ['income', 'bill', 'required', 'extra', 'one_time', 'savings']
 
@@ -63,6 +63,8 @@ function MeaningForm({ t }: { t: TransactionDetail }) {
     setCategoryId(value)
     const chosen = categories.data?.find((c) => String(c.id) === value)
     if (chosen) setType(chosen.type)
+    // a real category answers "review", so the tag goes (the tags box is still yours to edit before you save)
+    if (chosen && chosen.name !== 'Uncategorized') setTags(tags.split(',').map((x) => x.trim()).filter((x) => x && x !== 'review').join(', '))
   }
 
   return (
@@ -149,7 +151,7 @@ function MeaningForm({ t }: { t: TransactionDetail }) {
             title="Start a rule from this line and what you have picked above"
             to={`/settings/rules?${new URLSearchParams({
               new: '1',
-              contains: ruleWords(t.bank.description),
+              ...ruleParams(t.bank.description, t.bank.amountCents),
               ...(categoryId ? { category: categoryId } : {}),
               type,
               ...(payee ? { payee } : {}),

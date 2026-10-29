@@ -118,6 +118,16 @@ export function ruleWords(description: string): string {
   return words.length >= 4 && !/^check$/i.test(words) ? words : text
 }
 
+/**
+ * What to put in a new rule for a line, as the address parameters the rule form reads. Most lines are taught by their words. A check is only a
+ * number, so a rule on it would never match again; what repeats is a check for the same amount, so that is what the rule is made of.
+ */
+export function ruleParams(description: string, amountCents: number): Record<string, string> {
+  if (/^check #/i.test(description.trim()))
+    return { starts: 'Check #', amount: (Math.abs(amountCents) / 100).toFixed(2), direction: amountCents < 0 ? 'out' : 'in' }
+  return { contains: ruleWords(description) }
+}
+
 /** "10", "10.5", "$1,000.25" or "-4" to cents; null when it is not a plain money amount. */
 export function parseDollars(text: string): number | null {
   const cleaned = text.trim().replace(/[$,\s]/g, '')

@@ -4,7 +4,7 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { useMe } from '../auth'
 import { getLines, get, send, type AccountInfo, type CategoryInfo } from '../api'
 import { Badge, Card, Empty, ErrorBox, Loading, Money } from '../components'
-import { dateLabel, dollars, ruleWords, typeLabel } from '../format'
+import { dateLabel, dollars, ruleParams, ruleWords, typeLabel } from '../format'
 import { usePeriod } from '../period'
 import { TransactionDrawer } from './TransactionDrawer'
 
@@ -57,7 +57,8 @@ export function Lines() {
     setParams(next)
   }
 
-  const filterKeys = ['type', 'category', 'account', 'asset', 'tag', 'review', 'recurring', 'direction', 'q', 'minCents', 'maxCents', 'move', 'leftOut']
+  const filterKeys = ['type', 'category', 'account', 'asset', 'tag', 'review', 'needs', 'recurring', 'direction', 'q', 'minCents', 'maxCents', 'move', 'leftOut']
+  const needsView = apiParams.get('needs') === 'true'
   const leftOutView = apiParams.get('leftOut') === 'true'
   const filtersActive = filterKeys.some((k) => apiParams.has(k))
   const clearFilters = () => {
@@ -70,7 +71,9 @@ export function Lines() {
   const chips: string[] = []
   const accountName = (id: string) => accounts.data?.find((a) => String(a.id) === id)?.name ?? `account ${id}`
   const categoryName = (id: string) => (id === '0' ? 'No category' : (categories.data?.find((c) => String(c.id) === id)?.name ?? `category ${id}`))
-  chips.push(`${dateLabel(apiParams.get('from')!)} to ${dateLabel(apiParams.get('to')!)}`)
+  // the pile of lines waiting for a category is not a period, so it has no dates to show
+  if (needsView) chips.push('needs a category')
+  else chips.push(`${dateLabel(apiParams.get('from')!)} to ${dateLabel(apiParams.get('to')!)}`)
   if (apiParams.get('type')) chips.push(apiParams.get('type')!.split(',').map(typeLabel).join(' or '))
   if (apiParams.get('category')) chips.push(apiParams.get('category')!.split(',').map(categoryName).join(', '))
   if (apiParams.get('account')) chips.push(apiParams.get('account')!.split(',').map(accountName).join(', '))
@@ -130,6 +133,11 @@ export function Lines() {
         <label>
           <input type="checkbox" checked={apiParams.get('review') === 'true'} onChange={(e) => set('review', e.target.checked ? 'true' : null)} /> To review
         </label>
+        {needsView && (
+          <Link className="btn" to="/needs">
+            Answer them one by one
+          </Link>
+        )}
         {filtersActive && (
           <button className="btn" type="button" onClick={clearFilters}>
             Clear filters
@@ -167,7 +175,7 @@ export function Lines() {
         {lines.isLoading && <Loading what="lines" />}
         {lines.error && <ErrorBox error={lines.error} />}
         {lines.data && lines.data.items.length === 0 && <Empty>{leftOutView ? 'Nothing is left out.' : 'No lines match.'}</Empty>}
-        {isOwner && apiParams.get('review') === 'true' && lines.data && lines.data.items.length > 0 && (
+        {isOwner && (apiParams.get('review') === 'true' || needsView) && lines.data && lines.data.items.length > 0 && (
           <p className="muted">
             Press <strong>Make a rule</strong> beside a line to teach Tideline its words, so the next one sorts itself. You pick the category, and can try the rule on past lines before you save it.
           </p>
@@ -223,12 +231,12 @@ export function Lines() {
                         </span>
                       )}
                       {l.isSplitPart && <Badge tone="info">Split part</Badge>}
-                      {isOwner && l.type && l.tags.includes('review') && (
+                      {isOwner && l.type && !l.isSplitPart && (l.tags.includes('review') || l.categoryId === null || l.categoryName === 'Uncategorized') && (
                         <span className="cell-note">
                           <Link
                             className="pick"
-                            title={`Start a rule for lines like “${ruleWords(l.description)}”`}
-                            to={`/settings/rules?${new URLSearchParams({ new: '1', contains: ruleWords(l.description), ...(l.payee ? { payee: l.payee } : {}) }).toString()}`}
+                            title={/^check #/i.test(l.description) ? 'Start a rule for checks of this amount' : `Start a rule for lines like “${ruleWords(l.description)}”`}
+                            to={`/settings/rules?${new URLSearchParams({ new: '1', ...ruleParams(l.description, l.amountCents), ...(l.payee && !/^check #/i.test(l.description) ? { payee: l.payee } : {}) }).toString()}`}
                             onClick={(e) => e.stopPropagation()}
                           >
                             Make a rule

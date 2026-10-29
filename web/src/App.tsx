@@ -3,6 +3,7 @@ import { Link, NavLink, Route, Routes, useLocation } from 'react-router-dom'
 import { PeriodPicker, usePeriod } from './period'
 import { monthLabel, wholeMonth, wholeYear } from './format'
 import { AuthGate, useMe, useSignOut } from './auth'
+import { useNeedsCategory } from './needs'
 import { Coming } from './routes/Coming'
 import { ThemeToggle } from './theme'
 import { Avatar, Icon } from './icons'
@@ -16,6 +17,7 @@ const Bills = lazy(() => import('./routes/Bills').then((m) => ({ default: m.Bill
 const TypeScreen = lazy(() => import('./routes/TypeScreen').then((m) => ({ default: m.TypeScreen })))
 const Income = lazy(() => import('./routes/Income').then((m) => ({ default: m.Income })))
 const Lines = lazy(() => import('./routes/Lines').then((m) => ({ default: m.Lines })))
+const Needs = lazy(() => import('./routes/Needs').then((m) => ({ default: m.Needs })))
 const Settings = lazy(() => import('./routes/settings/Settings').then((m) => ({ default: m.Settings })))
 const Budget = lazy(() => import('./routes/Budget').then((m) => ({ default: m.Budget })))
 const Planning = lazy(() => import('./routes/Planning').then((m) => ({ default: m.Planning })))
@@ -50,11 +52,11 @@ const GROUPS: { title: string; items: { to: string; label: string }[] }[] = [
       { to: '/recommendations', label: 'Recommendations' },
     ],
   },
-  { title: 'Detail', items: [{ to: '/lines', label: 'Ledger' }] },
+  { title: 'Detail', items: [{ to: '/lines', label: 'Ledger' }, { to: '/needs', label: 'Needs a category' }] },
 ]
 
 // screens where the period picker does nothing, so it is not shown
-const NO_PERIOD = ['/help', '/account', '/savings', '/assets', '/planning', '/retirement', '/settings', '/recommendations']
+const NO_PERIOD = ['/help', '/account', '/savings', '/assets', '/planning', '/retirement', '/settings', '/recommendations', '/needs']
 
 function Logo() {
   return <LogoMark />
@@ -79,7 +81,9 @@ function Shell() {
   // the menu closes when you pick a screen
   useEffect(() => setMenuOpen(false), [location.pathname])
 
-  const link = (to: string) => (to === '/settings' ? to : `${to}?from=${period.from}&to=${period.to}`)
+  const needs = useNeedsCategory()
+  const waiting = needs.data?.count ?? 0
+  const link = (to: string) => (to === '/settings' || to === '/needs' ? to : `${to}?from=${period.from}&to=${period.to}`)
   const periodLabel = wholeMonth(period.from, period.to)
     ? monthLabel(period.from.slice(0, 7))
     : wholeYear(period.from, period.to)
@@ -118,11 +122,19 @@ function Shell() {
           {GROUPS.map((g) => (
             <div className="nav-group" key={g.title}>
               <div className="nav-title">{g.title}</div>
-              {g.items.map((n) => (
-                <NavLink key={n.to} to={link(n.to)} end={n.to === '/'} className={({ isActive }) => (isActive ? 'active' : '')}>
-                  {n.label}
-                </NavLink>
-              ))}
+              {g.items
+                // the pile only has a place in the menu while something is waiting (or while you are on it)
+                .filter((n) => n.to !== '/needs' || waiting > 0 || location.pathname === '/needs')
+                .map((n) => (
+                  <NavLink key={n.to} to={link(n.to)} end={n.to === '/'} className={({ isActive }) => (isActive ? 'active' : '')}>
+                    {n.label}
+                    {n.to === '/needs' && waiting > 0 && (
+                      <span className="nav-count" aria-label={`${waiting} waiting`}>
+                        {waiting}
+                      </span>
+                    )}
+                  </NavLink>
+                ))}
             </div>
           ))}
         </nav>
@@ -176,6 +188,7 @@ function Shell() {
             <Route path="/extra" element={<TypeScreen type="extra" title="Extra" period={period} />} />
             <Route path="/income" element={<Income period={period} />} />
             <Route path="/lines" element={<Lines />} />
+            <Route path="/needs" element={<Needs />} />
             <Route path="/savings" element={<Savings />} />
             <Route path="/assets" element={<Assets />} />
             <Route path="/account" element={<Account />} />

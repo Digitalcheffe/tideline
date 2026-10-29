@@ -32,8 +32,8 @@ const TOPICS: Topic[] = [
             <strong>Import a bank export</strong> from <L to="/settings/imports">Settings, Imports</L>. Start with one month of one account.
           </li>
           <li>
-            <strong>Look at what came in.</strong> Lines the rules could not place are tagged <em>review</em>. Open the <L to="/lines?review=true">Ledger</L>, fix them, and press <strong>Make a rule</strong> beside a line to teach the
-            rules so the next import is better.
+            <strong>Look at what came in.</strong> Lines the rules could not place wait in <L to="/needs">Needs a category</L>, which also shows as a count on the Overview and in the menu. Pick what each one was and press <strong>Answer</strong>;
+            tick <strong>Remember as a rule</strong> to teach the rules so the next import is better. A check is only a number from the bank, so each one gets its own alert asking what it was.
           </li>
           <li>
             <strong>Read the screens.</strong> <L to="/">Overview</L> is the summary. Everything else is a closer look.
@@ -348,7 +348,13 @@ const TOPICS: Topic[] = [
         <h3>What does the review tag mean?</h3>
         <p>
           No rule matched, so the line went to Uncategorized and was tagged for you to look at. Money coming into a checking or savings account is counted as Income until you decide, so a first paycheck is not
-          shown as spending. Fix it, and press <strong>Make a rule</strong> beside it in the Ledger if it will happen again.
+          shown as spending. Answer it in <L to="/needs">Needs a category</L> (or change it in the Ledger), and tick <strong>Remember as a rule</strong> if it will happen again. Once it has a real category the review tag
+          goes, and it leaves the count.
+        </p>
+        <h3>A check keeps asking what it was</h3>
+        <p>
+          The bank gives only a number and an amount for a check, never who it was written to, so Tideline asks about each one until it has a real category. If you write a check for the same amount every time, such as
+          rent or a sitter, make a rule that starts with <em>Check #</em> and has that amount, and the next one sorts itself.
         </p>
         <h3>I imported the same file twice</h3>
         <p>Nothing doubles. Lines already in the ledger are skipped.</p>

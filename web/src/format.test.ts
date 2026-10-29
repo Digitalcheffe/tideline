@@ -47,7 +47,18 @@ describe('helpers', () => {
   })
 })
 
-import { parseDollars, ruleWords } from './format'
+import { parseDollars, ruleParams, ruleWords } from './format'
+
+describe('ruleParams', () => {
+  it('teaches a line by its words', () => {
+    expect(ruleParams('KROGER #501 03-22-26 ANYTOWN', -5000)).toEqual({ contains: 'KROGER' })
+  })
+
+  it('teaches a check by its amount, since its number never repeats', () => {
+    expect(ruleParams('Check #2210', -50000)).toEqual({ starts: 'Check #', amount: '500.00', direction: 'out' })
+    expect(ruleParams('  check #2210', 1999)).toEqual({ starts: 'Check #', amount: '19.99', direction: 'in' })
+  })
+})
 
 describe('ruleWords', () => {
   it('keeps the words before the first store number, date or reference', () => {

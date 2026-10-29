@@ -52,6 +52,20 @@ including checks, Zelle payments and small local shops, which a person has to de
 rule knows is counted as **Income** until a person decides (a card credit stays Extra, since it is usually a refund). In the Ledger, a line to
 review has a **Make a rule** link that opens a new rule with the line's words already filled in (the words before the store number or date).
 
+## Needs a category
+
+A line is **waiting for an answer** when it has no category, is still in Uncategorized, or still carries the review tag. Transfers and lines left
+out are never in the pile. The count is live (not the nightly one) and does not depend on the period in the menu, because it is a to-do list.
+It shows as a tile on the Overview and a number beside Ledger in the menu, and opens exactly those lines in the Ledger (`needs=true`).
+
+The **Needs a category** screen goes through the pile one line at a time: pick a category, add a payee if you know it, and press Answer. The
+type comes from the category, the line is marked as set by you, and `review` is dropped. Owners can tick **Remember this as a rule**, which makes
+a rule from the line's words and applies it to the other lines in the pile, so the look-alikes disappear. Giving a line a category in the drawer
+or in bulk drops `review` too, unless you set the tags yourself in the same save.
+
+Checks are asked about one at a time (the alert above), because the bank gives only a number and an amount. For a check you write often for the
+same amount (rent, a sitter), a rule that starts with `Check #` and has that amount does the job.
+
 ## Where the money went
 
 - **Overview**: the spread bar and its equation, a monthly chart, the plans and their status, a **Needs you** list, and a **Net worth** tab.
@@ -78,7 +92,7 @@ review has a **Make a rule** link that opens a new rule with the line's words al
 
 ## Alerts, suggestions and notifications
 
-The evaluator runs every night (and on demand) and raises alerts of sixteen kinds. Each shows in **Needs you**, can be acknowledged with a note,
+The evaluator runs every night (and on demand) and raises alerts of seventeen kinds. Each shows in **Needs you**, can be acknowledged with a note,
 and clears itself when the cause is fixed.
 
 | Alert | When |
@@ -92,6 +106,7 @@ and clears itself when the cause is fixed.
 | Plan slipped / plan behind | A saving plan is slipping or off pace |
 | Large one-time item / review needed | A big one-time cost, or lines tagged for review |
 | Retirement gap grew | The projected gap got bigger |
+| A check needs a name | One alert for each check with no real category: "Check #1042, $500.00, Mar 4: what was it?". It clears the moment the line is answered |
 
 **Recommendations** shows a plain suggestion for each open alert. You can edit them, switch them off, add your own, and hide one for a single alert.
 

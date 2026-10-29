@@ -1,7 +1,9 @@
 using System.Globalization;
+using Dapper;
 using Tideline.Core;
 using Tideline.Data;
 using Tideline.Data.Reports;
+using Tideline.Data.Repositories;
 
 namespace Tideline.Api.Endpoints;
 
@@ -28,7 +30,27 @@ public static class LinesEndpoints
                 summary = new { count = result.Summary.Count, sumCents = result.Summary.SumCents },
             });
         });
+
+        // The to-do pile: lines with no real category yet. Live (worked out now, not by the nightly check) and not tied to the period in the menu,
+        // because it is a list of things to answer, not a month's spending. The drill opens exactly these lines in the Ledger.
+        api.MapGet("/needs-category", (SqliteConnectionFactory factory) =>
+        {
+            using var conn = factory.Open();
+            var everything = new LineFilter(NeedsFrom, NeedsTo, NeedsCategory: true);
+            var summary = new LinesRepository(conn).Summarize(everything);
+            var checks = conn.ExecuteScalar<long>($"SELECT COUNT(*) FROM transactions t WHERE {FlagRepository.UnnamedCheckWhere}");
+            return Results.Ok(new
+            {
+                count = summary.Count,
+                sumCents = summary.SumCents,
+                checks,
+                drill = Drill.Of(("from", NeedsFrom), ("to", NeedsTo), ("needs", true)),
+            });
+        });
     }
+
+    private static readonly DateOnly NeedsFrom = new(1900, 1, 1);
+    private static readonly DateOnly NeedsTo = new(2999, 12, 31);
 }
 
 public sealed record LineDto(
@@ -130,7 +152,8 @@ public static class LineFilterParser
         filter = new LineFilter(from!.Value, to!.Value, types, categories, List("tag"), accounts, recurring, recurringNone, plan, move,
             string.Equals(q["review"].ToString(), "true", StringComparison.OrdinalIgnoreCase),
             q["q"].ToString() is { Length: > 0 } text ? text : null, min, max, sort, direction, recurringOther, asset,
-            string.Equals(q["leftOut"].ToString(), "true", StringComparison.OrdinalIgnoreCase));
+            string.Equals(q["leftOut"].ToString(), "true", StringComparison.OrdinalIgnoreCase),
+            string.Equals(q["needs"].ToString(), "true", StringComparison.OrdinalIgnoreCase));
         return true;
     }
 }

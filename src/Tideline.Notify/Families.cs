@@ -310,6 +310,32 @@ public sealed class ReviewFlags : IFlagFamily
     }
 }
 
+/// <summary>
+/// A check nobody has named. The bank gives a number and an amount, never who it was written to, so each one is asked about on its own
+/// (not folded into the review count): "Check #1042, $500.00, Mar 4: what was it?". It clears once the line has a real category.
+/// </summary>
+public sealed class CheckFlags : IFlagFamily
+{
+    public IReadOnlyList<string> Kinds => [FlagKinds.CheckUnknown];
+
+    public IEnumerable<FlagCandidate> Evaluate(EvalContext c)
+    {
+        var checks = c.Conn.Query<(long Id, string Description, string? Number, DateOnly On, long Cents)>($"""
+            SELECT t.id, t.original_description, t.check_number, t.posted_on, ABS(t.amount_cents)
+            FROM transactions t
+            WHERE {FlagRepository.UnnamedCheckWhere}
+            ORDER BY t.posted_on, t.id
+            """);
+        foreach (var l in checks)
+        {
+            var label = string.IsNullOrWhiteSpace(l.Number) ? l.Description.Trim() : $"Check #{l.Number.Trim()}";
+            yield return new FlagCandidate(FlagKinds.CheckUnknown, "transaction", l.Id, l.On.ToString("yyyy-MM"), Severity.Warn,
+                FlagText.Join($"{label}, {Text.Dollars(l.Cents)}, {Text.Day(l.On)}: what was it?",
+                    "The bank only says the check number and the amount. Open it and pick what it was for, and who it went to if you know."));
+        }
+    }
+}
+
 /// <summary>The retirement shortfall getting bigger than it was last month (docs/ARCHITECTURE.md).</summary>
 public sealed class RetirementFlags : IFlagFamily
 {

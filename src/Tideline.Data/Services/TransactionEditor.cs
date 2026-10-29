@@ -33,6 +33,9 @@ public sealed record BulkChange(long? CategoryId = null, string? Type = null, IR
 
 public sealed record BulkResult(int Updated, int SkippedTransfers, int NotFound);
 
+/// <summary>The quick answer to "what was this line?": a real category and, if known, who it was. The type comes from the category.</summary>
+public sealed record AnswerRequest(long? CategoryId, string? Payee);
+
 /// <summary>Lines left out in one go. Skipped ones are in a transfer or were already left out; a transfer has to be unpaired first.</summary>
 public sealed record LeaveOutResult(int LeftOut, int Skipped, int NotFound);
 
@@ -147,6 +150,28 @@ public sealed class TransactionEditor(IDbConnection conn, TimeProvider clock, Ac
             throw new EditException(EditError.Invalid, $"Account {id} is not an asset. Add the house or car as an asset account in Settings first.");
     }
 
+    /// <summary>
+    /// "Needs a category" in one place: no category, still in the catch-all, or still tagged review. The Ledger's needs filter reads the same
+    /// three things for a whole line.
+    /// </summary>
+    private bool NeedsCategory(long id, IDbTransaction tx) => conn.ExecuteScalar<long>("""
+        SELECT COUNT(*) FROM transactions t
+        WHERE t.id = @id AND (
+            t.category_id IS NULL
+            OR t.category_id IN (SELECT id FROM categories WHERE name = @uncategorized)
+            OR EXISTS (SELECT 1 FROM transaction_tags tt JOIN tags g ON g.id = tt.tag_id WHERE tt.transaction_id = t.id AND g.name = @review))
+        """, new { id, uncategorized = LineClassifier.UncategorizedName, review = LineClassifier.ReviewTagName }, tx) > 0;
+
+    private bool HasRealCategory(long id, IDbTransaction tx) => conn.ExecuteScalar<long>("""
+        SELECT COUNT(*) FROM transactions t
+        WHERE t.id = @id AND t.category_id IS NOT NULL AND t.category_id NOT IN (SELECT id FROM categories WHERE name = @uncategorized)
+        """, new { id, uncategorized = LineClassifier.UncategorizedName }, tx) > 0;
+
+    /// <summary>Once a person has said what a line is, "review" no longer applies to it.</summary>
+    private void DropReview(long id, IDbTransaction tx) =>
+        conn.Execute("DELETE FROM transaction_tags WHERE transaction_id = @id AND tag_id IN (SELECT id FROM tags WHERE name = @review)",
+            new { id, review = LineClassifier.ReviewTagName }, tx);
+
     private string Now() => clock.GetUtcNow().UtcDateTime.ToString("yyyy-MM-dd'T'HH:mm:ss'Z'", System.Globalization.CultureInfo.InvariantCulture);
 
     private void Touch(long id, IDbTransaction tx) =>
@@ -197,6 +222,47 @@ public sealed class TransactionEditor(IDbConnection conn, TimeProvider clock, Ac
             conn.Execute("DELETE FROM transaction_tags WHERE transaction_id = @id", new { id }, tx);
             foreach (var t in tagIds) conn.Execute("INSERT INTO transaction_tags (transaction_id, tag_id) VALUES (@id, @t)", new { id, t }, tx);
         }
+        // giving a line a real category answers "review", unless the same save sets the tags itself
+        if (tagIds is null && r.CategoryId is > 0 && HasRealCategory(id, tx)) DropReview(id, tx);
+        new FlagRepository(conn, clock, tx).ResolveAnsweredChecks();
+
+        new AuditWriter(conn, clock, tx, actor).Write("transaction.update", "transaction", id, before, Snapshot(id, tx));
+        var version = NewVersion(id, tx);
+        tx.Commit();
+        return version;
+    }
+
+    // ---- answer ---------------------------------------------------------------------------------------------
+
+    /// <summary>
+    /// The quick way through the "needs a category" pile: set a real category (and its type), say who it was if known, and the line leaves the pile.
+    /// Refused if the line is not in the pile any more (someone else answered it), so a stale list cannot overwrite a good answer.
+    /// </summary>
+    /// <returns>The line's new version.</returns>
+    public string Answer(long id, long categoryId, string? payee)
+    {
+        TypeHandlers.EnsureRegistered();
+        using var tx = conn.BeginTransaction();
+        var c = Load(id, tx);
+        RequireNotMove(c);
+        RequireNotLeftOut(c);
+
+        var name = conn.ExecuteScalar<string?>("SELECT name FROM categories WHERE id = @categoryId", new { categoryId }, tx)
+            ?? throw new EditException(EditError.Invalid, $"There is no category {categoryId}.");
+        if (name == LineClassifier.UncategorizedName)
+            throw new EditException(EditError.Invalid, "Pick a real category. Uncategorized is where lines wait to be answered.");
+        if (!NeedsCategory(id, tx))
+            throw new EditException(EditError.Conflict, "This line already has a category. Reload the list.");
+        if (payee is { Length: > 100 }) throw new EditException(EditError.Invalid, "The payee is too long (100 characters at most).");
+
+        var before = Snapshot(id, tx);
+        conn.Execute("""
+            UPDATE transactions SET category_id = @categoryId, type = (SELECT default_type FROM categories WHERE id = @categoryId),
+                payee = COALESCE(@payee, payee), is_manual_override = 1, updated_at = @now
+            WHERE id = @id
+            """, new { id, categoryId, payee = string.IsNullOrWhiteSpace(payee) ? null : payee.Trim(), now = clock.GetUtcNow() }, tx);
+        DropReview(id, tx);
+        new FlagRepository(conn, clock, tx).ResolveAnsweredChecks();
 
         new AuditWriter(conn, clock, tx, actor).Write("transaction.update", "transaction", id, before, Snapshot(id, tx));
         var version = NewVersion(id, tx);
@@ -227,6 +293,7 @@ public sealed class TransactionEditor(IDbConnection conn, TimeProvider clock, Ac
         if (change.CategoryId is { } cat and > 0) RequireCategory(cat, tx);
         var add = change.AddTags is null ? [] : TagIds(change.AddTags, tx);
         var remove = (change.RemoveTags ?? []).Select(NormalizeTag).Distinct().ToList();
+        var keepReview = (change.AddTags ?? []).Select(NormalizeTag).Contains(LineClassifier.ReviewTagName);
         var audit = new AuditWriter(conn, clock, tx, actor);
 
         int updated = 0, skipped = 0, missing = 0;
@@ -254,10 +321,13 @@ public sealed class TransactionEditor(IDbConnection conn, TimeProvider clock, Ac
             }
             foreach (var name in remove)
                 conn.Execute("DELETE FROM transaction_tags WHERE transaction_id = @id AND tag_id IN (SELECT id FROM tags WHERE name = @name)", new { id, name }, tx);
+            // a real category answers "review", unless the same change adds the tag back
+            if (change.CategoryId is > 0 && !keepReview && HasRealCategory(id, tx)) DropReview(id, tx);
 
             audit.Write("transaction.update", "transaction", id, before, Snapshot(id, tx));
             updated++;
         }
+        new FlagRepository(conn, clock, tx).ResolveAnsweredChecks();
 
         tx.Commit();
         return new BulkResult(updated, skipped, missing);
@@ -275,6 +345,7 @@ public sealed class TransactionEditor(IDbConnection conn, TimeProvider clock, Ac
 
         var before = Snapshot(id, tx);
         RunRules(c, LineClassifier.Load(conn, clock, tx), tx);
+        new FlagRepository(conn, clock, tx).ResolveAnsweredChecks();
 
         new AuditWriter(conn, clock, tx, actor).Write("transaction.reset", "transaction", id, before, Snapshot(id, tx));
         var version = NewVersion(id, tx);

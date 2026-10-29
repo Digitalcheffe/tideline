@@ -457,6 +457,46 @@ a.drill:hover {
   color: var(--muted);
 }
 
+/* the number of lines waiting for a category, beside its menu entry */
+.nav-count {
+  display: inline-block;
+  margin-left: 0.5rem;
+  padding: 0 0.45rem;
+  border-radius: 999px;
+  background: var(--warn-bg);
+  color: var(--warn);
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.needs-tile {
+  border-left: 4px solid var(--warn);
+}
+
+/* the list of lines waiting for an answer: one small block each, controls wrapping under the line */
+.needs-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.needs-row {
+  padding: 0.7rem 0;
+  border-top: 1px solid var(--border);
+}
+
+.needs-line {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 0.75rem;
+  align-items: baseline;
+  margin-bottom: 0.4rem;
+}
+
+.needs-line .needs-amount {
+  margin-left: auto;
+}
+
 /* ---- spread ---- */
 .spread {
   display: grid;

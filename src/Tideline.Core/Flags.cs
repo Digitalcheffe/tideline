@@ -23,11 +23,12 @@ public static class FlagKinds
     public const string OneTimeReview = "one_time_review";
     public const string ReviewNeeded = "review_needed";
     public const string RetirementGapGrew = "retirement_gap_grew";
+    public const string CheckUnknown = "check_unknown";
 
     public static readonly IReadOnlyList<string> All =
     [
         RecurringMissing, RecurringOutOfRange, CardNotPaidInFull, CardInterest, BalanceMismatch, ImportFailed, MoveUnpaired, NewDebt, NewRecurring,
-        BudgetPop, IncomeShort, PlanWavered, PlanBehind, OneTimeReview, ReviewNeeded, RetirementGapGrew,
+        BudgetPop, IncomeShort, PlanWavered, PlanBehind, OneTimeReview, ReviewNeeded, RetirementGapGrew, CheckUnknown,
     ];
 
     private static readonly HashSet<string> ImmediateByDefault =
@@ -56,6 +57,7 @@ public static class FlagKinds
         OneTimeReview => "A large one-time item to look at",
         ReviewNeeded => "Lines tagged for review",
         RetirementGapGrew => "The retirement gap got bigger",
+        CheckUnknown => "A check that needs a name: what was it for?",
         _ => kind,
     };
 }

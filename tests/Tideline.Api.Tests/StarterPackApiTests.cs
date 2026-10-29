@@ -56,6 +56,21 @@ public sealed class StarterPackApiTests : IDisposable
     }
 
     [Fact]
+    public async Task A_rule_made_after_the_starter_set_is_tried_before_it_so_what_a_person_teaches_wins()
+    {
+        await _api.Send(HttpMethod.Post, "/api/v1/rules/starter");
+        var words = new[] { new { field = "description", op = "contains_any", value = System.Text.Json.JsonSerializer.SerializeToElement(new[] { "KROGER" }) } };
+
+        var (status, created) = await _api.Send(HttpMethod.Post, "/api/v1/rules", new { name = "My Kroger", setType = "extra", conditions = words });
+
+        status.Should().Be(HttpStatusCode.Created, created.ToString());
+        var rules = (await _api.Get("/api/v1/rules")).EnumerateArray().ToList();
+        var mine = rules.Single(r => r.GetProperty("name").GetString() == "My Kroger").GetProperty("priority").GetInt32();
+        mine.Should().BeLessThan(rules.Where(r => r.GetProperty("name").GetString()!.StartsWith("Starter: ")).Min(r => r.GetProperty("priority").GetInt32()),
+            "a new rule goes after the other hand-made rules but ahead of every starter rule");
+    }
+
+    [Fact]
     public async Task Only_an_owner_may_look_or_load_not_a_member_a_viewer_or_a_token()
     {
         var (_, memberSecret) = _api.AddUser("member@example.com", "Member", Role.Member);

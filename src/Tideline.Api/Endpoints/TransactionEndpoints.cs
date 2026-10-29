@@ -57,6 +57,13 @@ public static class TransactionEndpoints
         api.MapPatch("/transactions/{id:long}", (long id, EditRequest request, SqliteConnectionFactory factory, TimeProvider time, HttpContext http) =>
             Edit(http, factory, time, e => new { version = e.Update(id, request) }));
 
+        // the quick answer to "what was this line?" from the needs-a-category list: a real category and, if known, who it was
+        api.MapPost("/transactions/{id:long}/answer", (long id, AnswerRequest request, SqliteConnectionFactory factory, TimeProvider time, HttpContext http) =>
+            Edit(http, factory, time, e => new
+            {
+                version = e.Answer(id, request.CategoryId ?? throw new EditException(EditError.Invalid, "Pick a category."), request.Payee),
+            }));
+
         api.MapPost("/transactions/{id:long}/reset-to-rules", (long id, SqliteConnectionFactory factory, TimeProvider time, HttpContext http) =>
             Edit(http, factory, time, e => new { version = e.ResetToRules(id) }));
 

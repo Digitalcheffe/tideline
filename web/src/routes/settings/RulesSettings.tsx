@@ -253,17 +253,35 @@ function toCondition(row: Row): Condition | string {
   }
 }
 
+/**
+ * The conditions a new rule starts with when it is made from a line: its words, or, for a check (whose number never repeats), "starts with Check #"
+ * with the amount and which way the money went.
+ */
+function prefilledRows(p: URLSearchParams | null): Row[] {
+  const rows: Row[] = [p?.get('starts') ? { key: 'starts', text: p.get('starts')! } : { key: 'contains', text: p?.get('contains') ?? '' }]
+  const amount = p?.get('amount')
+  if (amount) rows.push({ key: 'gte', text: amount }, { key: 'lte', text: amount })
+  const direction = p?.get('direction')
+  if (direction === 'in' || direction === 'out') rows.push({ key: 'direction', text: direction })
+  return rows
+}
+
 function RuleForm({ rule, prefill, categories, onClose }: { rule: RuleRow | null; prefill: URLSearchParams | null; categories: Named[]; onClose: () => void }) {
   const { run, error, busy } = useAct(onClose)
-  const [name, setName] = useState(rule?.name ?? (prefill?.get('contains') ? `Lines like ${prefill.get('contains')!.slice(0, 40)}` : ''))
+  const [name, setName] = useState(
+    rule?.name ??
+      (prefill?.get('contains')
+        ? `Lines like ${prefill.get('contains')!.slice(0, 40)}`
+        : prefill?.get('starts') && prefill.get('amount')
+          ? `Checks for $${prefill.get('amount')}`
+          : ''),
+  )
   const [active, setActive] = useState(rule?.isActive ?? true)
   const [categoryId, setCategoryId] = useState(rule?.setCategoryId?.toString() ?? prefill?.get('category') ?? '')
   const [type, setType] = useState(rule?.setType ?? prefill?.get('type') ?? '')
   const [payee, setPayee] = useState(rule?.setPayee ?? prefill?.get('payee') ?? '')
   const [tags, setTags] = useState(rule?.tags.join(', ') ?? prefill?.get('tags') ?? '')
-  const [rows, setRows] = useState<Row[]>(
-    rule?.conditions.map((c) => ({ key: keyOf(c), text: textOf(c) })) ?? [{ key: 'contains', text: prefill?.get('contains') ?? '' }],
-  )
+  const [rows, setRows] = useState<Row[]>(rule?.conditions.map((c) => ({ key: keyOf(c), text: textOf(c) })) ?? prefilledRows(prefill))
   const [from, setFrom] = useState(() => daysAgoLocal(90))
   const [to, setTo] = useState(() => todayLocal())
   const [result, setResult] = useState<TestResult | null>(null)

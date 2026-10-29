@@ -2,8 +2,9 @@ import { useQuery } from '@tanstack/react-query'
 import { Link, useSearchParams } from 'react-router-dom'
 import { Bar, CartesianGrid, ComposedChart, Legend, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { get, type Overview as OverviewData } from '../api'
-import { Badge, Card, ErrorBox, Loading, Money, ShareBar, TYPE_COLORS } from '../components'
+import { Badge, Card, ErrorBox, Loading, Money, ShareBar, TYPE_COLORS, drillPath } from '../components'
 import { dollars, monthLabel, shortMonth } from '../format'
+import { useNeedsCategory } from '../needs'
 import type { Period } from '../period'
 import { NetWorth } from './NetWorth'
 import { NeedsYou } from './NeedsYou'
@@ -17,6 +18,31 @@ const ITEMS: { key: 'in' | 'bills' | 'required' | 'extra' | 'oneTime' | 'savings
   { key: 'oneTime', label: 'One-time' },
   { key: 'savings', label: 'Savings' },
 ]
+
+/** Lines waiting for a category, live. Shown only while there are some; the number opens those lines in the Ledger. */
+function NeedsTile() {
+  const { data } = useNeedsCategory()
+  if (!data || data.count === 0) return null
+  const lines = `${data.count} ${data.count === 1 ? 'line needs' : 'lines need'} a category`
+  return (
+    <section className="card needs-tile" aria-label="Needs a category" style={{ marginBottom: 12 }}>
+      <div className="toolbar" style={{ justifyContent: 'space-between' }}>
+        <div>
+          <strong>
+            <Link to={drillPath(data.drill)!} title="Show the lines behind this number">
+              {lines}
+            </Link>
+          </strong>
+          {data.checks > 0 && <span className="muted"> · {data.checks} {data.checks === 1 ? 'is a check' : 'are checks'}</span>}
+          <div className="muted">The rules could not place them. Answer them and they leave this count at once.</div>
+        </div>
+        <Link className="btn primary" to="/needs">
+          Answer them
+        </Link>
+      </div>
+    </section>
+  )
+}
 
 export function Overview({ period }: { period: Period }) {
   const [params, setParams] = useSearchParams()
@@ -56,6 +82,8 @@ export function Overview({ period }: { period: Period }) {
         <NetWorth />
       ) : (
         <>
+
+      <NeedsTile />
 
       <Card title="Where the money went" aside={`${data.from} to ${data.to}`}>
         {!hasData ? (

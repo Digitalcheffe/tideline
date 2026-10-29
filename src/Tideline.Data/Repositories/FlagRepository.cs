@@ -94,6 +94,30 @@ public sealed class FlagRepository(IDbConnection conn, TimeProvider clock, IDbTr
         return resolved;
     }
 
+    /// <summary>
+    /// Closes the open "what was this check?" alerts whose line now has a real category (or was left out, or became a transfer), without waiting
+    /// for tonight's run. The evaluator's own pass for the kind decides the same way, so the two never disagree.
+    /// </summary>
+    public int ResolveAnsweredChecks()
+    {
+        TypeHandlers.EnsureRegistered();
+        return conn.Execute($"""
+            UPDATE flags SET resolved_at = @now
+            WHERE kind = @kind AND resolved_at IS NULL AND subject_type = 'transaction'
+              AND subject_id NOT IN (SELECT t.id FROM transactions t WHERE {UnnamedCheckWhere})
+            """, new { now = clock.GetUtcNow(), kind = FlagKinds.CheckUnknown }, tx);
+    }
+
+    /// <summary>
+    /// A check nobody has named yet: the bank gave a check number (or, from SimpleFIN, only "Check #1042" in the description), it is not a transfer
+    /// or left out, and it has no category or is still in the catch-all. Over the <c>transactions</c> table as <c>t</c>.
+    /// </summary>
+    public const string UnnamedCheckWhere = """
+        (t.check_number IS NOT NULL OR LOWER(t.original_description) LIKE 'check #%')
+        AND t.move_id IS NULL AND t.left_out_at IS NULL
+        AND (t.category_id IS NULL OR t.category_id IN (SELECT id FROM categories WHERE name = 'Uncategorized'))
+        """;
+
     public FlagRow? Get(long id) => conn.QuerySingleOrDefault<Row>(Select + " WHERE id = @id", new { id }, tx) is { } r ? Map(r) : null;
 
     /// <summary>Flags that are still true and nobody has dealt with, most serious first.</summary>

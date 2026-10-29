@@ -482,7 +482,7 @@ CREATE TRIGGER tr_tx_no_delete_imported BEFORE DELETE ON transactions
 WHEN OLD.source <> 'manual'
 BEGIN SELECT RAISE(ABORT, 'imported transactions cannot be deleted'); END;
 
--- ---------------------------------------------------------------- recommendations (migration M0005, which also adds starter rows)
+-- ---------------------------------------------------------------- recommendations (migration M0005, which also adds starter rows; M0008 adds one for the check alert)
 CREATE TABLE recommendation_rules (
     id              INTEGER PRIMARY KEY,
     name            VARCHAR(100) NOT NULL UNIQUE,

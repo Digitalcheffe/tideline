@@ -151,7 +151,8 @@ public sealed class RuleEditor(IDbConnection conn, TimeProvider clock, Actor? ac
         var tags = (r.Tags ?? []).Select(t => string.Join('-', t.Trim().ToLowerInvariant().Split([' ', '\t'], StringSplitOptions.RemoveEmptyEntries))).Where(t => t.Length > 0).Distinct().ToList();
         if (tags.Any(t => t.Length > 50)) throw Bad("A tag name is 50 characters at most.");
 
-        var priority = r.Priority ?? ((conn.ExecuteScalar<int?>("SELECT MAX(priority) FROM rules", transaction: tx) ?? 0) + 10);
+        // a new rule goes after the other rules a person made but before the starter set, so what someone teaches always wins over it
+        var priority = r.Priority ?? ((conn.ExecuteScalar<int?>("SELECT MAX(priority) FROM rules WHERE name NOT LIKE @starter", new { starter = StarterPack.RuleNamePrefix + "%" }, tx) ?? 0) + 10);
         if (priority < 0) throw Bad("The order number cannot be negative.");
         _ = existingId;
         return new Checked(name, priority, r.IsActive ?? true, r.SetCategoryId, type, string.IsNullOrWhiteSpace(r.SetPayee) ? null : r.SetPayee.Trim(), r.SetRecurringId, conditions, tags);
@@ -346,6 +347,7 @@ public sealed class RuleEditor(IDbConnection conn, TimeProvider clock, Actor? ac
             audit.Write("rule.apply", "transaction", l.Id, before, new { k.CategoryId, Type = k.Type.ToDb(), k.Payee, appliedRuleId = ruleId, applyId });
             changed++;
         }
+        if (changed > 0) new FlagRepository(conn, clock, tx).ResolveAnsweredChecks();
         return changed;
     });
 }

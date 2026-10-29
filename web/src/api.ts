@@ -185,6 +185,14 @@ export interface CategoryInfo {
   type: string
 }
 
+/** The to-do pile: lines with no real category yet. Live, and not tied to the period in the menu. */
+export interface NeedsCategory {
+  count: number
+  sumCents: number
+  checks: number
+  drill: string
+}
+
 // ---- screens ---------------------------------------------------------------------------------------------
 
 export interface FlagItem {

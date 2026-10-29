@@ -34,6 +34,7 @@ public static class Links
             FlagKinds.PlanWavered or FlagKinds.PlanBehind => "/planning",
             FlagKinds.RetirementGapGrew => "/retirement",
             FlagKinds.ReviewNeeded => "/lines?review=true",
+            FlagKinds.CheckUnknown => "/needs",
             FlagKinds.NewRecurring => $"/extra?year={year}",
             _ => Range(),
         };

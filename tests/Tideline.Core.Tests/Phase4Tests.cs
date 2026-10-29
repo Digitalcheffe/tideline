@@ -288,7 +288,7 @@ public class FlagsCoreTests
     [Fact]
     public void Every_kind_has_a_mode_and_the_urgent_ones_are_the_seven_in_the_spec()
     {
-        FlagKinds.All.Should().HaveCount(16).And.OnlyHaveUniqueItems();
+        FlagKinds.All.Should().HaveCount(17).And.OnlyHaveUniqueItems();
         FlagKinds.All.Where(k => FlagKinds.DefaultMode(k) == NotifyMode.Immediate).Should().BeEquivalentTo(
             "recurring_missing", "card_not_paid_in_full", "card_interest", "balance_mismatch", "import_failed", "new_debt", "plan_behind");
         FlagKinds.All.Should().OnlyContain(k => FlagKinds.Describe(k) != k, "each has words a person can read");

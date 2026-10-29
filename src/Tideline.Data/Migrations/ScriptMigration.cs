@@ -66,3 +66,9 @@ public class M0007_LeftOut : ScriptMigration
 {
     protected override string ScriptName => "M0007_LeftOut";
 }
+
+[Migration(8, "A starter suggestion for the check_unknown alert: a check that needs a name")]
+public class M0008_CheckSuggestion : ScriptMigration
+{
+    protected override string ScriptName => "M0008_CheckSuggestion";
+}

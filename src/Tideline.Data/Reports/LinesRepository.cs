@@ -31,7 +31,8 @@ public sealed record LineFilter(
     LineDirection Direction = LineDirection.Any,
     bool RecurringOutsideBills = false,
     long? AssetId = null,
-    bool LeftOutOnly = false);
+    bool LeftOutOnly = false,
+    bool NeedsCategory = false);
 
 public sealed record LineItem(
     long TransactionId,
@@ -143,6 +144,21 @@ public sealed class LinesRepository(IDbConnection conn, IDbTransaction? tx = nul
         {
             where.Append(" AND (LOWER(e.description) LIKE @q OR LOWER(COALESCE(e.payee, '')) LIKE @q OR LOWER(COALESCE(e.notes, '')) LIKE @q)");
             args.Add("q", "%" + f.Text.Trim().ToLowerInvariant().Replace("%", "").Replace("_", "") + "%");
+        }
+
+        if (f.NeedsCategory)
+        {
+            // a real line (never a transfer) that has no category, is in the catch-all, or still carries the review tag
+            where.Append($"""
+                 AND e.move_id IS NULL AND (
+                    e.category_id IS NULL
+                    OR e.category_id IN (SELECT id FROM categories WHERE name = '{Services.LineClassifier.UncategorizedName}')
+                    OR EXISTS (SELECT 1 FROM tags g WHERE g.name = '{Services.LineClassifier.ReviewTagName}' AND (
+                        (e.split_line_id IS NULL AND EXISTS (SELECT 1 FROM transaction_tags tt WHERE tt.transaction_id = e.transaction_id AND tt.tag_id = g.id))
+                        OR (e.split_line_id IS NOT NULL AND EXISTS (SELECT 1 FROM split_line_tags st WHERE st.split_line_id = e.split_line_id AND st.tag_id = g.id))
+                    ))
+                 )
+                """);
         }
 
         var tags = (f.Tags ?? []).Concat(f.ReviewOnly ? ["review"] : []).Select(t => t.Trim().ToLowerInvariant()).Distinct().ToArray();
