@@ -42,6 +42,9 @@ public static class FlagKinds
     public const string SubscriptionsReview = "subscriptions_review";
     public const string SubscriptionsMany = "subscriptions_many";
     public const string LargePayment = "large_payment";
+    public const string NoBills = "no_bills";
+    public const string NoRecurring = "no_recurring";
+    public const string RecurringCandidate = "recurring_candidate";
 
     /// <summary>The alerts that were built in first.</summary>
     public static readonly IReadOnlyList<string> Alerts =

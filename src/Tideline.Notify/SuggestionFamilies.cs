@@ -5,6 +5,7 @@ using Tideline.Core;
 using Tideline.Data;
 using Tideline.Data.Repositories;
 using Tideline.Data.Reports;
+using Tideline.Data.Services;
 
 namespace Tideline.Notify;
 
@@ -294,6 +295,47 @@ public sealed class LargePaymentFlags : IFlagFamily
             var why = !seenBefore ? "Not someone you have paid in the last year." : $"At least {TimesTheUsual} times the usual {Text.Dollars(usual!.Value)} in its category.";
             yield return new FlagCandidate(FlagKinds.LargePayment, "transaction", l.Id, l.On.ToString("yyyy-MM", CultureInfo.InvariantCulture), Severity.Info,
                 FlagText.Join($"{name} {Text.Dollars(l.Cents)} looks like a one-time payment", $"On {Text.Day(l.On)}. {why}"));
+        }
+    }
+}
+
+/// <summary>
+/// Makes sure the Bills sheet is set up so a missed bill can be noticed: nothing is marked as a bill, bills exist but none is tracked, and one card
+/// for each bill or subscription found in untracked lines (with a button that adds it). All wait for a full month of lines.
+/// </summary>
+public sealed class BillCoverageFlags : IFlagFamily
+{
+    public const int MostCards = 12;
+
+    public IReadOnlyList<string> Kinds => [FlagKinds.NoBills, FlagKinds.NoRecurring, FlagKinds.RecurringCandidate];
+
+    public IEnumerable<FlagCandidate> Evaluate(EvalContext c)
+    {
+        if (!Ask.HasAMonthOfData(c.Conn, c.Today)) yield break;
+        var year = Ask.YearText(c.Today.Year);
+
+        var billLines = c.Conn.ExecuteScalar<long>("SELECT COUNT(*) FROM transactions WHERE type = 'bill' AND move_id IS NULL AND left_out_at IS NULL");
+        var tracked = c.Conn.ExecuteScalar<long>("SELECT COUNT(*) FROM recurring WHERE is_active = 1");
+        var candidates = BillFinder.Find(c.Conn, c.Today);
+
+        if (billLines == 0 && Ask.IsOn(c.Conn, FlagKinds.NoBills))
+            yield return new FlagCandidate(FlagKinds.NoBills, "account", 0, year, Severity.Info,
+                FlagText.Join("Nothing is marked as a bill", "No line has the type Bill, so the Bills screen is empty."));
+
+        if (billLines >= 3 && tracked == 0 && Ask.IsOn(c.Conn, FlagKinds.NoRecurring))
+            yield return new FlagCandidate(FlagKinds.NoRecurring, "account", 0, year, Severity.Info,
+                FlagText.Join("No bills are being tracked",
+                    candidates.Count == 0 ? $"There are {billLines} bill lines, but no recurring items."
+                                          : $"There are {billLines} bill lines, and {candidates.Count} look like bills or subscriptions that could be tracked."));
+
+        if (!Ask.IsOn(c.Conn, FlagKinds.RecurringCandidate)) yield break;
+        foreach (var b in candidates.Take(MostCards))
+        {
+            var every = b.Frequency == "yearly" ? "a year" : b.EveryN == 1 ? "a month" : $"every {b.EveryN} months";
+            var what = b.Kind == "bill" ? "a bill" : "a subscription";
+            yield return new FlagCandidate(FlagKinds.RecurringCandidate, "candidate", b.Key, year, Severity.Info,
+                FlagText.Join($"{b.Name} looks like {what}",
+                    $"About {Text.Dollars((b.MinCents + b.MaxCents) / 2)} {every}, {b.Occurrences} times, last on {Text.Day(b.LastPaid)}. Track it as a recurring item?"));
         }
     }
 }

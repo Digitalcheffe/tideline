@@ -51,7 +51,7 @@ function groups(cards: RecoCard[]) {
 }
 
 /** The fixed steps a card can offer. Only a click runs one. */
-const ACTIONS: Record<string, string> = { mark_one_time: 'Mark as One-time' }
+const ACTIONS: Record<string, string> = { mark_one_time: 'Mark as One-time', add_recurring: 'Yes, add it' }
 
 const TONE = { alert: 'bad', warn: 'warn', info: 'info' } as const
 const SEVERITY = { alert: 'Needs you', warn: 'Worth a look', info: 'For your information' } as const

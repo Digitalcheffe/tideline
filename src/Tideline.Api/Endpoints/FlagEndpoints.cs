@@ -46,6 +46,8 @@ public static class Links
             FlagKinds.WantsHighMonth or FlagKinds.WantsHighYear => $"/extra?year={year}",
             FlagKinds.SavingsShareLowMonth or FlagKinds.SavingsShareLowYear => "/savings",
             FlagKinds.SubscriptionsReview or FlagKinds.SubscriptionsMany => "/extra",
+            FlagKinds.NoBills => $"/bills?year={year}",
+            FlagKinds.NoRecurring or FlagKinds.RecurringCandidate => "/settings/recurring",
             // opens the one line in the Ledger, in its month
             FlagKinds.LargePayment when month is not null && subjectId > 0 => $"/lines?from={month}-01&to={month}-{DateTime.DaysInMonth(int.Parse(month[..4]), int.Parse(month[5..7])):00}&tx={subjectId}",
             FlagKinds.NewRecurring => $"/extra?year={year}",

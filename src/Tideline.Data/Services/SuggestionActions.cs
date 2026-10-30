@@ -25,6 +25,12 @@ public static class SuggestionActions
                 new TransactionEditor(conn, clock, actor).Update(line, new EditRequest(TransactionVersion.Of(conn, line), Type: "one_time"));
                 conn.Execute("UPDATE flags SET resolved_at = @now WHERE id = @flagId AND resolved_at IS NULL", new { flagId, now = clock.GetUtcNow() });
                 return new { done = true, line };
+            case SuggestionCatalog.AddRecurring:
+                if (flag.SubjectType != "candidate") throw new EditException(EditError.Invalid, "This card is not about a bill.");
+                var today = DateOnly.FromDateTime(clock.GetLocalNow().DateTime);
+                var added = BillAdder.Add(conn, clock, actor, [(flag.SubjectId, null)], today);
+                conn.Execute("UPDATE flags SET resolved_at = @now WHERE id = @flagId AND resolved_at IS NULL", new { flagId, now = clock.GetUtcNow() });
+                return new { done = true, added = added[0].Name, linked = added[0].LinesLinked };
             default:
                 throw new EditException(EditError.Invalid, "That step is not available.");
         }

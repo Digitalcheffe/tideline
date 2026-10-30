@@ -177,7 +177,11 @@ const TOPICS: Topic[] = [
           with nothing expected, for bills that come every other month or once a year, stay blank. Bill lines that belong to no recurring item are gathered in an <strong>Other</strong> row so the grid always adds up to the
           Bills number on the Overview.
         </p>
-        <p>Add the bills you pay every month in <L to="/settings/recurring">Settings, Recurring</L>, with the usual amount range and the day they are due.</p>
+        <p>
+          <strong>Find my bills.</strong> <L to="/settings/recurring">Settings, Recurring</L> lists the bills and subscriptions Tideline found in lines that are not tracked yet: payments that repeat every month, every
+          other month, every three or six months, or once a year, for about the same amount. Untick any you do not want, rename any, and press the button. Each becomes a recurring item, its past lines are linked, and next
+          month's link themselves. You can also add one by hand there, with the usual amount range and the day it is due.
+        </p>
       </>
     ),
   },

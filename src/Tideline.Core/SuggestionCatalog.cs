@@ -25,13 +25,14 @@ public static class SuggestionCatalog
     /// <summary>On the small print of every card that is a prompt to look at money.</summary>
     /// <summary>The fixed steps a card can offer. Only a person's click runs one, and each is audited.</summary>
     public const string MarkOneTime = "mark_one_time";
+    public const string AddRecurring = "add_recurring";
 
     public const string NotAdvice = "A prompt to look, not financial or tax advice.";
 
     private static SuggestionDef Alert(string key, string title, string advice) => new(key, AlertsGroup, title, advice);
 
-    private static SuggestionDef Own(string key, string group, string title, string advice, string recurrence, bool on = true, string? action = null) =>
-        new(key, group, title, advice, NotAdvice, on, action, recurrence);
+    private static SuggestionDef Own(string key, string group, string title, string advice, string recurrence, bool on = true, string? action = null, string? reference = null) =>
+        new(key, group, title, advice, reference is null ? NotAdvice : $"{NotAdvice} {reference}", on, action, recurrence);
 
     public static IReadOnlyList<SuggestionDef> All { get; } =
     [
@@ -55,23 +56,28 @@ public static class SuggestionCatalog
         Alert(FlagKinds.CheckUnknown, "A check needs a name", "Open the check and say what it was for, and make a rule if it will repeat. The Needs a category screen lets you answer them one after another."),
 
         // taxes: what the bank shows is the result of the year, never the withholding itself
-        Own(FlagKinds.TaxOverpaid, "Taxes", "Your refund may be larger than needed", "Your pay stub, or the IRS Tax Withholding Estimator, can show whether your withholding still fits.", "yearly"),
-        Own(FlagKinds.TaxUnderpaid, "Taxes", "A payment at filing may mean too little was withheld", "Check your withholding, or whether estimated payments make sense, to avoid a penalty. Your pay stub or the IRS Tax Withholding Estimator can help.", "yearly"),
+        Own(FlagKinds.TaxOverpaid, "Taxes", "Your refund may be larger than needed", "Your pay stub, or the IRS Tax Withholding Estimator, can show whether your withholding still fits.", "yearly", reference: "Source: the IRS Tax Withholding Estimator (irs.gov/individuals/tax-withholding-estimator), which suggests checking withholding every January and after big life changes."),
+        Own(FlagKinds.TaxUnderpaid, "Taxes", "A payment at filing may mean too little was withheld", "Check your withholding, or whether estimated payments make sense, to avoid a penalty. Your pay stub or the IRS Tax Withholding Estimator can help.", "yearly", reference: "Source: the IRS page on the underpayment of estimated tax penalty: no penalty if you owe less than $1,000 at filing, or if you paid in at least 90% of this year's tax or 100% of last year's (110% at higher incomes)."),
         Own(FlagKinds.TaxUnknown, "Taxes", "No tax refund or payment seen", "If your refund or payment went through an account you have not added, add it under Settings, Money accounts. If you have not filed yet, check the deadline.", "yearly"),
 
         // savings
         Own(FlagKinds.SavingsNone, "Savings", "Nothing went into savings last month", "Check whether it went into an account you have not added, or move something into savings.", "monthly"),
         Own(FlagKinds.SavingsLow, "Savings", "Savings were well below usual last month", "Look at what changed that month. A smaller transfer is fine if there was a reason; set it back when you can.", "monthly"),
         Own(FlagKinds.NoSavingsAccount, "Savings", "No savings account", "A separate place for savings makes it easier to see what is put aside. If you have one, add it under Settings, Money accounts. If not, it may be worth opening one.", "yearly"),
-        Own(FlagKinds.EmergencyCushion, "Savings", "Savings cover less than three months", "A smaller starting cushion, such as $500 to $1,000, is a common first step. People with irregular or self-employed income are often advised to hold more.", "quarterly"),
+        Own(FlagKinds.EmergencyCushion, "Savings", "Savings cover less than three months", "A smaller starting cushion, such as $500 to $1,000, is a common first step. People with irregular or self-employed income are often advised to hold more.", "quarterly", reference: "Many guides suggest 3 to 6 months of essential expenses. The CFPB gives no set number: it says the right amount depends on your situation, and that even a small amount helps."),
 
         // cashflow, as a share of take-home pay (50/30/20), each measure monthly and yearly
-        Own(FlagKinds.NeedsHighMonth, "Cashflow", "Bills and required costs are a large share of income (monthly)", "Review your monthly bills for anything that can come down. Insurance, phone, internet and subscriptions are the usual places.", "monthly"),
-        Own(FlagKinds.NeedsHighYear, "Cashflow", "Bills and required costs are a large share of income (yearly)", "Review your bills for the year for anything that can come down. Insurance, phone, internet and subscriptions are the usual places.", "yearly"),
-        Own(FlagKinds.WantsHighMonth, "Cashflow", "Extra and one-time spending is a large share of income (monthly)", "Look through the Extra and One-time lines for the month. A few can usually be trimmed without much notice.", "monthly", false),
-        Own(FlagKinds.WantsHighYear, "Cashflow", "Extra and one-time spending is a large share of income (yearly)", "Look through the Extra and One-time lines for the year. A few can usually be trimmed without much notice.", "yearly", false),
-        Own(FlagKinds.SavingsShareLowMonth, "Cashflow", "Savings are a small share of income (monthly)", "Look at what was left over, and whether some of it can move into savings before it is spent.", "monthly", false),
-        Own(FlagKinds.SavingsShareLowYear, "Cashflow", "Savings are a small share of income (yearly)", "Look at what was left over, and whether some of it can move into savings before it is spent.", "yearly", false),
+        Own(FlagKinds.NeedsHighMonth, "Cashflow", "Bills and required costs are a large share of income (monthly)", "Review your monthly bills for anything that can come down. Insurance, phone, internet and subscriptions are the usual places.", "monthly", reference: "The 50/30/20 guide puts needs at 50%, wants at 30% and savings and debt payments at 20% of after-tax income (popularised by Elizabeth Warren and Amelia Warren Tyagi in All Your Worth). Another common guide puts fixed costs at 50 to 60% of take-home pay. Rules of thumb, not rules."),
+        Own(FlagKinds.NeedsHighYear, "Cashflow", "Bills and required costs are a large share of income (yearly)", "Review your bills for the year for anything that can come down. Insurance, phone, internet and subscriptions are the usual places.", "yearly", reference: "The 50/30/20 guide puts needs at 50%, wants at 30% and savings and debt payments at 20% of after-tax income (popularised by Elizabeth Warren and Amelia Warren Tyagi in All Your Worth). Another common guide puts fixed costs at 50 to 60% of take-home pay. Rules of thumb, not rules."),
+        Own(FlagKinds.WantsHighMonth, "Cashflow", "Extra and one-time spending is a large share of income (monthly)", "Look through the Extra and One-time lines for the month. A few can usually be trimmed without much notice.", "monthly", false, reference: "The 50/30/20 guide puts needs at 50%, wants at 30% and savings and debt payments at 20% of after-tax income (popularised by Elizabeth Warren and Amelia Warren Tyagi in All Your Worth). Another common guide puts fixed costs at 50 to 60% of take-home pay. Rules of thumb, not rules."),
+        Own(FlagKinds.WantsHighYear, "Cashflow", "Extra and one-time spending is a large share of income (yearly)", "Look through the Extra and One-time lines for the year. A few can usually be trimmed without much notice.", "yearly", false, reference: "The 50/30/20 guide puts needs at 50%, wants at 30% and savings and debt payments at 20% of after-tax income (popularised by Elizabeth Warren and Amelia Warren Tyagi in All Your Worth). Another common guide puts fixed costs at 50 to 60% of take-home pay. Rules of thumb, not rules."),
+        Own(FlagKinds.SavingsShareLowMonth, "Cashflow", "Savings are a small share of income (monthly)", "Look at what was left over, and whether some of it can move into savings before it is spent.", "monthly", false, reference: "The 50/30/20 guide puts needs at 50%, wants at 30% and savings and debt payments at 20% of after-tax income (popularised by Elizabeth Warren and Amelia Warren Tyagi in All Your Worth). Another common guide puts fixed costs at 50 to 60% of take-home pay. Rules of thumb, not rules."),
+        Own(FlagKinds.SavingsShareLowYear, "Cashflow", "Savings are a small share of income (yearly)", "Look at what was left over, and whether some of it can move into savings before it is spent.", "yearly", false, reference: "The 50/30/20 guide puts needs at 50%, wants at 30% and savings and debt payments at 20% of after-tax income (popularised by Elizabeth Warren and Amelia Warren Tyagi in All Your Worth). Another common guide puts fixed costs at 50 to 60% of take-home pay. Rules of thumb, not rules."),
+
+        // bills: make sure the Bills sheet is set up so a missed one can be noticed
+        Own(FlagKinds.NoBills, "Bills", "Nothing is marked as a bill", "Bills like a mortgage, power or phone are tracked on the Bills screen. If you have any, set their category to a bill type, or add the starter set under Settings, Rules.", "yearly"),
+        Own(FlagKinds.NoRecurring, "Bills", "No bills are being tracked", "Without them a missed bill cannot be noticed. Use Find my bills under Settings, Recurring to set them up in one go.", "yearly"),
+        Own(FlagKinds.RecurringCandidate, "Bills", "This looks like a bill or subscription", "Tracking it gives it a row on the Bills screen or the subscriptions list, and a missed payment is noticed. Your past lines are linked to it, and next month's link themselves.", "yearly", true, AddRecurring),
 
         // spending
         Own(FlagKinds.LargePayment, "Spending", "A large payment that looks one-time", "If it will not come around again, mark it One-time so it does not skew the month. If it will, give it a recurring item or a plan.", "each time", true, MarkOneTime),

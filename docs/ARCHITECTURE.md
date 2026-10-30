@@ -119,7 +119,7 @@ A nightly check looks for the few things that need a person (a bill not paid, a 
 failed, and so on). Each kind of alert is either sent now or held for a monthly summary, to a webhook or email channel, with a plain
 suggestion attached. The app keeps an app-side record whether or not anything is sent.
 
-**Suggestions** are shipped in a fixed list in code (`SuggestionCatalog`): a key, title, advice, small print and how often it can return. The logic of each is a small tested class run in the same daily pass as the alerts (and after each import); no stored SQL is run. A suggestion that raises its own card (tax, savings, cashflow, subscriptions) is a kind of flag like the alerts, so it clears itself when it stops being true, and Reviewed hides it for that period. The database keeps only each person's on/off switch per suggestion, so an update to the wording keeps everyone's switches. Whether one sends a message is one of the owner's notification choices.
+**Suggestions** are shipped in a fixed list in code (`SuggestionCatalog`): a key, title, advice, small print and how often it can return. The logic of each is a small tested class run in the same daily pass as the alerts (and after each import); no stored SQL is run. A suggestion that raises its own card (tax, savings, cashflow, subscriptions, bills) is a kind of flag like the alerts, so it clears itself when it stops being true, and Reviewed hides it for that period. The database keeps only each person's on/off switch per suggestion, so an update to the wording keeps everyone's switches. Whether one sends a message is one of the owner's notification choices.
 
 ## Running it
 

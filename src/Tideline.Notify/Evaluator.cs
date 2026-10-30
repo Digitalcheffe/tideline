@@ -58,7 +58,7 @@ public sealed class Evaluator(IEnumerable<IFlagFamily> families)
     [
         new RecurringFlags(), new CardFlags(), new BalanceFlags(), new ImportFlags(), new MoveFlags(), new DebtFlags(), new NewRecurringFlags(),
         new BudgetFlags(), new PlanFlags(), new OneTimeFlags(), new ReviewFlags(), new CheckFlags(), new RetirementFlags(),
-        new TaxFlags(), new SavingsFlags(), new CashflowFlags(), new SubscriptionFlags(), new LargePaymentFlags(),
+        new TaxFlags(), new SavingsFlags(), new CashflowFlags(), new SubscriptionFlags(), new LargePaymentFlags(), new BillCoverageFlags(),
     ];
 
     public Evaluator() : this(StandardFamilies) { }

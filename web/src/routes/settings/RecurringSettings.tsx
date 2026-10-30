@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { get, send } from '../../api'
 import { Badge, Card, ErrorBox, Loading } from '../../components'
 import { dollars, parseDollars, todayLocal, typeLabel } from '../../format'
+import { FindBills } from './FindBills'
 import { Panel, Problem, centsText, useAct } from './common'
 
 interface RecurringRow {
@@ -49,6 +50,7 @@ export function RecurringSettings() {
           onClose={() => setEditing(null)}
         />
       )}
+      <FindBills />
       <Card
         title="Recurring items"
         aside={

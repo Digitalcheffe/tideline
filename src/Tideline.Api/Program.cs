@@ -161,6 +161,7 @@ var api = app.MapGroup("/api/v1");
 api.MapAuthEndpoints();
 api.MapAdminEndpoints();
 api.MapSetupEndpoints();
+api.MapBillEndpoints();
 api.MapAppSettingsEndpoints();
 api.MapImportEndpoints();
 api.MapDataEndpoints();

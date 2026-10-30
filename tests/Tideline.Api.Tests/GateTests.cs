@@ -290,6 +290,13 @@ public sealed partial class GateTests(ITestOutputHelper output) : IDisposable
             new("POST /transactions/bulk", Kind.Update, "transaction.update", () => Ok(HttpMethod.Post, "/api/v1/transactions/bulk", new { ids = new[] { mystery }, set = new { type = "one_time" } })),
             new("POST /transactions/leave-out", Kind.Update, "transaction.leave_out", () => Ok(HttpMethod.Post, "/api/v1/transactions/leave-out", new { ids = new[] { mystery }, reason = "gate" })),
             new("POST /transactions/bring-back", Kind.Update, "transaction.bring_back", () => Ok(HttpMethod.Post, "/api/v1/transactions/bring-back", new { ids = new[] { mystery } })),
+            new("POST /recurring/candidates/add", Kind.Create, "recurring.created", async () =>
+            {
+                foreach (var day in new[] { "2025-12-08", "2026-01-08", "2026-02-08", "2026-03-08" })
+                    _api.Execute("INSERT INTO transactions (account_id, posted_on, amount_cents, original_description, external_id, source, category_id, type, created_at, updated_at) VALUES (@checking, @day, -999, 'GATE STREAMING', @external, 'manual', @groceries, 'extra', '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')", new { checking, day, external = "manual:gate-" + day, groceries });
+                var key = (await _api.Get("/api/v1/recurring/candidates")).EnumerateArray().Single(c => c.GetProperty("name").GetString() == "Gate Streaming").GetProperty("key").GetString();
+                await Ok(HttpMethod.Post, "/api/v1/recurring/candidates/add", new { items = new[] { new { key } } }, HttpStatusCode.Created);
+            }),
             new("POST /moves", Kind.Create, "move.pair", async () =>
             {
                 var partner = (await Ok(HttpMethod.Post, "/api/v1/transactions", new { accountId = savings, postedOn = "2026-03-21", amountCents = 1234, description = "GATE PARTNER", categoryId = groceries, type = "extra" }, HttpStatusCode.Created)).GetProperty("id").GetInt64();

@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
+import { candidatesQuery } from './settings/FindBills'
 import { get, type Bills as BillsData } from '../api'
 import { Badge, Card, ErrorBox, Loading, Money } from '../components'
 import { dateLabel, dollars, shortMonth } from '../format'
@@ -20,6 +21,10 @@ export function Bills({ period }: { period: Period }) {
     queryFn: () => get<BillsData>('/bills', { year: String(period.year) }),
   })
 
+  // bills and subscriptions found in lines that are not tracked yet (a quiet nudge to Find my bills)
+  const found = useQuery(candidatesQuery)
+  const untracked = found.data?.filter((f) => f.kind === 'bill').length ?? 0
+
   if (isLoading) return <Loading what="bills" />
   if (error || !data) return <ErrorBox error={error} />
 
@@ -32,6 +37,13 @@ export function Bills({ period }: { period: Period }) {
         One row per recurring bill. Past months show what was paid; future months are projected from the last three payments (shown lighter). Bills with no recurring item are
         grouped as “Other” so the total matches the Bills number on the Overview.
       </p>
+
+      {untracked > 0 && (
+        <p>
+          <Badge tone="info">{untracked === 1 ? '1 bill found' : `${untracked} bills found`}</Badge> that {untracked === 1 ? 'is' : 'are'} not tracked yet.{' '}
+          <Link to="/settings/recurring">Find my bills</Link>
+        </p>
+      )}
 
       <Card>
         {data.rows.length === 0 ? (
