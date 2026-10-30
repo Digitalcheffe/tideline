@@ -141,6 +141,37 @@ export function Income({ period }: { period: Period }) {
           </table>
         )}
       </Card>
+
+      {data.taxes.length > 0 && <TaxesByYear taxes={data.taxes} />}
     </>
+  )
+}
+
+/** Taxes by year: what was paid, property tax, and what came back, as bars. Each figure opens its lines. Paycheck withholding is not in the bank data. */
+function TaxesByYear({ taxes }: { taxes: IncomeData['taxes'] }) {
+  const biggest = Math.max(1, ...taxes.flatMap((t) => [t.paidCents, t.propertyCents, t.refundedCents]))
+  const bar = (cents: number, className: string) => (
+    <span className={`tax-bar ${className}`} style={{ width: `${Math.max(cents > 0 ? 2 : 0, (cents / biggest) * 100)}%` }} aria-hidden="true" />
+  )
+  return (
+    <Card title="Taxes by year" aside={<span className="muted">payments and refunds in the bank data</span>}>
+      <p className="muted">
+        What was paid in taxes, property tax, and what came back as a refund, for each year. Tax taken out of a paycheck before it reaches the bank is not shown here.
+      </p>
+      <table className="tax-years">
+        <tbody>
+          {taxes.map((t) => (
+            <tr key={t.year}>
+              <th scope="row">{t.year}</th>
+              <td className="tax-bars">
+                <div>{bar(t.paidCents, 'paid')} {t.paidDrill ? <Money cents={t.paidCents} drill={t.paidDrill} /> : <span className="muted">no taxes paid</span>}</div>
+                <div>{bar(t.propertyCents, 'property')} {t.propertyDrill ? <Money cents={t.propertyCents} drill={t.propertyDrill} /> : <span className="muted">no property tax</span>} <span className="muted">property tax</span></div>
+                <div>{bar(t.refundedCents, 'refund')} {t.refundedDrill ? <Money cents={t.refundedCents} drill={t.refundedDrill} /> : <span className="muted">no refund</span>} <span className="muted">refunded</span></div>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </Card>
   )
 }

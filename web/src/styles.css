@@ -1358,6 +1358,35 @@ button.btn .icon {
   max-width: 22rem;
 }
 
+.tax-years th {
+  width: 4rem;
+  vertical-align: top;
+}
+
+.tax-bars > div {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.2rem;
+}
+
+.tax-bar {
+  display: inline-block;
+  height: 0.7rem;
+  border-radius: 0.35rem;
+  min-width: 0;
+  max-width: 55%;
+  background: var(--accent);
+}
+
+.tax-bar.property {
+  background: var(--muted);
+}
+
+.tax-bar.refund {
+  background: #e0a458;
+}
+
 .small-print {
   font-size: 0.8rem;
 }

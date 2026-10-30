@@ -265,6 +265,11 @@ public sealed partial class GateTests(ITestOutputHelper output) : IDisposable
             new("DELETE /rules/{id:long}", Kind.Delete, "rule.deleted", () => Ok(HttpMethod.Delete, $"/api/v1/rules/{rule}")),
 
             // suggestions on flags
+            new("POST /recommendations/action", Kind.Update, "transaction.update", async () =>
+            {
+                _api.Execute("INSERT INTO flags (kind, subject_type, subject_id, period, severity, message, created_at) VALUES ('large_payment', 'transaction', @mystery, '2026-03', 'info', 'A large payment\nx', '2026-04-01T00:00:00Z')", new { mystery });
+                await Ok(HttpMethod.Post, "/api/v1/recommendations/action", new { flagId = _api.Scalar<long>("SELECT MAX(id) FROM flags") });
+            }),
             new("PATCH /recommendation-rules/{id:long}", Kind.Update, "recommendation_rule.updated", async () =>
             {
                 suggestion = _api.Scalar<long>("SELECT id FROM recommendation_rules WHERE flag_kind = 'review_needed'");

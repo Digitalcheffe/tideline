@@ -23,6 +23,9 @@ public static class SuggestionCatalog
     public const string AlertsGroup = "Alerts";
 
     /// <summary>On the small print of every card that is a prompt to look at money.</summary>
+    /// <summary>The fixed steps a card can offer. Only a person's click runs one, and each is audited.</summary>
+    public const string MarkOneTime = "mark_one_time";
+
     public const string NotAdvice = "A prompt to look, not financial or tax advice.";
 
     private static SuggestionDef Alert(string key, string title, string advice) => new(key, AlertsGroup, title, advice);
@@ -69,6 +72,9 @@ public static class SuggestionCatalog
         Own(FlagKinds.WantsHighYear, "Cashflow", "Extra and one-time spending is a large share of income (yearly)", "Look through the Extra and One-time lines for the year. A few can usually be trimmed without much notice.", "yearly", false),
         Own(FlagKinds.SavingsShareLowMonth, "Cashflow", "Savings are a small share of income (monthly)", "Look at what was left over, and whether some of it can move into savings before it is spent.", "monthly", false),
         Own(FlagKinds.SavingsShareLowYear, "Cashflow", "Savings are a small share of income (yearly)", "Look at what was left over, and whether some of it can move into savings before it is spent.", "yearly", false),
+
+        // spending
+        Own(FlagKinds.LargePayment, "Spending", "A large payment that looks one-time", "If it will not come around again, mark it One-time so it does not skew the month. If it will, give it a recurring item or a plan.", "each time", true, MarkOneTime),
 
         // subscriptions
         Own(FlagKinds.SubscriptionsReview, "Subscriptions", "Quarterly review of subscriptions", "Is each one still worth it? Cancel or pause any you no longer use. They are listed on the Extra screen.", "quarterly"),

@@ -307,6 +307,7 @@ export interface Income {
   categories: { id: number; name: string; cents: number; lines: number; drill: string }[]
   payees: { payee: string; cents: number; lines: number; drill: string }[]
   reviewDeposits: { count: number; sumCents: number; drill: string; items: Line[] }
+  taxes: { year: number; paidCents: number; propertyCents: number; refundedCents: number; paidDrill: string | null; propertyDrill: string | null; refundedDrill: string | null }[]
 }
 
 // ---- signing in ------------------------------------------------------------------------------------------

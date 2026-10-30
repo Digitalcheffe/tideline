@@ -16,6 +16,8 @@ public static class RecommendationEndpoints
 
     public sealed record SwitchRequest(bool? IsActive);
 
+    public sealed record ActionRequest(long FlagId);
+
     public static void MapRecommendationEndpoints(this RouteGroupBuilder api)
     {
         api.MapGet("/recommendations", (SqliteConnectionFactory f) =>
@@ -30,6 +32,10 @@ public static class RecommendationEndpoints
 
         api.MapPost("/recommendations/dismiss", (DismissRequest request, HttpContext http, SqliteConnectionFactory f, TimeProvider t) =>
             Edits.Run(http, f, t, (c, clock, who) => { new RecommendationEditor(c, clock, who).Dismiss(request.RuleId, request.FlagId); return new { dismissed = true }; }));
+
+        // the one step a card offers (for example "Mark as One-time"); only this click runs it
+        api.MapPost("/recommendations/action", (ActionRequest request, HttpContext http, SqliteConnectionFactory f, TimeProvider t) =>
+            Edits.Run(http, f, t, (c, clock, who) => SuggestionActions.Run(c, clock, who, request.FlagId)));
 
         // every suggestion the app ships, with its switch, and for the ones that send their own message, whether it is sent
         api.MapGet("/recommendation-rules", (SqliteConnectionFactory f) =>

@@ -440,9 +440,20 @@ public static class ScreenEndpoints
 
         var review = new LinesRepository(conn).Query(new LineFilter(start, end, ReviewOnly: true, Direction: LineDirection.In), 1, 50);
 
+        // taxes by year (a small card): payments, property tax and refunds, each a link to its lines. Withholding from a paycheck is not in the bank data.
+        var taxYears = TaxReader.Read(conn, year);
+        string TaxDrill(int y, IReadOnlyList<long> ids) => Drill.Range(new DateOnly(y, 1, 1), new DateOnly(y, 12, 31), ("category", string.Join(",", ids)));
+
         return Results.Ok(new
         {
             year,
+            taxes = taxYears.Years.Select(t => new
+            {
+                year = t.Year, paidCents = t.PaidCents, propertyCents = t.PropertyCents, refundedCents = t.RefundedCents,
+                paidDrill = t.PaidCents > 0 ? TaxDrill(t.Year, taxYears.PaidIds) : null,
+                propertyDrill = t.PropertyCents > 0 ? TaxDrill(t.Year, taxYears.PropertyIds) : null,
+                refundedDrill = t.RefundedCents > 0 ? TaxDrill(t.Year, taxYears.RefundIds) : null,
+            }).ToList(),
             total = new Figure(total, Drill.Range(start, end, ("type", "income"))),
             expectedCents = expectedYear,
             months,

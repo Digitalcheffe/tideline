@@ -281,6 +281,109 @@ public sealed class SuggestionFamilyTests : IDisposable
         Only(Run("2026-10-08"), FlagKinds.EmergencyCushion).Should().BeEmpty("a closed account is not a cushion");
     }
 
+    // ---- the taxes card ------------------------------------------------------------------------------------------
+
+    [Fact]
+    public async Task The_income_screen_lists_taxes_by_year_each_figure_with_a_link_to_its_lines()
+    {
+        Line("Checking", "2025-04-15", -120_000, "IRS USATAXPYMT", "Taxes", "one_time");
+        Line("Checking", "2025-10-31", -235_000, "COUNTY TAX COLLECTOR", "Property tax", "bill");
+        Line("Checking", "2026-03-10", 150_000, "IRS TREAS 310 TAX REF", "Tax refund", "income");
+        Line("Checking", "2026-04-15", -50_000, "IRS USATAXPYMT", "Taxes", "one_time");
+
+        var income = await _api.Get("/api/v1/income?year=2026");
+        var taxes = income.GetProperty("taxes").EnumerateArray().ToDictionary(y => y.GetProperty("year").GetInt32());
+
+        taxes.Keys.Should().Equal(2025, 2026).And.NotContain(2020, "it starts at the first year with anything");
+        taxes[2025].GetProperty("paidCents").GetInt64().Should().Be(120_000);
+        taxes[2025].GetProperty("propertyCents").GetInt64().Should().Be(235_000);
+        taxes[2025].GetProperty("refundedCents").GetInt64().Should().Be(0);
+        taxes[2026].GetProperty("paidCents").GetInt64().Should().Be(50_000);
+        taxes[2026].GetProperty("refundedCents").GetInt64().Should().Be(150_000);
+        taxes[2026].GetProperty("propertyDrill").ValueKind.Should().Be(System.Text.Json.JsonValueKind.Null, "no property tax that year, so nothing to open");
+
+        // the link opens exactly the lines the figure counts
+        var drill = taxes[2026].GetProperty("paidDrill").GetString();
+        var opened = await _api.Get("/api/v1/lines?" + drill);
+        opened.GetProperty("summary").GetProperty("sumCents").GetInt64().Should().Be(-50_000);
+    }
+
+    // ---- large payments ----------------------------------------------------------------------------------------
+
+    [Fact]
+    public void A_large_payment_to_someone_new_raises_a_card_and_the_same_payee_twice_does_not()
+    {
+        Line("Checking", "2026-09-20", -240_000, "ROOF REPAIR CO", "Home repair", "extra");
+
+        var card = Only(Run("2026-10-05"), FlagKinds.LargePayment).Should().ContainSingle().Subject;
+        card.Message.Should().Contain("$2,400.00").And.Contain("Not someone you have paid");
+        card.Period.Should().Be("2026-09");
+
+        // paid to the same payee four months earlier, and near the usual size for its category
+        Line("Checking", "2026-05-20", -230_000, "ROOF REPAIR CO", "Home repair", "extra");
+        Only(Run("2026-10-06"), FlagKinds.LargePayment).Should().BeEmpty("seen before, and not far above the usual");
+    }
+
+    [Fact]
+    public void A_known_payee_is_still_raised_when_it_is_three_times_the_usual_for_its_category()
+    {
+        Line("Checking", "2026-06-05", -10_000, "HARDWARE STORE", "Home repair", "extra");
+        Line("Checking", "2026-07-05", -20_000, "HARDWARE STORE", "Home repair", "extra");
+        Line("Checking", "2026-09-05", -90_000, "HARDWARE STORE", "Home repair", "extra"); // usual is $150, so $900 is 6 times it
+
+        var card = Only(Run("2026-10-05"), FlagKinds.LargePayment).Should().ContainSingle().Subject;
+        card.Message.Should().Contain("$900.00").And.Contain("3 times the usual");
+    }
+
+    [Fact]
+    public void Small_payments_one_time_lines_bills_transfers_and_left_out_lines_are_not_raised()
+    {
+        Line("Checking", "2026-09-05", -40_000, "SMALL ONE", "Home repair", "extra");       // under the $500 line
+        Line("Checking", "2026-09-06", -240_000, "ALREADY ONE TIME", "Home repair", "one_time");
+        Line("Checking", "2026-09-07", -240_000, "A BIG BILL", "Insurance", "bill");
+        Line("Checking", "2026-09-08", -240_000, "LEFT OUT ONE", "Home repair", "extra");
+        _api.Execute("UPDATE transactions SET left_out_at = '2026-09-09T00:00:00Z' WHERE original_description = 'LEFT OUT ONE'");
+
+        Only(Run("2026-10-05"), FlagKinds.LargePayment).Should().BeEmpty();
+
+        Line("Checking", "2026-09-10", -240_000, "WAY OLD ONE", "Home repair", "extra");
+        Only(Run("2027-01-05"), FlagKinds.LargePayment).Should().BeEmpty("it is older than the 45 days looked at");
+    }
+
+    [Fact]
+    public async Task The_button_marks_the_line_one_time_clears_the_card_and_is_audited_and_the_amount_follows_the_setting()
+    {
+        Line("Checking", "2026-09-20", -240_000, "ROOF REPAIR CO", "Home repair", "extra");
+        var id = _api.IdOf("ROOF REPAIR CO");
+        var flag = _api.Scalar<long>("SELECT 0");
+        Run("2026-10-05");
+        flag = _api.Scalar<long>("SELECT id FROM flags WHERE kind = 'large_payment'");
+
+        var done = await _api.Send(HttpMethod.Post, "/api/v1/recommendations/action", new { flagId = flag });
+
+        done.Status.Should().Be(System.Net.HttpStatusCode.OK, done.Body.ToString());
+        _api.Scalar<string>("SELECT type FROM transactions WHERE id = @id", new { id }).Should().Be("one_time");
+        _api.Scalar<long>("SELECT is_manual_override FROM transactions WHERE id = @id", new { id }).Should().Be(1);
+        _api.Scalar<string?>("SELECT resolved_at FROM flags WHERE id = @flag", new { flag }).Should().NotBeNull();
+        Only(Run("2026-10-06"), FlagKinds.LargePayment).Should().BeEmpty();
+        (await _api.Get("/api/v1/audit?action=transaction.update")).GetProperty("items").GetArrayLength().Should().BeGreaterThan(0);
+
+        // the amount is the one setting an owner can change: the same one the one-time alert uses
+        Line("Checking", "2026-09-25", -120_000, "NEW ROOF CO", "Home repair", "extra");
+        await _api.Send(HttpMethod.Put, "/api/v1/settings", new { oneTimeAttentionCents = 200_000 });
+        Only(Run("2026-10-07"), FlagKinds.LargePayment).Should().BeEmpty("$1,200 is under the new $2,000 line");
+    }
+
+    [Fact]
+    public async Task A_button_that_does_not_belong_to_the_card_is_refused()
+    {
+        _api.Execute("INSERT INTO flags (kind, subject_type, subject_id, period, severity, message, created_at) VALUES ('review_needed', 'review', 0, '2026-03', 'info', 'x\ny', '2026-04-01T00:00:00Z')");
+        var flag = _api.Scalar<long>("SELECT MAX(id) FROM flags");
+
+        (await _api.Send(HttpMethod.Post, "/api/v1/recommendations/action", new { flagId = flag })).Status.Should().Be(System.Net.HttpStatusCode.BadRequest);
+        (await _api.Send(HttpMethod.Post, "/api/v1/recommendations/action", new { flagId = 999_999 })).Status.Should().Be(System.Net.HttpStatusCode.NotFound);
+    }
+
     // ---- subscriptions -------------------------------------------------------------------------------------------
 
     private void Subscription(string name, long cents, string frequency = "monthly", int everyN = 1)

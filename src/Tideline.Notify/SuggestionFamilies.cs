@@ -245,3 +245,55 @@ public sealed class SubscriptionFlags : IFlagFamily
                 FlagText.Join($"You are paying for {subs.Count} subscriptions", $"That is {cost}."));
     }
 }
+
+/// <summary>
+/// A large payment that is not typed One-time but looks like one: it is at least the one-time amount (Settings, the same line the one-time alert
+/// uses) and either to someone not seen in the last twelve months, or at least three times the usual line in its category. Bills tied to a
+/// recurring item, transfers and income are left to their own checks. The card carries a button that marks the line One-time.
+/// </summary>
+public sealed class LargePaymentFlags : IFlagFamily
+{
+    public const int LookBackDays = 45;
+    public const int TimesTheUsual = 3;
+
+    public IReadOnlyList<string> Kinds => [FlagKinds.LargePayment];
+
+    public IEnumerable<FlagCandidate> Evaluate(EvalContext c)
+    {
+        if (!Ask.IsOn(c.Conn, FlagKinds.LargePayment)) yield break;
+        var threshold = Tideline.Data.Services.SetupEditor.OneTimeAttentionCents(c.Conn);
+        var since = c.Today.AddDays(-LookBackDays);
+
+        var lines = c.Conn.Query<(long Id, string Description, string? Payee, DateOnly On, long Cents, long? Category)>("""
+            SELECT id, original_description, payee, posted_on, -amount_cents, category_id FROM transactions
+            WHERE amount_cents <= -@threshold AND move_id IS NULL AND left_out_at IS NULL AND recurring_id IS NULL
+              AND type NOT IN ('one_time', 'bill', 'income', 'savings') AND posted_on >= @since
+            """, new { threshold, since }).ToList();
+
+        foreach (var l in lines)
+        {
+            var name = string.IsNullOrWhiteSpace(l.Payee) ? l.Description : l.Payee!;
+            var yearBefore = l.On.AddYears(-1);
+            var seenBefore = c.Conn.ExecuteScalar<long>("""
+                SELECT COUNT(*) FROM transactions WHERE id <> @lineId AND left_out_at IS NULL AND posted_on < @day AND posted_on >= @yearBefore
+                  AND COALESCE(NULLIF(payee, ''), original_description) = @name
+                """, new { lineId = l.Id, day = l.On, yearBefore, name }) > 0;
+
+            long? usual = null;
+            if (l.Category is { } category)
+            {
+                var sixMonths = l.On.AddMonths(-6);
+                usual = c.Conn.ExecuteScalar<long?>("""
+                    SELECT CAST(AVG(-amount_cents) AS INTEGER) FROM transactions
+                    WHERE id <> @lineId AND category_id = @category AND amount_cents < 0 AND move_id IS NULL AND left_out_at IS NULL AND posted_on < @day AND posted_on >= @sixMonths
+                    """, new { lineId = l.Id, category, day = l.On, sixMonths });
+            }
+            var muchMore = usual is > 0 && l.Cents >= usual * TimesTheUsual;
+            if (seenBefore && !muchMore) continue;
+
+            var why = !seenBefore ? "Not someone you have paid in the last year." : $"At least {TimesTheUsual} times the usual {Text.Dollars(usual!.Value)} in its category.";
+            yield return new FlagCandidate(FlagKinds.LargePayment, "transaction", l.Id, l.On.ToString("yyyy-MM", CultureInfo.InvariantCulture), Severity.Info,
+                FlagText.Join($"{name} {Text.Dollars(l.Cents)} looks like a one-time payment", $"On {Text.Day(l.On)}. {why}"));
+        }
+    }
+}

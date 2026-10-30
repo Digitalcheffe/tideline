@@ -50,6 +50,9 @@ function groups(cards: RecoCard[]) {
     .sort((a, b) => rank[b.severity] - rank[a.severity] || b.cards.length - a.cards.length)
 }
 
+/** The fixed steps a card can offer. Only a click runs one. */
+const ACTIONS: Record<string, string> = { mark_one_time: 'Mark as One-time' }
+
 const TONE = { alert: 'bad', warn: 'warn', info: 'info' } as const
 const SEVERITY = { alert: 'Needs you', warn: 'Worth a look', info: 'For your information' } as const
 
@@ -60,6 +63,11 @@ export function Recommendations() {
   const dismiss = useMutation({
     mutationFn: (c: RecoCard) => send('POST', '/recommendations/dismiss', { ruleId: c.ruleId, flagId: c.flagId }),
     onSuccess: () => client.invalidateQueries({ queryKey: ['recommendations'] }),
+  })
+
+  const act = useMutation({
+    mutationFn: (c: RecoCard) => send('POST', '/recommendations/action', { flagId: c.flagId }),
+    onSuccess: () => client.invalidateQueries(),
   })
 
   return (
@@ -90,6 +98,11 @@ export function Recommendations() {
                   <Link className="btn" to={c.link}>
                     Show the lines
                   </Link>
+                  {c.action && ACTIONS[c.action] && (
+                    <button className="btn primary" type="button" disabled={act.isPending} onClick={() => act.mutate(c)}>
+                      {act.isPending ? 'Working…' : ACTIONS[c.action]}
+                    </button>
+                  )}
                   <button className="btn" type="button" disabled={dismiss.isPending} onClick={() => dismiss.mutate(c)} title="You have looked. It comes back when it next applies.">
                     Reviewed
                   </button>
@@ -100,7 +113,7 @@ export function Recommendations() {
           {g.note && <p className="muted small-print">{g.note}</p>}
         </Card>
       ))}
-      {dismiss.error && <p className="problem" role="alert">{dismiss.error.message}</p>}
+      {(dismiss.error ?? act.error) && <p className="problem" role="alert">{(dismiss.error ?? act.error)!.message}</p>}
 
       <Suggestions />
     </>

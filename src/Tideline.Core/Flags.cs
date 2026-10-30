@@ -41,6 +41,7 @@ public static class FlagKinds
     public const string EmergencyCushion = "emergency_cushion";
     public const string SubscriptionsReview = "subscriptions_review";
     public const string SubscriptionsMany = "subscriptions_many";
+    public const string LargePayment = "large_payment";
 
     /// <summary>The alerts that were built in first.</summary>
     public static readonly IReadOnlyList<string> Alerts =
