@@ -1357,3 +1357,7 @@ button.btn .icon {
 .inline-field input {
   max-width: 22rem;
 }
+
+.small-print {
+  font-size: 0.8rem;
+}

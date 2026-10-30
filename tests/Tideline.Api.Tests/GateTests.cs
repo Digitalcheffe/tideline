@@ -265,14 +265,16 @@ public sealed partial class GateTests(ITestOutputHelper output) : IDisposable
             new("DELETE /rules/{id:long}", Kind.Delete, "rule.deleted", () => Ok(HttpMethod.Delete, $"/api/v1/rules/{rule}")),
 
             // suggestions on flags
-            new("POST /recommendation-rules", Kind.Create, "recommendation_rule.created", async () => suggestion = (await Ok(HttpMethod.Post, "/api/v1/recommendation-rules", new { name = "Gate suggestion", flagKind = "review_needed", suggestion = "Look at them." }, HttpStatusCode.Created)).GetProperty("id").GetInt64()),
-            new("PATCH /recommendation-rules/{id:long}", Kind.Update, "recommendation_rule.updated", () => Ok(HttpMethod.Patch, $"/api/v1/recommendation-rules/{suggestion}", new { suggestion = "Look at them soon." })),
+            new("PATCH /recommendation-rules/{id:long}", Kind.Update, "recommendation_rule.updated", async () =>
+            {
+                suggestion = _api.Scalar<long>("SELECT id FROM recommendation_rules WHERE flag_kind = 'review_needed'");
+                await Ok(HttpMethod.Patch, $"/api/v1/recommendation-rules/{suggestion}", new { isActive = false });
+            }),
             new("POST /recommendations/dismiss", Kind.Update, "recommendation.dismissed", async () =>
             {
                 _api.Execute("INSERT INTO flags (kind, subject_type, subject_id, period, severity, message, created_at) VALUES ('review_needed', 'category', 1, '2026-03', 'info', 'Lines to review', '2026-04-01T00:00:00Z')");
                 await Ok(HttpMethod.Post, "/api/v1/recommendations/dismiss", new { ruleId = suggestion, flagId = _api.Scalar<long>("SELECT MAX(id) FROM flags") });
             }),
-            new("DELETE /recommendation-rules/{id:long}", Kind.Delete, "recommendation_rule.deleted", () => Ok(HttpMethod.Delete, $"/api/v1/recommendation-rules/{suggestion}")),
 
             // lines
             new("POST /transactions", Kind.Create, "transaction.create", async () => manual = (await Ok(HttpMethod.Post, "/api/v1/transactions", new { accountId = checking, postedOn = "2026-03-20", amountCents = -1234, description = "GATE CASH", categoryId = groceries, type = "extra" }, HttpStatusCode.Created)).GetProperty("id").GetInt64()),

@@ -42,24 +42,24 @@ test.describe.serial('phase 6', () => {
     await page.request.delete(`/api/v1/transactions/${line}`, { headers: { 'X-CSRF-Token': (await (await page.request.get('/api/v1/auth/me')).json()).csrf } })
   })
 
-  test('suggestions appear for what is flagged, can be dismissed, and the rules can be changed', async ({ page }) => {
+  test('suggestions appear for what is flagged, can be marked reviewed, and each can be switched off', async ({ page }) => {
     await api(page, 'post', '/api/v1/notify/evaluate')
     await page.goto('/recommendations')
     await expect(page.getByRole('heading', { name: 'Recommendations' })).toBeVisible()
 
-    const dismiss = page.getByRole('button', { name: 'Not useful here' })
-    await expect(dismiss.first()).toBeVisible()
-    const before = await dismiss.count()
-    await dismiss.first().click()
-    await expect(dismiss).toHaveCount(before - 1)
+    const reviewed = page.getByRole('button', { name: 'Reviewed' })
+    await expect(reviewed.first()).toBeVisible()
+    const before = await reviewed.count()
+    await reviewed.first().click()
+    await expect(reviewed).toHaveCount(before - 1)
 
-    await page.getByRole('button', { name: 'Add a suggestion' }).click()
-    await page.getByLabel('Name', { exact: true }).fill('E2E own suggestion')
-    await page.getByLabel('Suggest', { exact: true }).fill('Do the thing from the e2e test.')
-    await page.getByRole('button', { name: 'Save', exact: true }).click()
-    await expect(page.locator('strong', { hasText: 'E2E own suggestion' })).toBeVisible()
-
-    await page.getByLabel('Use E2E own suggestion').click()
-    await expect(page.getByLabel('Use E2E own suggestion')).not.toBeChecked()
+    // the suggestions ship with the app: there is no adding or editing, only switches
+    await expect(page.getByRole('button', { name: 'Add a suggestion' })).toHaveCount(0)
+    const first = page.getByLabel('Use Lines are waiting for review')
+    await expect(first).toBeChecked()
+    await first.click()
+    await expect(first).not.toBeChecked()
+    await first.click()
+    await expect(first).toBeChecked()
   })
 })

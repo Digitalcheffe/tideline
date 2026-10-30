@@ -25,18 +25,43 @@ public static class FlagKinds
     public const string RetirementGapGrew = "retirement_gap_grew";
     public const string CheckUnknown = "check_unknown";
 
-    public static readonly IReadOnlyList<string> All =
+    // cards the suggestions raise themselves (see SuggestionCatalog)
+    public const string TaxOverpaid = "tax_overpaid";
+    public const string TaxUnderpaid = "tax_underpaid";
+    public const string TaxUnknown = "tax_unknown";
+    public const string SavingsNone = "savings_none";
+    public const string SavingsLow = "savings_low";
+    public const string NeedsHighMonth = "needs_high_month";
+    public const string NeedsHighYear = "needs_high_year";
+    public const string WantsHighMonth = "wants_high_month";
+    public const string WantsHighYear = "wants_high_year";
+    public const string SavingsShareLowMonth = "savings_share_low_month";
+    public const string SavingsShareLowYear = "savings_share_low_year";
+    public const string NoSavingsAccount = "no_savings_account";
+    public const string EmergencyCushion = "emergency_cushion";
+    public const string SubscriptionsReview = "subscriptions_review";
+    public const string SubscriptionsMany = "subscriptions_many";
+
+    /// <summary>The alerts that were built in first.</summary>
+    public static readonly IReadOnlyList<string> Alerts =
     [
         RecurringMissing, RecurringOutOfRange, CardNotPaidInFull, CardInterest, BalanceMismatch, ImportFailed, MoveUnpaired, NewDebt, NewRecurring,
         BudgetPop, IncomeShort, PlanWavered, PlanBehind, OneTimeReview, ReviewNeeded, RetirementGapGrew, CheckUnknown,
     ];
+
+    /// <summary>Every kind of flag: the alerts, and the cards the suggestions in <see cref="SuggestionCatalog"/> raise themselves.</summary>
+    public static readonly IReadOnlyList<string> All = [.. Alerts, .. SuggestionCatalog.OwnKinds];
 
     private static readonly HashSet<string> ImmediateByDefault =
     [
         RecurringMissing, CardNotPaidInFull, CardInterest, BalanceMismatch, ImportFailed, NewDebt, PlanBehind,
     ];
 
-    public static NotifyMode DefaultMode(string kind) => ImmediateByDefault.Contains(kind) ? NotifyMode.Immediate : NotifyMode.Summary;
+    /// <summary>A suggestion that raises its own card stays in the app until a person turns its message on.</summary>
+    public static NotifyMode DefaultMode(string kind) =>
+        ImmediateByDefault.Contains(kind) ? NotifyMode.Immediate
+        : SuggestionCatalog.Find(kind) is { IsAlertAdvice: false } ? NotifyMode.Off
+        : NotifyMode.Summary;
 
     /// <summary>What a person reads for the kind, in plain words, for the notification settings.</summary>
     public static string Describe(string kind) => kind switch
@@ -58,7 +83,7 @@ public static class FlagKinds
         ReviewNeeded => "Lines tagged for review",
         RetirementGapGrew => "The retirement gap got bigger",
         CheckUnknown => "A check that needs a name: what was it for?",
-        _ => kind,
+        _ => SuggestionCatalog.Find(kind)?.Title ?? kind,
     };
 }
 

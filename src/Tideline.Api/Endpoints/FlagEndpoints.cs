@@ -12,14 +12,15 @@ public sealed record FlagDto(long Id, string Kind, string Severity, string Title
     public static FlagDto From(FlagRow f)
     {
         var (title, detail) = FlagText.Split(f.Message);
-        return new FlagDto(f.Id, f.Kind, f.Severity, title, detail, f.SubjectType, f.SubjectId, f.Period, Links.For(f.Kind, f.Period), f.CreatedAt, f.AcknowledgedAt is not null, f.AckNote, f.ResolvedAt is not null);
+        return new FlagDto(f.Id, f.Kind, f.Severity, title, detail, f.SubjectType, f.SubjectId, f.Period, Links.For(f.Kind, f.Period, f.SubjectType, f.SubjectId), f.CreatedAt, f.AcknowledgedAt is not null, f.AckNote, f.ResolvedAt is not null);
     }
 }
 
 /// <summary>Where in the app a flag's subject can be looked at: a path, to which a host is added when it goes in a message.</summary>
 public static class Links
 {
-    public static string For(string kind, string period)
+    /// <summary>Where a flag points. A flag about a category (the suggestions) can also name the category, so its link can open the lines.</summary>
+    public static string For(string kind, string period, string? subjectType = null, long subjectId = 0)
     {
         var year = period.Length >= 4 ? period[..4] : DateTime.UtcNow.Year.ToString();
         var month = period.Length >= 7 ? period[..7] : null;
@@ -35,6 +36,16 @@ public static class Links
             FlagKinds.RetirementGapGrew => "/retirement",
             FlagKinds.ReviewNeeded => "/lines?review=true",
             FlagKinds.CheckUnknown => "/needs",
+            // the tax cards open the lines of the year the refund or payment landed in (the year after the tax year), for the category they are about
+            FlagKinds.TaxOverpaid or FlagKinds.TaxUnderpaid or FlagKinds.TaxUnknown when int.TryParse(year, out var taxYear) =>
+                subjectType == "category" && subjectId > 0
+                    ? $"/lines?from={taxYear + 1}-01-01&to={taxYear + 1}-12-31&category={subjectId}"
+                    : $"/lines?from={taxYear + 1}-01-01&to={taxYear + 1}-12-31",
+            FlagKinds.SavingsNone or FlagKinds.SavingsLow or FlagKinds.NoSavingsAccount or FlagKinds.EmergencyCushion => "/savings",
+            FlagKinds.NeedsHighMonth or FlagKinds.NeedsHighYear => $"/bills?year={year}",
+            FlagKinds.WantsHighMonth or FlagKinds.WantsHighYear => $"/extra?year={year}",
+            FlagKinds.SavingsShareLowMonth or FlagKinds.SavingsShareLowYear => "/savings",
+            FlagKinds.SubscriptionsReview or FlagKinds.SubscriptionsMany => "/extra",
             FlagKinds.NewRecurring => $"/extra?year={year}",
             _ => Range(),
         };

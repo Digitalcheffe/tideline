@@ -249,8 +249,9 @@ const TOPICS: Topic[] = [
         </ul>
         <h3>Recommendations</h3>
         <p>
-          <L to="/recommendations">Recommendations</L> shows an idea for each kind of alert that is open, such as what to check when a bill is late. <strong>Not useful here</strong> hides one for good. You can edit, switch
-          off or add your own suggestions on the same page.
+          <L to="/recommendations">Recommendations</L> shows things worth a look, such as what to check when a bill is late, a large tax refund or payment, nothing going into savings,
+          or too many subscriptions. They are prompts to look, not advice. Press <strong>Reviewed</strong> when you have looked; it comes back when it next applies. Every suggestion has an on switch, and an
+          owner can choose which ones also send a message. The suggestions come with the app, and their words are not editable.
         </p>
         <h3>Notifications</h3>
         <p>

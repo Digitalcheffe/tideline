@@ -9,6 +9,7 @@ using Tideline.Api.Auth;
 using Tideline.Api.Endpoints;
 using Tideline.Data;
 using Tideline.Data.Security;
+using Tideline.Data.Services;
 using Tideline.Import;
 using Tideline.Notify;
 
@@ -88,7 +89,7 @@ builder.Services.AddSingleton<Notifier>();
 builder.Services.AddSingleton(_ => new Evaluator()); // every family; the constructor with a list is for tests
 builder.Services.AddSingleton(sp => new NotifyHost(sp.GetRequiredService<SqliteConnectionFactory>(), sp.GetRequiredService<Evaluator>(), sp.GetRequiredService<Notifier>(),
     sp.GetRequiredService<TimeProvider>(), sp.GetRequiredService<NotifyOptions>(), () => sp.GetRequiredService<Clock>().LocalNow, () => sp.GetRequiredService<TidelineOptions>().PublicUrl,
-    f => Links.For(f.Kind, f.Period), sp.GetService<ILogger<NotifyHost>>()));
+    f => Links.For(f.Kind, f.Period, f.SubjectType, f.SubjectId), sp.GetService<ILogger<NotifyHost>>()));
 if (!string.Equals(builder.Configuration["Notify:Enabled"], "false", StringComparison.OrdinalIgnoreCase))
     builder.Services.AddHostedService(sp => sp.GetRequiredService<NotifyHost>());
 
@@ -120,6 +121,13 @@ if (!string.Equals(app.Configuration["Database:AutoMigrate"], "false", StringCom
     using var secure = new SqliteConnectionFactory(connectionString).Open();
     AccountNumbers.Verify(secure, app.Services.GetRequiredService<TimeProvider>());
     AccountNumbers.SecureExisting(secure, app.Services.GetRequiredService<TimeProvider>());
+}
+
+// the suggestions the app ships: one row each, the words brought up to date, every switch left as it was
+if (!string.Equals(app.Configuration["Database:AutoMigrate"], "false", StringComparison.OrdinalIgnoreCase))
+{
+    using var sync = new SqliteConnectionFactory(ConnectionString(app.Configuration)).Open();
+    SuggestionSync.Run(sync, app.Services.GetRequiredService<TimeProvider>());
 }
 
 // take the compose values first, then lay what was saved in the app over them

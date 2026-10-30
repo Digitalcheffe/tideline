@@ -108,7 +108,7 @@ and clears itself when the cause is fixed.
 | Retirement gap grew | The projected gap got bigger |
 | A check needs a name | One alert for each check with no real category: "Check #1042, $500.00, Mar 4: what was it?". It clears the moment the line is answered |
 
-**Recommendations** shows a plain suggestion for each open alert. You can edit them, switch them off, add your own, and hide one for a single alert.
+**Recommendations** shows prompts to look at something, shipped with the app: advice for each open alert, and checks of their own (a large tax refund or payment, nothing going into savings, bills and required costs taking too much of income, an emergency cushion under three months, subscriptions to review). Each is a prompt to look, not advice. You can switch any of them on or off, choose which send a message, and press Reviewed once you have looked; it comes back when it next applies. The words and rules are not editable yet.
 
 **Notifications** go to a webhook (for example a flow that posts to chat) or email. Per kind of alert you choose *send now*, *hold for the
 monthly summary*, or *off*. Quiet hours hold urgent messages until morning, a flood is collapsed into a digest, failed sends retry, and a

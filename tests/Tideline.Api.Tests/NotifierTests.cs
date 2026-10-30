@@ -191,7 +191,7 @@ public sealed class NotifierTests : IDisposable
     {
         await Webhook();
         var prefs = (await Ok(HttpMethod.Get, "/api/v1/notify/prefs")).EnumerateArray().ToDictionary(p => p.GetProperty("kind").GetString()!);
-        prefs.Should().HaveCount(17);
+        prefs.Should().HaveCount(Tideline.Core.FlagKinds.All.Count);
         prefs["new_debt"].GetProperty("mode").GetString().Should().Be("immediate");
         prefs["budget_pop"].GetProperty("mode").GetString().Should().Be("summary");
 

@@ -1,13 +1,15 @@
-import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { get, send } from '../api'
+import { useMe } from '../auth'
 import { Badge, Card, Empty, ErrorBox, Loading } from '../components'
 
 interface RecoCard {
   ruleId: number
   ruleName: string
   suggestion: string
+  note: string | null
+  action: string | null
   flagId: number
   flagKind: string
   severity: 'alert' | 'warn' | 'info'
@@ -18,19 +20,17 @@ interface RecoCard {
   link: string
 }
 
-interface RecoRule {
+interface Suggestion {
   id: number
-  name: string
-  flagKind: string
-  minSeverity: string
-  contains: string | null
-  suggestion: string
+  key: string
+  group: string
+  title: string
+  advice: string
+  note: string | null
+  recurrence: string
   isActive: boolean
-}
-
-interface RuleData {
-  kinds: { kind: string; label: string }[]
-  rules: RecoRule[]
+  /** true when the suggestion raises its own card and so has its own message; null for advice attached to an alert */
+  notify: boolean | null
 }
 
 /** One card per suggestion, however many flags it fits: ten unpaid bills are one suggestion with ten reasons. Most serious first. */
@@ -43,6 +43,7 @@ function groups(cards: RecoCard[]) {
       ruleId: list[0].ruleId,
       ruleName: list[0].ruleName,
       suggestion: list[0].suggestion,
+      note: list[0].note,
       severity: list.reduce((worst, c) => (rank[c.severity] > rank[worst] ? c.severity : worst), list[0].severity),
       cards: list,
     }))
@@ -52,7 +53,7 @@ function groups(cards: RecoCard[]) {
 const TONE = { alert: 'bad', warn: 'warn', info: 'info' } as const
 const SEVERITY = { alert: 'Needs you', warn: 'Worth a look', info: 'For your information' } as const
 
-/** Suggestions: a kind of flag, how serious, and some words produce a card with what to try (docs/ARCHITECTURE.md). */
+/** Suggestions: prompts to look at something, shipped with the app. Switch each on or off; mark a card reviewed when you have looked. */
 export function Recommendations() {
   const client = useQueryClient()
   const cards = useQuery({ queryKey: ['recommendations'], queryFn: () => get<RecoCard[]>('/recommendations') })
@@ -65,15 +66,15 @@ export function Recommendations() {
     <>
       <h1>Recommendations</h1>
       <p className="muted">
-        Ideas for what to try, shown while something is flagged. A suggestion goes away when the flag clears. These are plain suggestions from rules you can
-        change below; they are not financial advice.
+        Things worth a look, shown while they are true. Each is a prompt to look, not financial or tax advice. Press Reviewed once you have looked; it comes back
+        when it next applies. Switch any suggestion off below.
       </p>
 
       {cards.isLoading && <Loading what="recommendations" />}
       {cards.error && <ErrorBox error={cards.error} />}
       {cards.data && cards.data.length === 0 && (
         <Card>
-          <Empty>Nothing to suggest right now. Nothing is flagged that has a suggestion.</Empty>
+          <Empty>Nothing to suggest right now.</Empty>
         </Card>
       )}
       {groups(cards.data ?? []).map((g) => (
@@ -87,171 +88,102 @@ export function Recommendations() {
                 {c.flagDetail && <span className="muted"> {c.flagDetail}</span>} {c.acknowledged && <Badge tone="muted">acknowledged</Badge>}
                 <span className="toolbar">
                   <Link className="btn" to={c.link}>
-                    Take a look
+                    Show the lines
                   </Link>
-                  <button className="btn" type="button" disabled={dismiss.isPending} onClick={() => dismiss.mutate(c)} title="Hide this suggestion for this flag">
-                    Not useful here
+                  <button className="btn" type="button" disabled={dismiss.isPending} onClick={() => dismiss.mutate(c)} title="You have looked. It comes back when it next applies.">
+                    Reviewed
                   </button>
                 </span>
               </li>
             ))}
           </ul>
+          {g.note && <p className="muted small-print">{g.note}</p>}
         </Card>
       ))}
       {dismiss.error && <p className="problem" role="alert">{dismiss.error.message}</p>}
 
-      <Rules />
+      <Suggestions />
     </>
   )
 }
 
-function Rules() {
+function Suggestions() {
   const client = useQueryClient()
-  const data = useQuery({ queryKey: ['recommendation-rules'], queryFn: () => get<RuleData>('/recommendation-rules') })
-  const [editing, setEditing] = useState<number | 'new' | null>(null)
+  const me = useMe()
+  const data = useQuery({ queryKey: ['recommendation-rules'], queryFn: () => get<{ rules: Suggestion[] }>('/recommendation-rules') })
   const refresh = () => {
     client.invalidateQueries({ queryKey: ['recommendation-rules'] })
     client.invalidateQueries({ queryKey: ['recommendations'] })
   }
   const toggle = useMutation({
-    mutationFn: (r: RecoRule) => send('PATCH', `/recommendation-rules/${r.id}`, { isActive: !r.isActive }),
+    mutationFn: (r: Suggestion) => send('PATCH', `/recommendation-rules/${r.id}`, { isActive: !r.isActive }),
     onSuccess: refresh,
   })
-  const remove = useMutation({ mutationFn: (r: RecoRule) => send('DELETE', `/recommendation-rules/${r.id}`), onSuccess: refresh })
-
-  if (data.isLoading) return <Loading what="the suggestion rules" />
-  if (data.error || !data.data) return <ErrorBox error={data.error} />
-  const label = (kind: string) => data.data.kinds.find((k) => k.kind === kind)?.label ?? kind
-
-  return (
-    <Card
-      title="The suggestions"
-      aside={
-        <button className="btn" type="button" onClick={() => setEditing('new')}>
-          Add a suggestion
-        </button>
-      }
-    >
-      {editing === 'new' && <RuleForm kinds={data.data.kinds} onDone={() => { setEditing(null); refresh() }} onCancel={() => setEditing(null)} />}
-      <div className="table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th>On</th>
-              <th>When</th>
-              <th>Suggests</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            {data.data.rules.map((r) =>
-              editing === r.id ? (
-                <tr key={r.id}>
-                  <td colSpan={4}>
-                    <RuleForm rule={r} kinds={data.data.kinds} onDone={() => { setEditing(null); refresh() }} onCancel={() => setEditing(null)} />
-                  </td>
-                </tr>
-              ) : (
-                <tr key={r.id} className={r.isActive ? '' : 'muted'}>
-                  <td>
-                    <input type="checkbox" aria-label={`Use ${r.name}`} checked={r.isActive} disabled={toggle.isPending} onChange={() => toggle.mutate(r)} />
-                  </td>
-                  <td>
-                    <strong>{r.name}</strong>
-                    <div className="muted">
-                      {label(r.flagKind)}
-                      {r.minSeverity !== 'info' && `, at least ${r.minSeverity}`}
-                      {r.contains && `, mentioning “${r.contains}”`}
-                    </div>
-                  </td>
-                  <td>{r.suggestion}</td>
-                  <td>
-                    <button className="btn" type="button" onClick={() => setEditing(r.id)}>
-                      Edit
-                    </button>{' '}
-                    <button
-                      className="btn"
-                      type="button"
-                      disabled={remove.isPending}
-                      onClick={() => window.confirm(`Delete “${r.name}”?`) && remove.mutate(r)}
-                    >
-                      Delete
-                    </button>
-                  </td>
-                </tr>
-              ),
-            )}
-          </tbody>
-        </table>
-      </div>
-      {(toggle.error || remove.error) && <p className="problem" role="alert">{String((toggle.error ?? remove.error)?.message)}</p>}
-    </Card>
-  )
-}
-
-function RuleForm({ rule, kinds, onDone, onCancel }: { rule?: RecoRule; kinds: RuleData['kinds']; onDone: () => void; onCancel: () => void }) {
-  const [name, setName] = useState(rule?.name ?? '')
-  const [flagKind, setFlagKind] = useState(rule?.flagKind ?? kinds[0]?.kind ?? '')
-  const [minSeverity, setMinSeverity] = useState(rule?.minSeverity ?? 'info')
-  const [contains, setContains] = useState(rule?.contains ?? '')
-  const [suggestion, setSuggestion] = useState(rule?.suggestion ?? '')
-
-  const save = useMutation({
-    mutationFn: () => {
-      const body = { name, flagKind, minSeverity, contains, suggestion }
-      return rule ? send('PATCH', `/recommendation-rules/${rule.id}`, body) : send('POST', '/recommendation-rules', body)
-    },
-    onSuccess: onDone,
+  // sending a message is one of the owner's notification choices
+  const notify = useMutation({
+    mutationFn: (r: Suggestion) => send('PUT', '/notify/prefs', { modes: { [r.key]: r.notify ? 'off' : 'immediate' } }),
+    onSuccess: refresh,
   })
 
+  if (data.isLoading) return <Loading what="the suggestions" />
+  if (data.error || !data.data) return <ErrorBox error={data.error} />
+
+  const isOwner = me.user.role === 'owner'
+  const order = ['Alerts']
+  const byGroup = new Map<string, Suggestion[]>()
+  for (const r of data.data.rules) byGroup.set(r.group, [...(byGroup.get(r.group) ?? []), r])
+  const names = [...byGroup.keys()].sort((a, b) => (order.includes(a) ? 1 : 0) - (order.includes(b) ? 1 : 0))
+
   return (
-    <form
-      onSubmit={(e) => {
-        e.preventDefault()
-        save.mutate()
-      }}
-    >
-      <div className="form">
-        <label>
-          Name
-          <input type="text" value={name} onChange={(e) => setName(e.target.value)} />
-        </label>
-        <label>
-          When this is flagged
-          <select value={flagKind} onChange={(e) => setFlagKind(e.target.value)}>
-            {kinds.map((k) => (
-              <option key={k.kind} value={k.kind}>
-                {k.label}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          At least this serious
-          <select value={minSeverity} onChange={(e) => setMinSeverity(e.target.value)}>
-            <option value="info">Any</option>
-            <option value="warn">Worth a look or worse</option>
-            <option value="alert">Needs you</option>
-          </select>
-        </label>
-        <label>
-          Only if the flag mentions <span className="muted">(optional)</span>
-          <input type="text" value={contains} onChange={(e) => setContains(e.target.value)} />
-        </label>
-        <label>
-          Suggest
-          <textarea rows={3} value={suggestion} onChange={(e) => setSuggestion(e.target.value)} />
-        </label>
-      </div>
-      <div className="toolbar" style={{ marginTop: 8 }}>
-        <button className="btn primary" type="submit" disabled={save.isPending}>
-          {save.isPending ? 'Saving…' : 'Save'}
-        </button>
-        <button className="btn" type="button" onClick={onCancel}>
-          Cancel
-        </button>
-      </div>
-      {save.error && <p className="problem" role="alert">{save.error.message}</p>}
-    </form>
+    <>
+      {names.map((name) => (
+        <Card
+          key={name}
+          title={name === 'Alerts' ? 'Advice for the alerts' : name}
+        >
+          {name === 'Alerts' && <p className="muted">Shown beside the alert it goes with. Whether the alert itself is sent is set under Settings, Notifications.</p>}
+          <div className="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>On</th>
+                  <th>Suggestion</th>
+                  {name !== 'Alerts' && <th>Send a message</th>}
+                </tr>
+              </thead>
+              <tbody>
+                {byGroup.get(name)!.map((r) => (
+                  <tr key={r.id} className={r.isActive ? '' : 'muted'}>
+                    <td>
+                      <input type="checkbox" aria-label={`Use ${r.title}`} checked={r.isActive} disabled={toggle.isPending} onChange={() => toggle.mutate(r)} />
+                    </td>
+                    <td>
+                      <strong>{r.title}</strong>
+                      <div className="muted">{r.advice}</div>
+                      {name !== 'Alerts' && <div className="muted">Comes back {r.recurrence === 'each time' ? 'each time it applies' : r.recurrence}.</div>}
+                    </td>
+                    {name !== 'Alerts' && (
+                      <td>
+                        {r.notify === null ? null : (
+                          <input
+                            type="checkbox"
+                            aria-label={`Send a message for ${r.title}`}
+                            checked={r.notify}
+                            disabled={!isOwner || notify.isPending}
+                            title={isOwner ? undefined : 'Only an owner can change what is sent'}
+                            onChange={() => notify.mutate(r)}
+                          />
+                        )}
+                      </td>
+                    )}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+      ))}
+      {(toggle.error || notify.error) && <p className="problem" role="alert">{String((toggle.error ?? notify.error)?.message)}</p>}
+    </>
   )
 }
