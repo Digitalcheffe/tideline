@@ -50,6 +50,27 @@ public sealed class UndoThenImportTests : IDisposable
     }
 
     [Fact]
+    public async Task An_opening_balance_zeroed_after_the_undo_is_put_right_by_setting_it_to_the_difference()
+    {
+        var first = await _api.Pipeline.ImportTruistAsync(File1, Text(File1));
+        var account = _api.Scalar<long>("SELECT account_id FROM transactions LIMIT 1");
+        var opening = _api.Scalar<long>("SELECT opening_balance_cents FROM accounts WHERE id = @account", new { account });
+        var openingOn = _api.Scalar<string>("SELECT opening_on FROM accounts WHERE id = @account", new { account });
+        (await _api.Send(HttpMethod.Post, $"/api/v1/imports/{first.BatchId}/undo")).Status.Should().Be(HttpStatusCode.OK);
+
+        // what a person does: zero the balance to start over, then send the file again
+        var zeroed = await _api.Send(HttpMethod.Patch, $"/api/v1/accounts/{account}", new { openingBalanceCents = 0, openingOn });
+        zeroed.Status.Should().Be(HttpStatusCode.OK, zeroed.Body.ToString());
+        var again = await _api.Pipeline.ImportTruistAsync(File1, Text(File1));
+        again.Reconciliation!.Matches.Should().BeFalse("the starting money is gone, so the ledger is short by exactly that");
+        (again.Reconciliation.BankCents - again.Reconciliation.LedgerCents).Should().Be(opening);
+
+        var fixedUp = await _api.Send(HttpMethod.Patch, $"/api/v1/accounts/{account}", new { openingBalanceCents = opening, openingOn });
+        fixedUp.Status.Should().Be(HttpStatusCode.OK, fixedUp.Body.ToString());
+        Balance(account).Should().Be(again.Reconciliation.BankCents, "the ledger agrees with the bank again");
+    }
+
+    [Fact]
     public async Task A_line_left_out_by_hand_stays_out_when_the_file_is_sent_again()
     {
         (await _api.Pipeline.ImportTruistAsync(File1, Text(File1))).Succeeded.Should().BeTrue();
