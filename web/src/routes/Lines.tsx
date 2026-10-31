@@ -596,22 +596,22 @@ function BulkBar({
           <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} /> Remember this for next time
         </label>
       )}
-      {remember && ids.length === 2 && looksLikeTransfer && (
-        <div className="pattern-bits">
+      {ids.length === 2 && canCreate && looksLikeTransfer && (
+        <div className={`pattern-bits ${remember ? '' : 'off'}`}>
           <p className="muted pattern-help">
             Next time, a line with these words is paired with one from the other account for the same amount. These are the full descriptions. Delete anything that changes
             each time, such as a date or a number, so more lines match.
           </p>
           <label className="pattern-words">
             Out of {outLine.accountName}, the line says
-            <input type="text" aria-label="Words on the line going out" value={fromWords} onChange={(e) => setFromWords(e.target.value)} />
+            <input type="text" aria-label="Words on the line going out" value={fromWords} disabled={!remember} onChange={(e) => setFromWords(e.target.value)} />
           </label>
           <label className="pattern-words">
             Into {inLine.accountName}, the line says
-            <input type="text" aria-label="Words on the line coming in" value={toWords} onChange={(e) => setToWords(e.target.value)} />
+            <input type="text" aria-label="Words on the line coming in" value={toWords} disabled={!remember} onChange={(e) => setToWords(e.target.value)} />
           </label>
           <label>
-            <input type="checkbox" checked={applyPast} onChange={(e) => setApplyPast(e.target.checked)} /> Also pair the other matching lines already in the ledger
+            <input type="checkbox" checked={applyPast} disabled={!remember} onChange={(e) => setApplyPast(e.target.checked)} /> Also pair the other matching lines already in the ledger
           </label>
         </div>
       )}

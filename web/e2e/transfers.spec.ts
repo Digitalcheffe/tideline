@@ -113,3 +113,40 @@ test('a transfer can start a pattern from its drawer, with both accounts and the
       await page.request.delete(`/api/v1/transactions/${id}`, { headers: { 'X-CSRF-Token': (await (await page.request.get('/api/v1/auth/me')).json()).csrf } })
   }
 })
+
+test('unticking Remember keeps the words in view, and a saved pattern can be used on lines already in the ledger', async ({ page }) => {
+  const accounts: { id: number; name: string }[] = await api(page, 'get', '/api/v1/accounts')
+  const categories: { id: number; name: string }[] = await api(page, 'get', '/api/v1/categories')
+  const checking = accounts.find((a) => a.name === 'Checking')!.id
+  const savings = accounts.find((a) => a.name === 'Savings')!.id
+  const groceries = categories.find((c) => c.name === 'Groceries')!.id
+  const add = async (accountId: number, amountCents: number, description: string) =>
+    (await api(page, 'post', '/api/v1/transactions', { accountId, postedOn: '2025-07-12', amountCents, description, categoryId: groceries, type: 'extra' })).id as number
+  const ids = [await add(checking, -1500, 'ZZ LATER OUT 4'), await add(savings, 1500, 'ZZ LATER IN 4')]
+  const made = (await api(page, 'post', '/api/v1/move-patterns', { fromAccountId: checking, fromContains: 'ZZ LATER OUT', toAccountId: savings, toContains: 'ZZ LATER IN' })).id as number
+
+  try {
+    // the options do not disappear when the box is cleared, and they come back ticked for the next two lines
+    await page.goto('/lines?from=2025-07-01&to=2025-07-31&q=ZZ+LATER')
+    await page.getByLabel('Select all lines on this page').check()
+    await page.getByLabel('Remember this for next time').uncheck()
+    await expect(page.getByLabel('Words on the line going out')).toBeVisible()
+    await expect(page.getByLabel('Words on the line going out')).toBeDisabled()
+    await page.getByLabel('Remember this for next time').check()
+    await expect(page.getByLabel('Words on the line going out')).toBeEnabled()
+
+    // the pattern was saved after the lines came in, so it has not paired them; the button does
+    await page.goto('/settings/accounts')
+    await page.getByRole('row', { name: /ZZ LATER OUT/ }).getByRole('button', { name: 'Pair lines already in the ledger' }).click()
+    await expect(page.getByRole('status').filter({ hasText: 'Paired 1 transfer already in the ledger.' })).toBeVisible()
+    for (const id of ids) expect((await api(page, 'get', `/api/v1/transactions/${id}`)).moveId).not.toBeNull()
+  } finally {
+    const csrf = (await (await page.request.get('/api/v1/auth/me')).json()).csrf
+    await page.request.delete(`/api/v1/move-patterns/${made}`, { headers: { 'X-CSRF-Token': csrf } })
+    for (const id of ids) {
+      const line = await (await page.request.get(`/api/v1/transactions/${id}`)).json()
+      if (line.moveId) await page.request.delete(`/api/v1/moves/${line.moveId}`, { headers: { 'X-CSRF-Token': csrf } })
+      await page.request.delete(`/api/v1/transactions/${id}`, { headers: { 'X-CSRF-Token': csrf } })
+    }
+  }
+})

@@ -1109,6 +1109,11 @@ tr.left-out td {
   flex-basis: 100%;
 }
 
+/* with Remember unticked the words stay in view, dimmed, so the options never seem to vanish */
+.bulkbar .pattern-bits.off {
+  opacity: 0.55;
+}
+
 .bulkbar .pattern-bits .pattern-help {
   flex-basis: 100%;
   margin: 0;

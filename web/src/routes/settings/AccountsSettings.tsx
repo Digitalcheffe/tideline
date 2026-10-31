@@ -58,6 +58,8 @@ export function AccountsSettings() {
   const [params, setParams] = useSearchParams()
   const [pattern, setPattern] = useState<PatternRow | 'new' | null>(params.get('pattern') ? 'new' : null)
   const prefill = pattern === 'new' && params.get('pattern') ? params : null
+  const [note, setNote] = useState<string | null>(null)
+  const pairNow = useAct()
   const closePattern = () => {
     setPattern(null)
     if (params.get('pattern')) setParams({}, { replace: true })
@@ -122,7 +124,7 @@ export function AccountsSettings() {
         </div>
       </Card>
 
-      {pattern && <PatternForm key={pattern === 'new' ? 'new' : pattern.id} pattern={pattern === 'new' ? null : pattern} prefill={prefill} accounts={accounts.data} onClose={closePattern} />}
+      {pattern && <PatternForm key={pattern === 'new' ? 'new' : pattern.id} pattern={pattern === 'new' ? null : pattern} prefill={prefill} accounts={accounts.data} onClose={closePattern} onPaired={(done) => setNote(pairedSentence(done))} />}
       <Card
         title="Transfers between your accounts"
         aside={
@@ -133,8 +135,10 @@ export function AccountsSettings() {
       >
         <p className="muted">
           When a line leaves one account and a line with the matching words arrives in another within a few days, they are paired as a move and
-          left out of the spread.
+          left out of the spread. A pattern is used on each file as it is imported. To use one on lines already in the ledger, press <strong>Pair lines already in the ledger</strong>.
         </p>
+        {note && <p role="status">{note}</p>}
+        <Problem message={pairNow.error} />
         {patterns.data.length === 0 ? (
           <p className="muted">No patterns yet.</p>
         ) : (
@@ -161,6 +165,18 @@ export function AccountsSettings() {
                     <td>
                       <button type="button" className="btn" onClick={() => setPattern(p)}>
                         Change
+                      </button>{' '}
+                      <button
+                        type="button"
+                        className="btn"
+                        disabled={pairNow.busy}
+                        title="Pair the lines already in the ledger that this pattern recognises"
+                        onClick={async () => {
+                          const done = await pairNow.run(() => send<{ paired: number; skipped: number }>('POST', `/move-patterns/${p.id}/apply`))
+                          if (done) setNote(pairedSentence(done))
+                        }}
+                      >
+                        Pair lines already in the ledger
                       </button>
                     </td>
                   </tr>
@@ -360,10 +376,21 @@ function AccountForm({ account, all, onClose }: { account: AccountRow | null; al
   )
 }
 
+interface Paired {
+  paired: number
+  skipped: number
+}
+
+const pairedSentence = (d: Paired) =>
+  d.paired === 0
+    ? 'No lines already in the ledger matched that pattern.'
+    : `Paired ${d.paired} ${d.paired === 1 ? 'transfer' : 'transfers'} already in the ledger.${d.skipped > 0 ? ` ${d.skipped} could not be paired (a split line, for example).` : ''}`
+
 function PatternForm({
-  pattern, prefill, accounts, onClose,
-}: { pattern: PatternRow | null; prefill: URLSearchParams | null; accounts: AccountRow[]; onClose: () => void }) {
+  pattern, prefill, accounts, onClose, onPaired,
+}: { pattern: PatternRow | null; prefill: URLSearchParams | null; accounts: AccountRow[]; onClose: () => void; onPaired: (done: Paired) => void }) {
   const { run, error, busy } = useAct(onClose)
+  const [alsoPair, setAlsoPair] = useState(true)
   const [from, setFrom] = useState(pattern?.fromAccountId?.toString() ?? prefill?.get('from') ?? '')
   const [fromContains, setFromContains] = useState(pattern?.fromContains ?? prefill?.get('fromContains') ?? '')
   const [to, setTo] = useState(pattern?.toAccountId?.toString() ?? prefill?.get('to') ?? '')
@@ -385,7 +412,13 @@ function PatternForm({
         className="form"
         onSubmit={(e) => {
           e.preventDefault()
-          if (valid) void run(() => (pattern ? send('PATCH', `/move-patterns/${pattern.id}`, body()) : send('POST', '/move-patterns', body())))
+          if (valid)
+            void run(async () => {
+              let id = pattern?.id
+              if (pattern) await send('PATCH', `/move-patterns/${pattern.id}`, body())
+              else id = (await send<{ id: number }>('POST', '/move-patterns', body())).id
+              if (alsoPair && id !== undefined) onPaired(await send<Paired>('POST', `/move-patterns/${id}/apply`))
+            })
         }}
       >
         <label>
@@ -421,6 +454,11 @@ function PatternForm({
         <label>
           Most days apart
           <input type="number" min={0} max={30} value={days} onChange={(e) => setDays(e.target.value)} />
+        </label>
+        <label>
+          <span>
+            <input type="checkbox" checked={alsoPair} onChange={(e) => setAlsoPair(e.target.checked)} /> Also pair the matching lines already in the ledger
+          </span>
         </label>
         <Problem message={error} />
         <div className="toolbar">
