@@ -583,6 +583,29 @@ tbody tr.clickable:hover {
   background: var(--surface-2);
 }
 
+/* the way into a line: its description reads as a link, and a chevron ends the row */
+button.rowlink {
+  all: unset;
+  cursor: pointer;
+  color: var(--accent);
+  font-weight: 550;
+}
+
+tr.clickable:hover button.rowlink,
+button.rowlink:focus-visible {
+  text-decoration: underline;
+}
+
+td.chevron {
+  color: var(--muted);
+  text-align: right;
+  width: 1.5rem;
+}
+
+tr.clickable:hover td.chevron {
+  color: var(--accent);
+}
+
 .sticky-col {
   position: sticky;
   left: 0;
@@ -681,6 +704,54 @@ tbody tr.clickable:hover {
   margin-bottom: 0.6rem;
 }
 
+/* the filters above a list: one tidy block, the search box taking whatever room is left */
+.filterbar {
+  display: grid;
+  gap: 0.6rem;
+  padding: 0.75rem;
+  margin-bottom: 0.9rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.filterbar .row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.filterbar .grow {
+  flex: 1 1 14rem;
+  min-width: 0;
+}
+
+.filterbar .checks {
+  gap: 0.4rem 1.25rem;
+  font-size: 0.9rem;
+}
+
+.filterbar .checks label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  cursor: pointer;
+}
+
+.filterbar .spacer {
+  margin-left: auto;
+}
+
+.filterbar select,
+.filterbar button.btn,
+.toolbar select,
+.toolbar button.btn,
+.bulkbar select,
+.bulkbar button.btn {
+  min-height: 2.4rem;
+}
+
 /* every box you type in: roomier than the dropdowns and buttons, which are fine as they are */
 input[type='search'],
 input[type='text'],
@@ -764,6 +835,85 @@ button.btn:disabled {
   overflow-y: auto;
   padding: 16px;
   box-shadow: -4px 0 16px rgb(0 0 0 / 20%);
+}
+
+/* the title and Close stay in view while the rest scrolls */
+.drawer-head {
+  position: sticky;
+  top: -16px;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: -16px -16px 12px;
+  padding: 12px 16px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+
+.line-summary {
+  display: flex;
+  gap: 0.9rem;
+  align-items: baseline;
+  margin-bottom: 0.6rem;
+}
+
+.line-summary .line-amount {
+  font-size: 1.5rem;
+  font-weight: 650;
+  white-space: nowrap;
+}
+
+.setby {
+  margin: 0.6rem 0;
+  font-size: 0.9rem;
+}
+
+/* a part you rarely need: a line to open, not a block to scroll past */
+details.fold {
+  margin-top: 0.75rem;
+  border-top: 1px solid var(--border);
+  padding-top: 0.6rem;
+}
+
+details.fold > summary,
+details.frombank > summary {
+  cursor: pointer;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+details.fold[open] > summary {
+  margin-bottom: 0.5rem;
+}
+
+.form.two {
+  grid-template-columns: 1fr 1fr;
+}
+
+.form.two .wide {
+  grid-column: 1 / -1;
+}
+
+@media (max-width: 480px) {
+  .form.two {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Save is always in view at the bottom of the drawer */
+.savebar {
+  position: sticky;
+  bottom: -16px;
+  z-index: 2;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  margin: 12px -16px 0;
+  padding: 10px 16px;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
 }
 
 .drawer h3 {
@@ -852,7 +1002,7 @@ button.btn:disabled {
 button.pick {
   all: unset;
   cursor: pointer;
-  border-bottom: 1px dotted var(--muted);
+  border-bottom: 1px dotted transparent;
 }
 
 button.pick:hover,

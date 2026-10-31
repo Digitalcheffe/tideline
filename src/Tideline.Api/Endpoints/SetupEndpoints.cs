@@ -87,6 +87,20 @@ public static class SetupEndpoints
                 return new { changed = new RuleEditor(c, clock, who).ApplyToPast(id, from, to) };
             }));
 
+        // run every rule again over past lines: what it would change (nothing saved), then doing it
+        api.MapPost("/rules/rerun/test", (PeriodRequest request, HttpContext http, SqliteConnectionFactory f, TimeProvider t) =>
+            Edits.Run(http, f, t, (c, clock, who) =>
+            {
+                var (from, to) = Period(request.From, request.To);
+                return new RuleEditor(c, clock, who).TestRerun(from, to);
+            }));
+        api.MapPost("/rules/rerun", (PeriodRequest request, HttpContext http, SqliteConnectionFactory f, TimeProvider t) =>
+            Edits.Run(http, f, t, (c, clock, who) =>
+            {
+                var (from, to) = Period(request.From, request.To);
+                return new { changed = new RuleEditor(c, clock, who).Rerun(from, to) };
+            }));
+
         // the few app settings: owner only
         api.MapGet("/settings", (SqliteConnectionFactory f) =>
         {

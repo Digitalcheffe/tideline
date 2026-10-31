@@ -33,7 +33,7 @@ const TOPICS: Topic[] = [
           </li>
           <li>
             <strong>Look at what came in.</strong> Lines the rules could not place wait in <L to="/needs">Needs a category</L>, which also shows as a count on the Overview and in the menu. Pick what each one was and press <strong>Answer</strong>;
-            tick <strong>Remember as a rule</strong> to teach the rules so the next import is better. A check is only a number from the bank, so each one gets its own alert asking what it was.
+            press <strong>Answer and make a rule</strong> to teach the rules so the next import is better. A check is only a number from the bank, so each one gets its own alert asking what it was.
           </li>
           <li>
             <strong>Read the screens.</strong> <L to="/">Overview</L> is the summary. Everything else is a closer look.
@@ -353,7 +353,7 @@ const TOPICS: Topic[] = [
         <h3>What does the review tag mean?</h3>
         <p>
           No rule matched, so the line went to Uncategorized and was tagged for you to look at. Money coming into a checking or savings account is counted as Income until you decide, so a first paycheck is not
-          shown as spending. Answer it in <L to="/needs">Needs a category</L> (or change it in the Ledger), and tick <strong>Remember as a rule</strong> if it will happen again. Once it has a real category the review tag
+          shown as spending. Answer it in <L to="/needs">Needs a category</L> (or change it in the Ledger), and press <strong>Answer and make a rule</strong> if it will happen again. Once it has a real category the review tag
           goes, and it leaves the count.
         </p>
         <h3>A check keeps asking what it was</h3>

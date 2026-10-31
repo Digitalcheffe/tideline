@@ -45,6 +45,11 @@ Conditions (words in the description, amount range, account, direction) decide t
 match wins. Before saving, **See what it would change** lists every past line a draft rule would change. **Apply** then updates past lines, and
 skips any you set by hand.
 
+A rule you add or change only works on new lines until you use it on the past. **Run all the rules again over past lines** (Settings, Rules) tries
+every rule, in order, on lines already in the ledger, for the last 90 days, the last year or everything. It lists what would change first, then
+changes those lines. Lines you set by hand, transfers and lines left out are skipped, a bill or plan link you made stays unless a rule names a
+different one, and each change is in the audit log with before and after.
+
 A new household can start from a **starter set** of about 40 categories and 50 rules for national shops, bills and the wording banks use. An
 owner adds it with one button in Settings, Rules (or `tideline starter`); it is audited, adds only what is missing, and the button goes away
 once everything is there. They come after any rule you make, so yours always win. Anything they cannot tell goes to Uncategorized with the review tag,
@@ -58,10 +63,11 @@ A line is **waiting for an answer** when it has no category, is still in Uncateg
 out are never in the pile. The count is live (not the nightly one) and does not depend on the period in the menu, because it is a to-do list.
 It shows as a tile on the Overview and a number beside Ledger in the menu, and opens exactly those lines in the Ledger (`needs=true`).
 
-The **Needs a category** screen goes through the pile one line at a time: pick a category, add a payee if you know it, and press Answer. The
-type comes from the category, the line is marked as set by you, and `review` is dropped. Owners can tick **Remember this as a rule**, which makes
-a rule from the line's words and applies it to the other lines in the pile, so the look-alikes disappear. Giving a line a category in the drawer
-or in bulk drops `review` too, unless you set the tags yourself in the same save.
+The **Needs a category** screen is the Ledger showing only that pile, with the same search, sort, account and direction filters, tick-boxes and
+bulk bar. Each row has a category picker and an **Answer** button. The type comes from the category, the line is marked as set by you, and `review`
+is dropped. Owners also get **Answer and make a rule**, which makes a rule from the line's words and applies it to the other lines in the pile, so
+the look-alikes disappear. Click a line's description to open the full line. Giving a line a category in the drawer or in bulk drops `review` too,
+unless you set the tags yourself in the same save.
 
 Checks are asked about one at a time (the alert above), because the bank gives only a number and an amount. For a check you write often for the
 same amount (rent, a sitter), a rule that starts with `Check #` and has that amount does the job.

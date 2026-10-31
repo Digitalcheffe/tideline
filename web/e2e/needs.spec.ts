@@ -48,12 +48,11 @@ test.describe.serial('needs a category', () => {
     const before = await waiting(page)
 
     await page.goto('/needs')
-    const row = page.getByRole('listitem').filter({ hasText: 'E2E MYSTERY SHOP 77' })
+    const row = page.getByRole('row').filter({ hasText: 'E2E MYSTERY SHOP 77' })
     await row.getByLabel('Category for E2E MYSTERY SHOP 77').selectOption({ label: 'Groceries (Required)' })
-    await row.getByLabel('Payee for E2E MYSTERY SHOP 77').fill('Corner Shop')
-    await row.getByRole('button', { name: 'Answer' }).click()
+    await row.getByRole('button', { name: 'Answer', exact: true }).click()
 
-    await expect(page.getByText('E2E MYSTERY SHOP 77')).toHaveCount(0)
+    await expect(page.getByRole('row').filter({ hasText: 'E2E MYSTERY SHOP 77' })).toHaveCount(0) // the message under the filters may still name it
     expect(await waiting(page)).toBe(before - 1)
     await expect(page.getByRole('navigation', { name: 'Screens' }).getByRole('link', { name: /Needs a category/ })).toContainText(String(before - 1))
 
@@ -72,11 +71,10 @@ test.describe.serial('needs a category', () => {
     expect(flags.map((f: { title: string }) => f.title)).toContain('Check #9001, $250.00, Oct 5: what was it?')
 
     await page.goto('/needs')
-    const row = page.getByRole('listitem').filter({ hasText: 'Check #9001' })
-    await expect(row.getByText('Check', { exact: true })).toBeVisible()
+    const row = page.getByRole('row').filter({ hasText: 'Check #9001' })
     await row.getByLabel('Category for Check #9001').selectOption({ label: 'Rent (Required)' })
-    await row.getByRole('button', { name: 'Answer' }).click()
-    await expect(page.getByText('Check #9001')).toHaveCount(0)
+    await row.getByRole('button', { name: 'Answer', exact: true }).click()
+    await expect(page.getByRole('row').filter({ hasText: 'Check #9001' })).toHaveCount(0)
 
     const after = await openChecks()
     expect(after.map((f: { title: string }) => f.title)).not.toContain('Check #9001, $250.00, Oct 5: what was it?')
@@ -88,10 +86,9 @@ test.describe.serial('needs a category', () => {
     const before = await waiting(page)
 
     await page.goto('/needs')
-    const row = page.getByRole('listitem').filter({ hasText: 'TWINSHOP ALPHA #1' })
+    const row = page.getByRole('row').filter({ hasText: 'TWINSHOP ALPHA #1' })
     await row.getByLabel('Category for TWINSHOP ALPHA #1').selectOption({ label: 'Groceries (Required)' })
-    await row.getByLabel('Remember as a rule').check()
-    await row.getByRole('button', { name: 'Answer' }).click()
+    await row.getByRole('button', { name: 'Answer and make a rule' }).click()
 
     await expect(page.getByRole('status').filter({ hasText: /made the rule/ })).toContainText('Lines like TWINSHOP ALPHA')
     expect(await waiting(page)).toBe(before - 1)

@@ -179,7 +179,7 @@ public sealed partial class GateTests(ITestOutputHelper output) : IDisposable
     /// <summary>Only works on an app with no users, which this test's app is not. FirstRunTests does it and checks its audit rows (user.created, user.password_set).</summary>
     private static readonly string[] CoveredElsewhere = ["POST /auth/first-run"];
 
-    private static readonly string[] ReadOnlyPosts = ["POST /rules/test", "POST /budgets/{year:int}/fill-from-averages", "POST /notify/test", "POST /imports/simplefin/dry-run"];
+    private static readonly string[] ReadOnlyPosts = ["POST /rules/test", "POST /rules/rerun/test", "POST /budgets/{year:int}/fill-from-averages", "POST /notify/test", "POST /imports/simplefin/dry-run"];
 
     private long Id(string table, string name) => _api.Scalar<long>($"SELECT id FROM {table} WHERE name = @name", new { name });
 
@@ -263,6 +263,8 @@ public sealed partial class GateTests(ITestOutputHelper output) : IDisposable
                 await Ok(HttpMethod.Post, "/api/v1/rules/reorder", new { ids = (await _api.Get("/api/v1/rules")).EnumerateArray().Select(r => r.GetProperty("id").GetInt64()).Reverse().ToArray() })),
             new("POST /rules/{id:long}/apply", Kind.Update, "rule.apply", () => Ok(HttpMethod.Post, $"/api/v1/rules/{rule}/apply", new { from = "2026-03-01", to = "2026-03-31" })),
             new("DELETE /rules/{id:long}", Kind.Delete, "rule.deleted", () => Ok(HttpMethod.Delete, $"/api/v1/rules/{rule}")),
+            // with the rule gone, the lines it had sorted fall back to the catch-all, so there is something to change
+            new("POST /rules/rerun", Kind.Update, "rule.rerun", () => Ok(HttpMethod.Post, "/api/v1/rules/rerun", new { from = "2026-03-01", to = "2026-03-31" })),
 
             // suggestions on flags
             new("POST /recommendations/action", Kind.Update, "transaction.update", async () =>

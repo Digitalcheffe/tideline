@@ -55,13 +55,15 @@ test.describe.serial('smoke', () => {
     await page.getByText('GROCERY STORE #12').click()
 
     const drawer = page.getByRole('dialog', { name: 'Transaction' })
+    await drawer.getByText('Split this line').click() // the split editor folds away until it is wanted
     await drawer.getByRole('button', { name: 'Add a split' }).click()
     await drawer.getByLabel('Split amount').fill('10.00')
     await drawer.getByLabel('Split category').selectOption({ label: 'Uncategorized' })
     await expect(drawer).toContainText('Remaining unassigned: -$75.40')
     await drawer.getByRole('button', { name: 'Save splits' }).click()
     await expect(drawer.getByText('Remaining unassigned').last()).toBeVisible()
-    await expect(drawer).toContainText('Uncategorized (Extra)')
+    await expect(drawer.getByLabel('Split category')).toHaveCount(1) // the saved split is shown, and its type came from the category
+    await expect(drawer.getByLabel('Split type')).toHaveValue('extra')
     await drawer.getByRole('button', { name: 'Close' }).click()
 
     await page.goto(`/?${MARCH}`)

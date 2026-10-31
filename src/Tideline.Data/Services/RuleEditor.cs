@@ -350,4 +350,81 @@ public sealed class RuleEditor(IDbConnection conn, TimeProvider clock, Actor? ac
         if (changed > 0) new FlagRepository(conn, clock, tx).ResolveAnsweredChecks();
         return changed;
     });
+
+    // ---- running every rule again over the past ---------------------------------------------------------------------
+
+    private sealed record Redo(LineRow Line, Classification Now, List<long> StoredTags);
+
+    /// <summary>
+    /// Every line in the period the rules, as they stand now, would give a different meaning. Lines set by hand, transfers and lines left
+    /// out are not looked at. A bill or plan link a person made stays unless a rule names a different one.
+    /// </summary>
+    private (int Checked, List<Redo> Changes) WhatRulesWouldChange(DateOnly from, DateOnly to, IDbTransaction tx)
+    {
+        var classifier = LineClassifier.Load(conn, clock, tx);
+        var stored = conn.Query<(long TransactionId, long TagId)>("""
+            SELECT tt.transaction_id, tt.tag_id FROM transaction_tags tt JOIN transactions t ON t.id = tt.transaction_id
+            WHERE t.posted_on BETWEEN @from AND @to
+            """, new { from, to }, tx).GroupBy(x => x.TransactionId).ToDictionary(g => g.Key, g => g.Select(x => x.TagId).Order().ToList());
+
+        var lines = Lines(from, to, tx);
+        var changes = new List<Redo>();
+        foreach (var l in lines)
+        {
+            var kind = TypeHandlers.FromDb<AccountKind>(l.AccountKind);
+            var k = classifier.Classify(new RuleLine(l.Description, l.AmountCents, l.BankNumber ?? "", kind), Merchant(l.RawJson));
+            var tags = stored.GetValueOrDefault(l.Id) ?? [];
+            var same = l.CategoryId == k.CategoryId && l.Type == k.Type.ToDb() && l.Payee == k.Payee && l.RuleId == k.RuleId
+                       && (k.RecurringId is null || k.RecurringId == l.RecurringId) && (k.PlanId is null || k.PlanId == l.PlanId)
+                       && tags.SequenceEqual(k.TagIds.Distinct().Order());
+            if (!same) changes.Add(new Redo(l, k, tags));
+        }
+        return (lines.Count, changes);
+    }
+
+    /// <summary>What running every rule again over the period would change. Nothing is saved.</summary>
+    public RuleTestResult TestRerun(DateOnly from, DateOnly to)
+    {
+        TypeHandlers.EnsureRegistered();
+        if (to < from) throw Bad("The end of the period is before its start.");
+        using var tx = conn.BeginTransaction(); // read only: rolled back at the end
+        var (count, changes) = WhatRulesWouldChange(from, to, tx);
+
+        var names = conn.Query<(long Id, string Name)>("SELECT id, name FROM categories", transaction: tx).ToDictionary(x => x.Id, x => x.Name);
+        var ruleNames = conn.Query<(long Id, string Name)>("SELECT id, name FROM rules", transaction: tx).ToDictionary(x => x.Id, x => x.Name);
+        var tagNames = conn.Query<(long Id, string Name)>("SELECT id, name FROM tags", transaction: tx).ToDictionary(x => x.Id, x => x.Name);
+        string Tag(long id) => tagNames.GetValueOrDefault(id) ?? "tag";
+
+        var samples = changes.Take(SampleLimit).Select(c => new RuleChange(c.Line.Id, c.Line.PostedOn.ToString("yyyy-MM-dd"), c.Line.Description, c.Line.AmountCents, c.Line.AccountName,
+            new Meaning(c.Line.CategoryId, c.Line.CategoryName, c.Line.Type ?? "", c.Line.Payee, c.Line.RuleId, c.Line.RuleId is { } a ? ruleNames.GetValueOrDefault(a) : null, c.StoredTags.Select(Tag).OrderBy(n => n).ToList()),
+            new Meaning(c.Now.CategoryId, c.Now.CategoryId is { } b ? names.GetValueOrDefault(b) : null, c.Now.Type.ToDb(), c.Now.Payee, c.Now.RuleId, c.Now.RuleId is { } r ? ruleNames.GetValueOrDefault(r) : null, c.Now.TagIds.Select(Tag).OrderBy(n => n).ToList()))).ToList();
+
+        tx.Rollback();
+        return new RuleTestResult(count, changes.Count, samples);
+    }
+
+    /// <summary>
+    /// Runs every rule again over the lines in the period, so a rule made or changed since they came in is used on them. Each line that would
+    /// get a different meaning is changed; lines you set by hand are skipped. One audit entry per changed line, all sharing an apply id.
+    /// </summary>
+    public int Rerun(DateOnly from, DateOnly to) => InTransaction((tx, audit) =>
+    {
+        if (to < from) throw Bad("The end of the period is before its start.");
+        var (_, changes) = WhatRulesWouldChange(from, to, tx);
+        var applyId = Guid.NewGuid().ToString("N");
+
+        foreach (var c in changes)
+        {
+            var l = c.Line;
+            var k = c.Now;
+            conn.Execute("UPDATE transactions SET category_id = @cat, type = @type, payee = @payee, recurring_id = COALESCE(@rec, recurring_id), plan_id = COALESCE(@plan, plan_id), rule_id = @rule, updated_at = @now WHERE id = @id",
+                new { id = l.Id, cat = k.CategoryId, type = k.Type.ToDb(), payee = k.Payee, rec = k.RecurringId, plan = k.PlanId, rule = k.RuleId, now = clock.GetUtcNow() }, tx);
+            conn.Execute("DELETE FROM transaction_tags WHERE transaction_id = @id", new { id = l.Id }, tx);
+            foreach (var tagId in k.TagIds.Distinct())
+                conn.Execute("INSERT INTO transaction_tags (transaction_id, tag_id) VALUES (@id, @tagId)", new { id = l.Id, tagId }, tx);
+            audit.Write("rule.rerun", "transaction", l.Id, new { l.CategoryId, l.Type, l.Payee, l.RuleId, TagIds = c.StoredTags }, new { k.CategoryId, Type = k.Type.ToDb(), k.Payee, k.RuleId, TagIds = k.TagIds.Distinct().Order().ToList(), applyId });
+        }
+        if (changes.Count > 0) new FlagRepository(conn, clock, tx).ResolveAnsweredChecks();
+        return changes.Count;
+    });
 }

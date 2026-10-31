@@ -23,6 +23,7 @@ test.describe.serial('leaving a line out, and deleting one', () => {
     const line = await addLine(page, 'E2E DOUBLE CHARGE', -4321)
 
     await page.goto(`/lines?from=2025-09-01&to=2025-09-30&tx=${line}`)
+    await page.getByText('Remove this line').click() // folded away until it is wanted
     await page.getByLabel('Why leave this line out').fill('charged twice')
     await page.getByRole('button', { name: 'Leave out of the totals' }).click()
     await expect(page.getByText('Left out of the totals').first()).toBeVisible()
@@ -49,6 +50,7 @@ test.describe.serial('leaving a line out, and deleting one', () => {
     const line = await addLine(page, 'E2E ADDED BY MISTAKE', -999)
 
     await page.goto(`/lines?from=2025-09-01&to=2025-09-30&tx=${line}`)
+    await page.getByText('Remove this line').click()
     page.once('dialog', (d) => void d.accept())
     await page.getByRole('button', { name: 'Delete this line' }).click()
     await expect(page.getByText('Transaction', { exact: true })).toBeVisible()

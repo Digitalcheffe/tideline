@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { get, send } from '../../api'
 import { Badge, Card, ErrorBox, Loading } from '../../components'
 import { daysAgoLocal, dollars, todayLocal, typeLabel } from '../../format'
@@ -162,6 +162,7 @@ export function RulesSettings() {
             <Problem message={loadStarter.error} />
           </section>
         )}
+        <RerunPanel />
         <div className="table-wrap">
           <table>
             <thead>
@@ -207,6 +208,123 @@ export function RulesSettings() {
         </div>
       </Card>
     </>
+  )
+}
+
+// ---- running every rule again -------------------------------------------------------------------------------
+
+const SPANS: { key: string; label: string; from: () => string; to: () => string }[] = [
+  { key: '90', label: 'The last 90 days', from: () => daysAgoLocal(90), to: () => todayLocal() },
+  { key: '365', label: 'The last year', from: () => daysAgoLocal(365), to: () => todayLocal() },
+  { key: 'all', label: 'Everything', from: () => '1900-01-01', to: () => '2999-12-31' },
+]
+
+/**
+ * Rules decide what a line means when it comes in. After a rule is made or changed, this runs all of them again over lines already in the
+ * ledger: look first at what would change, then do it. Lines you set by hand are skipped.
+ */
+function RerunPanel() {
+  const [span, setSpan] = useState('365')
+  const [result, setResult] = useState<TestResult | null>(null)
+  const [done, setDone] = useState<number | null>(null)
+  const check = useAct()
+  const run = useAct()
+  const client = useQueryClient()
+  const chosen = SPANS.find((s) => s.key === span)!
+
+  return (
+    <details className="panel" aria-label="Run the rules again">
+      <summary>
+        <strong>Run all the rules again over past lines</strong>
+      </summary>
+      <p className="muted">
+        A rule you add or change only works on new lines. This tries every rule, in order, on lines already in the ledger. Lines you set by hand, transfers and lines left out
+        are skipped, and a bill link you made stays. Look at what would change first.
+      </p>
+      <div className="toolbar">
+        <select
+          aria-label="Which lines"
+          value={span}
+          onChange={(e) => {
+            setSpan(e.target.value)
+            setResult(null)
+            setDone(null)
+          }}
+        >
+          {SPANS.map((s) => (
+            <option key={s.key} value={s.key}>
+              {s.label}
+            </option>
+          ))}
+        </select>
+        <button
+          type="button"
+          className="btn"
+          disabled={check.busy}
+          onClick={async () => {
+            setDone(null)
+            setResult((await check.run(() => send<TestResult>('POST', '/rules/rerun/test', { from: chosen.from(), to: chosen.to() }))) ?? null)
+          }}
+        >
+          See what would change
+        </button>
+        {result && result.wouldChange > 0 && (
+          <button
+            type="button"
+            className="btn primary"
+            disabled={run.busy}
+            onClick={async () => {
+              if (!window.confirm(`Change ${result.wouldChange} lines to what the rules say now? Lines you set by hand are skipped. Each change goes in the audit log.`)) return
+              const changed = await run.run(() => send<{ changed: number }>('POST', '/rules/rerun', { from: chosen.from(), to: chosen.to() }))
+              if (changed) {
+                setDone(changed.changed)
+                setResult(null)
+                void client.invalidateQueries()
+              }
+            }}
+          >
+            {run.busy ? 'Working…' : `Run them on ${result.wouldChange} ${result.wouldChange === 1 ? 'line' : 'lines'}`}
+          </button>
+        )}
+      </div>
+      <Problem message={check.error ?? run.error} />
+      {done !== null && <p role="status">Changed {done} {done === 1 ? 'line' : 'lines'}. Each change is in the audit log.</p>}
+      {result && (
+        <>
+          <p role="status">
+            {result.wouldChange === 0
+              ? `Nothing would change. All ${result.linesChecked} lines already match the rules.`
+              : `${result.wouldChange} of ${result.linesChecked} lines would change${result.wouldChange > result.changes.length ? ` (showing the first ${result.changes.length})` : ''}.`}
+          </p>
+          {result.changes.length > 0 && (
+            <div className="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th>Line</th>
+                    <th className="num">Amount</th>
+                    <th>Now</th>
+                    <th>Would become</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {result.changes.map((c) => (
+                    <tr key={c.transactionId}>
+                      <td>{c.postedOn}</td>
+                      <td>{c.description}</td>
+                      <td className="num">{dollars(c.amountCents)}</td>
+                      <td>{summary(c.before)}</td>
+                      <td>{summary(c.after)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </>
+      )}
+    </details>
   )
 }
 

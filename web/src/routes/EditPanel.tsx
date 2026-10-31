@@ -17,7 +17,10 @@ export function EditPanel({ t }: { t: TransactionDetail }) {
   return (
     <>
       <MeaningForm t={t} />
-      <SplitsForm t={t} />
+      <details className="fold" open={t.splits.length > 0}>
+        <summary>Split this line{t.splits.length > 0 ? ` (${t.splits.length})` : ''}</summary>
+        <SplitsForm t={t} />
+      </details>
     </>
   )
 }
@@ -77,8 +80,7 @@ function MeaningForm({ t }: { t: TransactionDetail }) {
         save.mutate()
       }}
     >
-      <h3>Change what it means</h3>
-      <div className="form">
+      <div className="form two">
         <label>
           Category
           <select value={categoryId} onChange={(e) => pickCategory(e.target.value)}>
@@ -105,7 +107,7 @@ function MeaningForm({ t }: { t: TransactionDetail }) {
           <input type="text" value={payee} onChange={(e) => setPayee(e.target.value)} />
         </label>
         <label>
-          Tags <span className="muted">(separate with commas)</span>
+          Tags <span className="muted">(commas)</span>
           <input type="text" value={tags} onChange={(e) => setTags(e.target.value)} />
         </label>
         {((plans.data?.length ?? 0) > 0 || planId !== '') && (
@@ -150,12 +152,14 @@ function MeaningForm({ t }: { t: TransactionDetail }) {
             </span>
           )}
         </label>
-        <label>
+        <label className="wide">
           Notes
           <textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
         </label>
       </div>
-      <div className="toolbar" style={{ marginTop: 8 }}>
+      {save.isSuccess && <p><Badge tone="good">Saved</Badge> <span className="muted">This line is now marked as set by you.</span></p>}
+      {(save.error || reset.error) && <p className="problem" role="alert">{String((save.error ?? reset.error)?.message)}</p>}
+      <div className="savebar">
         <button className="btn primary" type="submit" disabled={save.isPending}>
           {save.isPending ? 'Saving…' : 'Save'}
         </button>
@@ -181,8 +185,6 @@ function MeaningForm({ t }: { t: TransactionDetail }) {
           </Link>
         )}
       </div>
-      {save.isSuccess && <p><Badge tone="good">Saved</Badge> <span className="muted">This line is now marked as set by you.</span></p>}
-      {(save.error || reset.error) && <p className="problem" role="alert">{String((save.error ?? reset.error)?.message)}</p>}
     </form>
   )
 }
@@ -225,7 +227,6 @@ function SplitsForm({ t }: { t: TransactionDetail }) {
 
   return (
     <>
-      <h3>Split this line</h3>
       <p className="muted">
         Move part of it to another category or type. What you leave unassigned keeps the line's own category and type, and the total never changes.
       </p>

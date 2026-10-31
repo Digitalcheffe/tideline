@@ -20,7 +20,7 @@ export function TransactionDrawer({ id, onClose }: { id: number; onClose: () => 
     <>
       <div className="scrim" onClick={onClose} />
       <aside className="drawer" role="dialog" aria-label="Transaction">
-        <div className="toolbar" style={{ justifyContent: 'space-between' }}>
+        <div className="drawer-head">
           <strong>Transaction</strong>
           <button className="btn" onClick={onClose}>
             Close
@@ -80,8 +80,8 @@ function RemoveLine({ t }: { t: TransactionDetail }) {
   const manual = t.bank.source === 'manual'
 
   return (
-    <>
-      <h3>Remove this line</h3>
+    <details className="fold">
+      <summary>Remove this line</summary>
       <p className="muted">
         {manual
           ? 'You added this line by hand, so you can delete it, or just leave it out of the totals.'
@@ -110,7 +110,7 @@ function RemoveLine({ t }: { t: TransactionDetail }) {
           {error.message}
         </p>
       )}
-    </>
+    </details>
   )
 }
 
@@ -137,8 +137,19 @@ function Detail({ t }: { t: TransactionDetail }) {
   return (
     <>
       {t.leftOut && <LeftOutNotice t={t} />}
-      <div className="frombank">
-        <strong>From the bank</strong> <span className="muted">(never changes)</span>
+      <div className="line-summary">
+        <Money cents={t.bank.amountCents} className="line-amount" />
+        <div>
+          <strong>{t.bank.description}</strong>
+          <div className="muted">
+            {dateLabel(t.bank.postedOn)} · {t.bank.accountName}
+          </div>
+        </div>
+      </div>
+      <details className="frombank">
+        <summary>
+          <strong>From the bank</strong> <span className="muted">(never changes)</span>
+        </summary>
         <dl className="kv" style={{ marginTop: 6 }}>
           <dt>Account</dt>
           <dd>{t.bank.accountName}</dd>
@@ -169,9 +180,9 @@ function Detail({ t }: { t: TransactionDetail }) {
             {t.bank.source} <span className="muted">({t.bank.externalId})</span>
           </dd>
         </dl>
-      </div>
+      </details>
 
-      <h3>Meaning</h3>
+      {(t.movePartner || t.moveId || t.leftOut) && <h3>Meaning</h3>}
       {t.movePartner ? (
         <>
           <p>
@@ -188,6 +199,25 @@ function Detail({ t }: { t: TransactionDetail }) {
           </p>
           {unpairButton('Release this line')}
         </>
+      ) : !t.leftOut ? (
+        <p className="setby">
+          Set by{' '}
+          {t.isManualOverride ? (
+            <Badge tone="info">You, by hand</Badge>
+          ) : t.rule ? (
+            <>
+              rule <strong>{t.rule.name}</strong>
+            </>
+          ) : (
+            <span className="muted">no rule matched, so it went to the catch-all</span>
+          )}
+          {t.asset && (
+            <>
+              {' · '}
+              <Link to="/assets">{t.asset.name}</Link>
+            </>
+          )}
+        </p>
       ) : (
         <dl className="kv">
           <dt>Type</dt>
@@ -230,8 +260,8 @@ function Detail({ t }: { t: TransactionDetail }) {
       {!t.moveId && !t.leftOut && <EditPanel t={t} />}
       {!t.moveId && !t.leftOut && <RemoveLine t={t} />}
 
-      <h3>Splits as they stand</h3>
-      {t.splits.length === 0 ? (
+      {(t.moveId || t.leftOut) && <h3>Splits as they stand</h3>}
+      {!(t.moveId || t.leftOut) ? null : t.splits.length === 0 ? (
         <p className="muted">Not split.</p>
       ) : (
         <table>
@@ -258,8 +288,8 @@ function Detail({ t }: { t: TransactionDetail }) {
       )}
 
       {t.raw && (
-        <>
-          <h3>Original row</h3>
+        <details className="fold">
+          <summary>Original row</summary>
           <dl className="kv">
             {Object.entries(t.raw)
               .filter(([, v]) => v !== '')
@@ -270,19 +300,21 @@ function Detail({ t }: { t: TransactionDetail }) {
                 </div>
               ))}
           </dl>
-        </>
+        </details>
       )}
 
-      <h3>History</h3>
-      {t.audit.length === 0 ? <p className="muted">No changes yet.</p> : (
-        <ul>
-          {t.audit.map((a) => (
-            <li key={a.id}>
-              {dateLabel(a.at.slice(0, 10))} · {a.action} {a.user ? `by ${a.user}` : ''}
-            </li>
-          ))}
-        </ul>
-      )}
+      <details className="fold">
+        <summary>History{t.audit.length > 0 ? ` (${t.audit.length})` : ''}</summary>
+        {t.audit.length === 0 ? <p className="muted">No changes yet.</p> : (
+          <ul>
+            {t.audit.map((a) => (
+              <li key={a.id}>
+                {dateLabel(a.at.slice(0, 10))} · {a.action} {a.user ? `by ${a.user}` : ''}
+              </li>
+            ))}
+          </ul>
+        )}
+      </details>
 
       <p style={{ marginTop: 16 }}>
         <Link to={`/lines?from=${t.bank.postedOn}&to=${t.bank.postedOn}&account=${t.bank.accountId}&move=include`}>Everything on this account that day</Link>

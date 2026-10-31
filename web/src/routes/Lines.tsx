@@ -6,6 +6,7 @@ import { getLines, get, send, type AccountInfo, type CategoryInfo } from '../api
 import { Badge, Card, Empty, ErrorBox, Loading, Money } from '../components'
 import { dateLabel, dollars, ruleParams, ruleWords, typeLabel } from '../format'
 import { usePeriod } from '../period'
+import { AnswerCell } from './NeedsAnswer'
 import { TransactionDrawer } from './TransactionDrawer'
 
 const SORTS: { key: string; label: string }[] = [
@@ -19,13 +20,23 @@ const SORTS: { key: string; label: string }[] = [
  * The ledger: every line, for the period in the menu. It is also the drill-down view that every number on every screen
  * opens (docs/ARCHITECTURE.md), so the filters live in the URL.
  */
-export function Lines() {
+export function Lines({ needsMode = false }: { needsMode?: boolean } = {}) {
   const [params, setParams] = useSearchParams()
   const period = usePeriod()
-  const isOwner = useMe().user.role === 'owner' // making a rule is an owner's job
+  const me = useMe().user
+  const isOwner = me.role === 'owner' // making a rule is an owner's job
+  const canAnswer = me.role !== 'viewer'
+  const [message, setMessage] = useState<string | null>(null)
   const open = params.get('tx')
   const apiParams = new URLSearchParams(params)
   apiParams.delete('tx')
+  // the pile waiting for a category is a to-do list, not a period: oldest first, no dates
+  if (needsMode) {
+    apiParams.set('needs', 'true')
+    apiParams.set('from', '1900-01-01')
+    apiParams.set('to', '2999-12-31')
+    if (!apiParams.has('sort')) apiParams.set('sort', 'date_asc')
+  }
   // no period in the address means the one in the menu (this month)
   if (!apiParams.has('from')) apiParams.set('from', period.from)
   if (!apiParams.has('to')) apiParams.set('to', period.to)
@@ -60,7 +71,7 @@ export function Lines() {
   const filterKeys = ['type', 'category', 'account', 'asset', 'tag', 'review', 'needs', 'recurring', 'direction', 'q', 'minCents', 'maxCents', 'move', 'leftOut']
   const needsView = apiParams.get('needs') === 'true'
   const leftOutView = apiParams.get('leftOut') === 'true'
-  const filtersActive = filterKeys.some((k) => apiParams.has(k))
+  const filtersActive = filterKeys.some((k) => apiParams.has(k) && !(needsMode && k === 'needs'))
   const clearFilters = () => {
     const next = new URLSearchParams(params)
     filterKeys.forEach((k) => next.delete(k))
@@ -91,7 +102,13 @@ export function Lines() {
 
   return (
     <>
-      <h1>Ledger</h1>
+      <h1>{needsMode ? 'Needs a category' : 'Ledger'}</h1>
+      {needsMode && (
+        <p className="muted">
+          Lines the rules could not place, and checks, which the bank only gives as a number. Pick a category on a row and press Answer, or tick several lines and set their category together.
+          {isOwner && ' Answer and make a rule teaches Tideline the line’s words, so the next ones sort themselves.'}
+        </p>
+      )}
       <div className="chips" aria-label="Filters">
         {chips.map((c) => (
           <span className="chip" key={c}>
@@ -100,53 +117,10 @@ export function Lines() {
         ))}
       </div>
 
-      <div className="toolbar">
-        <select aria-label="Account" value={apiParams.get('account') ?? ''} onChange={(e) => set('account', e.target.value)}>
-          <option value="">All accounts</option>
-          {accounts.data?.map((a) => (
-            <option key={a.id} value={a.id}>
-              {a.name}
-            </option>
-          ))}
-        </select>
-        <select aria-label="Category" value={apiParams.get('category') ?? ''} onChange={(e) => set('category', e.target.value)}>
-          <option value="">All categories</option>
-          {categories.data?.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.name}
-            </option>
-          ))}
-        </select>
-        <select aria-label="Type" value={apiParams.get('type') ?? ''} onChange={(e) => set('type', e.target.value)}>
-          <option value="">All types</option>
-          {['income', 'bill', 'required', 'extra', 'one_time', 'savings'].map((t) => (
-            <option key={t} value={t}>
-              {typeLabel(t)}
-            </option>
-          ))}
-        </select>
-        <select aria-label="Direction" value={apiParams.get('direction') ?? ''} onChange={(e) => set('direction', e.target.value)}>
-          <option value="">In and out</option>
-          <option value="in">Money in</option>
-          <option value="out">Money out</option>
-        </select>
-        <label>
-          <input type="checkbox" checked={apiParams.get('review') === 'true'} onChange={(e) => set('review', e.target.checked ? 'true' : null)} /> To review
-        </label>
-        {needsView && (
-          <Link className="btn" to="/needs">
-            Answer them one by one
-          </Link>
-        )}
-        {filtersActive && (
-          <button className="btn" type="button" onClick={clearFilters}>
-            Clear filters
-          </button>
-        )}
-      </div>
-
-      <div className="toolbar">
+      <div className="filterbar">
+      <div className="row">
         <input
+          className="grow"
           type="search"
           placeholder="Search description, payee, notes"
           aria-label="Search"
@@ -160,13 +134,62 @@ export function Lines() {
             </option>
           ))}
         </select>
-        <label>
-          <input type="checkbox" checked={apiParams.get('move') === 'include'} disabled={leftOutView} onChange={(e) => set('move', e.target.checked ? 'include' : null)} /> Show transfers
-        </label>
-        <label title="Lines you took out of every total, such as a duplicate. Open one to bring it back.">
-          <input type="checkbox" checked={leftOutView} onChange={(e) => set('leftOut', e.target.checked ? 'true' : null)} /> Left out
-        </label>
       </div>
+      <div className="row">
+        <select aria-label="Account" value={apiParams.get('account') ?? ''} onChange={(e) => set('account', e.target.value)}>
+          <option value="">All accounts</option>
+          {accounts.data?.map((a) => (
+            <option key={a.id} value={a.id}>
+              {a.name}
+            </option>
+          ))}
+        </select>
+        {!needsMode && (
+          <>
+            <select aria-label="Category" value={apiParams.get('category') ?? ''} onChange={(e) => set('category', e.target.value)}>
+              <option value="">All categories</option>
+              {categories.data?.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+            <select aria-label="Type" value={apiParams.get('type') ?? ''} onChange={(e) => set('type', e.target.value)}>
+              <option value="">All types</option>
+              {['income', 'bill', 'required', 'extra', 'one_time', 'savings'].map((t) => (
+                <option key={t} value={t}>
+                  {typeLabel(t)}
+                </option>
+              ))}
+            </select>
+          </>
+        )}
+        <select aria-label="Direction" value={apiParams.get('direction') ?? ''} onChange={(e) => set('direction', e.target.value)}>
+          <option value="">In and out</option>
+          <option value="in">Money in</option>
+          <option value="out">Money out</option>
+        </select>
+        {filtersActive && (
+          <button className="btn spacer" type="button" onClick={clearFilters}>
+            Clear filters
+          </button>
+        )}
+      </div>
+      {!needsMode && (
+        <div className="row checks">
+          <label>
+            <input type="checkbox" checked={apiParams.get('review') === 'true'} onChange={(e) => set('review', e.target.checked ? 'true' : null)} /> To review
+          </label>
+          <label>
+            <input type="checkbox" checked={apiParams.get('move') === 'include'} disabled={leftOutView} onChange={(e) => set('move', e.target.checked ? 'include' : null)} /> Show transfers
+          </label>
+          <label title="Lines you took out of every total, such as a duplicate. Open one to bring it back.">
+            <input type="checkbox" checked={leftOutView} onChange={(e) => set('leftOut', e.target.checked ? 'true' : null)} /> Left out
+          </label>
+        </div>
+      )}
+      </div>
+      {message && <p role="status">{message}</p>}
 
       <Card
         title={lines.data ? `${lines.data.summary.count} ${lines.data.summary.count === 1 ? 'line' : 'lines'}` : 'Lines'}
@@ -199,8 +222,9 @@ export function Lines() {
                   <th>Date</th>
                   <th>Account</th>
                   <th>Description</th>
-                  <th>Meaning</th>
+                  <th>{needsMode ? 'What was it?' : 'Meaning'}</th>
                   <th className="num">Amount</th>
+                  <th aria-label="Open" />
                 </tr>
               </thead>
               <tbody>
@@ -222,7 +246,17 @@ export function Lines() {
                       </Pick>
                     </td>
                     <td>
-                      {l.description}
+                      <button
+                        type="button"
+                        className="rowlink"
+                        title="Open this line to see and change it"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          set('tx', String(l.transactionId))
+                        }}
+                      >
+                        {l.description}
+                      </button>
                       {l.payee && l.payee !== l.description && (
                         <span className="cell-note">
                           <Pick onPick={() => set('q', l.payee)} title={`Search for ${l.payee}`}>
@@ -244,8 +278,10 @@ export function Lines() {
                         </span>
                       )}
                     </td>
-                    <td>
-                      {l.type ? (
+                    <td onClick={needsMode && canAnswer && !l.isSplitPart ? (e) => e.stopPropagation() : undefined}>
+                      {needsMode && canAnswer && l.type && !l.isSplitPart ? (
+                        <AnswerCell line={l} categories={(categories.data ?? []).filter((c) => c.name !== 'Uncategorized')} isOwner={isOwner} onDone={setMessage} />
+                      ) : l.type ? (
                         <>
                           <Pick onPick={() => set('type', l.type)} title="Only this type">
                             {typeLabel(l.type)}
@@ -267,6 +303,9 @@ export function Lines() {
                     </td>
                     <td className="num">
                       <Money cents={l.amountCents} />
+                    </td>
+                    <td className="chevron" aria-hidden="true">
+                      ›
                     </td>
                   </tr>
                 ))}
