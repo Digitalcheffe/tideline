@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useSearchParams } from 'react-router-dom'
-import { get, send } from '../../api'
+import { get, send, type CategoryInfo } from '../../api'
+import { CategoryPicker } from '../../CategoryPicker'
 import { Badge, Card, ErrorBox, Loading } from '../../components'
 import { dollars, parseDollars, todayLocal, typeLabel } from '../../format'
 import { FindBills } from './FindBills'
@@ -34,7 +35,7 @@ interface Named {
 
 export function RecurringSettings() {
   const recurring = useQuery({ queryKey: ['settings', 'recurring'], queryFn: () => get<RecurringRow[]>('/recurring') })
-  const categories = useQuery({ queryKey: ['categories'], queryFn: () => get<Named[]>('/categories') })
+  const categories = useQuery({ queryKey: ['categories'], queryFn: () => get<CategoryInfo[]>('/categories') })
   const accounts = useQuery({ queryKey: ['accounts-list'], queryFn: () => get<Named[]>('/accounts') })
   const [editing, setEditing] = useState<RecurringRow | 'new' | null>(null)
   const { run, error, busy } = useAct()
@@ -151,7 +152,7 @@ export function RecurringSettings() {
   )
 }
 
-function RecurringForm({ item, categories, accounts, onClose }: { item: RecurringRow | null; categories: Named[]; accounts: Named[]; onClose: () => void }) {
+function RecurringForm({ item, categories, accounts, onClose }: { item: RecurringRow | null; categories: CategoryInfo[]; accounts: Named[]; onClose: () => void }) {
   const { run, error, busy } = useAct(onClose)
   const [name, setName] = useState(item?.name ?? '')
   const [categoryId, setCategoryId] = useState(item?.categoryId.toString() ?? '')
@@ -209,14 +210,7 @@ function RecurringForm({ item, categories, accounts, onClose }: { item: Recurrin
         </label>
         <label>
           Category
-          <select value={categoryId} onChange={(e) => setCategoryId(e.target.value)}>
-            <option value="">Pick a category</option>
-            {categories.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-          </select>
+          <CategoryPicker categories={categories} value={categoryId} label="Category" canCreate onChange={(id) => setCategoryId(id)} />
         </label>
         <label>
           Lowest you expect

@@ -29,6 +29,27 @@ test.describe('the ledger and the line drawer', () => {
     expect(a!.width).toBeGreaterThan(300)
   })
 
+  test('the Ledger can be searched by amount, in the search box or with the amount boxes', async ({ page }) => {
+    await page.goto(`/lines?${MARCH}`)
+
+    // a lone amount in the search box finds lines of exactly that size
+    await page.getByRole('searchbox', { name: 'Search' }).fill('$85.40')
+    await page.getByRole('searchbox', { name: 'Search' }).press('Enter')
+    await expect(page.getByText('exactly $85.40')).toBeVisible()
+    await expect(page.getByRole('button', { name: 'GROCERY STORE #12' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'CITY POWER AUTOPAY' })).toHaveCount(0)
+
+    // a range with the amount boxes
+    await page.goto(`/lines?${MARCH}`)
+    await page.getByLabel('Amount from').fill('80')
+    await page.getByLabel('Amount to').fill('90')
+    await page.getByLabel('Amount to').press('Enter')
+    await expect(page.getByText('at least $80.00')).toBeVisible()
+    await expect(page.getByText('at most $90.00')).toBeVisible()
+    await expect(page.getByRole('button', { name: 'GROCERY STORE #12' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'CITY POWER AUTOPAY' })).toHaveCount(0)
+  })
+
   test('Run all the rules again shows what would change without changing it', async ({ page }) => {
     await page.goto('/settings/rules')
     await page.getByText('Run all the rules again over past lines').click()

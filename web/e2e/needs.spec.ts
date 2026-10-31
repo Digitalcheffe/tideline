@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
+import { pickCategory } from './pick'
 
 // Signed in as the owner by global-setup. The lines here are in a month no other spec uses.
 async function api(page: Page, method: 'get' | 'post' | 'patch', url: string, data?: unknown) {
@@ -49,7 +50,7 @@ test.describe.serial('needs a category', () => {
 
     await page.goto('/needs')
     const row = page.getByRole('row').filter({ hasText: 'E2E MYSTERY SHOP 77' })
-    await row.getByLabel('Category for E2E MYSTERY SHOP 77').selectOption({ label: 'Groceries (Required)' })
+    await pickCategory(page, row.getByRole('combobox', { name: 'Category for E2E MYSTERY SHOP 77' }), 'Groceries')
     await row.getByRole('button', { name: 'Answer', exact: true }).click()
 
     await expect(page.getByRole('row').filter({ hasText: 'E2E MYSTERY SHOP 77' })).toHaveCount(0) // the message under the filters may still name it
@@ -72,7 +73,7 @@ test.describe.serial('needs a category', () => {
 
     await page.goto('/needs')
     const row = page.getByRole('row').filter({ hasText: 'Check #9001' })
-    await row.getByLabel('Category for Check #9001').selectOption({ label: 'Rent (Required)' })
+    await pickCategory(page, row.getByRole('combobox', { name: 'Category for Check #9001' }), 'Rent')
     await row.getByRole('button', { name: 'Answer', exact: true }).click()
     await expect(page.getByRole('row').filter({ hasText: 'Check #9001' })).toHaveCount(0)
 
@@ -87,7 +88,7 @@ test.describe.serial('needs a category', () => {
 
     await page.goto('/needs')
     const row = page.getByRole('row').filter({ hasText: 'TWINSHOP ALPHA #1' })
-    await row.getByLabel('Category for TWINSHOP ALPHA #1').selectOption({ label: 'Groceries (Required)' })
+    await pickCategory(page, row.getByRole('combobox', { name: 'Category for TWINSHOP ALPHA #1' }), 'Groceries')
     await row.getByRole('button', { name: 'Answer and make a rule' }).click()
 
     await expect(page.getByRole('status').filter({ hasText: /made the rule/ })).toContainText('Lines like TWINSHOP ALPHA')
@@ -96,5 +97,36 @@ test.describe.serial('needs a category', () => {
     await page.goto('/settings/rules')
     await expect(page.getByRole('cell', { name: 'Lines like TWINSHOP ALPHA', exact: true })).toBeVisible()
     await expect(page.getByText('the description contains TWINSHOP ALPHA')).toBeVisible()
+  })
+
+  test('a category that does not exist is made from the row, and a line can count as another type', async ({ page }) => {
+    const trash = await addWaitingLine(page, 'E2E TRASH PICKUP 5', -3500)
+    const cleaner = await addWaitingLine(page, 'E2E CLEANER 6', -9000)
+
+    await page.goto('/needs')
+    // no "E2E Trash Service" category yet: make it right here, as a bill
+    let row = page.getByRole('row').filter({ hasText: 'E2E TRASH PICKUP 5' })
+    const box = row.getByRole('combobox', { name: 'Category for E2E TRASH PICKUP 5' })
+    await box.click()
+    await box.fill('E2E Trash Service')
+    await page.getByRole('option', { name: /Make a new category/ }).click()
+    await page.getByLabel('Type for the new category').selectOption('bill')
+    await page.getByRole('button', { name: 'Make it and use it' }).click()
+    await expect(box).toHaveValue('E2E Trash Service')
+    await row.getByRole('button', { name: 'Answer', exact: true }).click()
+    await expect(page.getByRole('row').filter({ hasText: 'E2E TRASH PICKUP 5' })).toHaveCount(0)
+    const made = await api(page, 'get', `/api/v1/transactions/${trash}`)
+    expect(made.categoryName).toBe('E2E Trash Service')
+    expect(made.type).toBe('bill')
+
+    // Rent is a Required category; the check is for a house cleaner, which this household counts as Extra
+    row = page.getByRole('row').filter({ hasText: 'E2E CLEANER 6' })
+    await pickCategory(page, row.getByRole('combobox', { name: 'Category for E2E CLEANER 6' }), 'Rent')
+    await row.getByLabel('Type for E2E CLEANER 6').selectOption({ label: 'Extra' })
+    await row.getByRole('button', { name: 'Answer', exact: true }).click()
+    await expect(page.getByRole('row').filter({ hasText: 'E2E CLEANER 6' })).toHaveCount(0)
+    const counted = await api(page, 'get', `/api/v1/transactions/${cleaner}`)
+    expect(counted.categoryName).toBe('Rent')
+    expect(counted.type).toBe('extra')
   })
 })

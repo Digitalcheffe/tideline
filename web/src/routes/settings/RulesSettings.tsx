@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { get, send } from '../../api'
+import { get, send, type CategoryInfo } from '../../api'
+import { CategoryPicker } from '../../CategoryPicker'
 import { Badge, Card, ErrorBox, Loading } from '../../components'
 import { daysAgoLocal, dollars, todayLocal, typeLabel } from '../../format'
 import { Panel, Problem, TYPE_CHOICES, useAct } from './common'
@@ -43,11 +44,6 @@ interface TestResult {
   changes: { transactionId: number; postedOn: string; description: string; amountCents: number; accountName: string; before: Meaning; after: Meaning }[]
 }
 
-interface Named {
-  id: number
-  name: string
-}
-
 interface StarterStatus {
   categoriesInPack: number
   categoriesToAdd: number
@@ -87,7 +83,7 @@ export function describe(c: Condition): string {
 
 export function RulesSettings() {
   const rules = useQuery({ queryKey: ['settings', 'rules'], queryFn: () => get<RuleRow[]>('/rules') })
-  const categories = useQuery({ queryKey: ['categories'], queryFn: () => get<Named[]>('/categories') })
+  const categories = useQuery({ queryKey: ['categories'], queryFn: () => get<CategoryInfo[]>('/categories') })
   const [params, setParams] = useSearchParams()
   const [editing, setEditing] = useState<RuleRow | 'new' | null>(params.get('new') ? 'new' : null)
   const move = useAct()
@@ -95,6 +91,7 @@ export function RulesSettings() {
   const starter = useQuery({ queryKey: ['settings', 'rules', 'starter'], queryFn: () => get<StarterStatus>('/rules/starter'), retry: false })
   const loadStarter = useAct()
   const [loaded, setLoaded] = useState<StarterResult | null>(null)
+  const [appliedNow, setAppliedNow] = useState<number | null>(null)
 
   // "Create rule from this line" in the ledger arrives here with the line's words and what was picked already filled in
   const prefill = editing === 'new' && params.get('new') ? params : null
@@ -117,7 +114,14 @@ export function RulesSettings() {
   return (
     <>
       {editing && (
-        <RuleForm key={editing === 'new' ? 'new' : editing.id} rule={editing === 'new' ? null : editing} prefill={prefill} categories={categories.data} onClose={closeForm} />
+        <RuleForm
+          key={editing === 'new' ? 'new' : editing.id}
+          rule={editing === 'new' ? null : editing}
+          prefill={prefill}
+          categories={categories.data}
+          onClose={closeForm}
+          onApplied={(changed) => setAppliedNow(changed)}
+        />
       )}
       <Card
         title="Rules"
@@ -132,6 +136,11 @@ export function RulesSettings() {
           changed by a rule.
         </p>
         <Problem message={move.error} />
+        {appliedNow !== null && (
+          <p role="status">
+            Rule saved, and it changed {appliedNow} past {appliedNow === 1 ? 'line' : 'lines'}. Each change is in the audit log.
+          </p>
+        )}
         {loaded && (
           <p role="status">
             Added {loaded.categoriesAdded.length} categor{loaded.categoriesAdded.length === 1 ? 'y' : 'ies'} and {loaded.rulesAdded.length} rule
@@ -384,7 +393,9 @@ function prefilledRows(p: URLSearchParams | null): Row[] {
   return rows
 }
 
-function RuleForm({ rule, prefill, categories, onClose }: { rule: RuleRow | null; prefill: URLSearchParams | null; categories: Named[]; onClose: () => void }) {
+function RuleForm({
+  rule, prefill, categories, onClose, onApplied,
+}: { rule: RuleRow | null; prefill: URLSearchParams | null; categories: CategoryInfo[]; onClose: () => void; onApplied: (changed: number) => void }) {
   const { run, error, busy } = useAct(onClose)
   const [name, setName] = useState(
     rule?.name ??
@@ -463,14 +474,7 @@ function RuleForm({ rule, prefill, categories, onClose }: { rule: RuleRow | null
           <legend>Then set</legend>
           <label>
             Category
-            <select value={categoryId} onChange={(e) => setCategoryId(e.target.value)}>
-              <option value="">Leave to the category's own type</option>
-              {categories.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
+            <CategoryPicker categories={categories} value={categoryId} label="Category" canCreate noneLabel="No category" onChange={(id) => setCategoryId(id)} />
           </label>
           <label>
             Type
@@ -503,6 +507,22 @@ function RuleForm({ rule, prefill, categories, onClose }: { rule: RuleRow | null
         <div className="toolbar">
           <button className="btn primary" type="submit" disabled={busy || problem !== null}>
             Save
+          </button>
+          <button
+            type="button"
+            className="btn"
+            disabled={busy || problem !== null}
+            title="Save the rule, then use it on every past line it matches. Lines you set by hand are skipped."
+            onClick={() =>
+              void run(async () => {
+                const id = rule ? rule.id : (await send<{ id: number }>('POST', '/rules', definition())).id
+                if (rule) await send('PATCH', `/rules/${rule.id}`, definition())
+                const done = await send<{ changed: number }>('POST', `/rules/${id}/apply`, { from: '1900-01-01', to: '2999-12-31' })
+                onApplied(done.changed)
+              })
+            }
+          >
+            Save and apply to matching lines
           </button>
           {rule && (
             <button

@@ -34,7 +34,7 @@ public sealed record BulkChange(long? CategoryId = null, string? Type = null, IR
 public sealed record BulkResult(int Updated, int SkippedTransfers, int NotFound);
 
 /// <summary>The quick answer to "what was this line?": a real category and, if known, who it was. The type comes from the category.</summary>
-public sealed record AnswerRequest(long? CategoryId, string? Payee);
+public sealed record AnswerRequest(long? CategoryId, string? Payee, string? Type = null);
 
 /// <summary>Lines left out in one go. Skipped ones are in a transfer or were already left out; a transfer has to be unpaired first.</summary>
 public sealed record LeaveOutResult(int LeftOut, int Skipped, int NotFound);
@@ -238,10 +238,12 @@ public sealed class TransactionEditor(IDbConnection conn, TimeProvider clock, Ac
     /// The quick way through the "needs a category" pile: set a real category (and its type), say who it was if known, and the line leaves the pile.
     /// Refused if the line is not in the pile any more (someone else answered it), so a stale list cannot overwrite a good answer.
     /// </summary>
+    /// <param name="type">Optional. The category's own type is used unless one is given, for a line that is, say, Home maintenance but counts as Extra.</param>
     /// <returns>The line's new version.</returns>
-    public string Answer(long id, long categoryId, string? payee)
+    public string Answer(long id, long categoryId, string? payee, string? type = null)
     {
         TypeHandlers.EnsureRegistered();
+        LineType? chosen = string.IsNullOrWhiteSpace(type) ? null : ParseType(type);
         using var tx = conn.BeginTransaction();
         var c = Load(id, tx);
         RequireNotMove(c);
@@ -257,10 +259,10 @@ public sealed class TransactionEditor(IDbConnection conn, TimeProvider clock, Ac
 
         var before = Snapshot(id, tx);
         conn.Execute("""
-            UPDATE transactions SET category_id = @categoryId, type = (SELECT default_type FROM categories WHERE id = @categoryId),
+            UPDATE transactions SET category_id = @categoryId, type = COALESCE(@type, (SELECT default_type FROM categories WHERE id = @categoryId)),
                 payee = COALESCE(@payee, payee), is_manual_override = 1, updated_at = @now
             WHERE id = @id
-            """, new { id, categoryId, payee = string.IsNullOrWhiteSpace(payee) ? null : payee.Trim(), now = clock.GetUtcNow() }, tx);
+            """, new { id, categoryId, type = chosen?.ToDb(), payee = string.IsNullOrWhiteSpace(payee) ? null : payee.Trim(), now = clock.GetUtcNow() }, tx);
         DropReview(id, tx);
         new FlagRepository(conn, clock, tx).ResolveAnsweredChecks();
 

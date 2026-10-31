@@ -4,8 +4,9 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { useMe } from '../auth'
 import { getLines, get, send, type AccountInfo, type CategoryInfo } from '../api'
 import { Badge, Card, Empty, ErrorBox, Loading, Money } from '../components'
-import { dateLabel, dollars, ruleParams, ruleWords, typeLabel } from '../format'
+import { dateLabel, dollars, parseDollars, ruleParams, ruleWords, typeLabel } from '../format'
 import { usePeriod } from '../period'
+import { CategoryPicker } from '../CategoryPicker'
 import { AnswerCell } from './NeedsAnswer'
 import { TransactionDrawer } from './TransactionDrawer'
 
@@ -68,6 +69,33 @@ export function Lines({ needsMode = false }: { needsMode?: boolean } = {}) {
     setParams(next)
   }
 
+  const setMany = (entries: Record<string, string | null>) => {
+    const next = new URLSearchParams(params)
+    for (const [key, value] of Object.entries(entries)) {
+      if (value === null || value === '') next.delete(key)
+      else next.set(key, value)
+    }
+    next.delete('page')
+    setParams(next)
+  }
+
+  /** The search box: words search the description, payee and notes; a lone amount like 45.20 finds lines of exactly that size, in or out. */
+  const search = (text: string) => {
+    const t = text.trim()
+    const cents = /^\$?\s*\d[\d,]*(\.\d{1,2})?$/.test(t) ? parseDollars(t) : null
+    if (cents !== null && cents > 0) setMany({ q: null, minCents: String(cents), maxCents: String(cents) })
+    else set('q', t)
+  }
+
+  /** An amount box: dollars in, whole cents in the address. Empty clears it. */
+  const amountBox = (key: 'minCents' | 'maxCents', text: string) => {
+    const t = text.trim()
+    const cents = t === '' ? null : parseDollars(t)
+    if (t !== '' && (cents === null || cents < 0)) return
+    const next = cents === null ? '' : String(cents)
+    if (next !== (apiParams.get(key) ?? '')) set(key, next)
+  }
+
   const filterKeys = ['type', 'category', 'account', 'asset', 'tag', 'review', 'needs', 'recurring', 'direction', 'q', 'minCents', 'maxCents', 'move', 'leftOut']
   const needsView = apiParams.get('needs') === 'true'
   const leftOutView = apiParams.get('leftOut') === 'true'
@@ -97,8 +125,11 @@ export function Lines({ needsMode = false }: { needsMode?: boolean } = {}) {
   if (leftOutView) chips.push('left out of the totals')
   if (apiParams.get('direction')) chips.push(apiParams.get('direction') === 'in' ? 'money in' : 'money out')
   if (apiParams.get('q')) chips.push(`“${apiParams.get('q')}”`)
-  if (apiParams.get('minCents')) chips.push(`at least ${dollars(Number(apiParams.get('minCents')))}`)
-  if (apiParams.get('maxCents')) chips.push(`at most ${dollars(Number(apiParams.get('maxCents')))}`)
+  if (apiParams.get('minCents') && apiParams.get('minCents') === apiParams.get('maxCents')) chips.push(`exactly ${dollars(Number(apiParams.get('minCents')))}`)
+  else {
+    if (apiParams.get('minCents')) chips.push(`at least ${dollars(Number(apiParams.get('minCents')))}`)
+    if (apiParams.get('maxCents')) chips.push(`at most ${dollars(Number(apiParams.get('maxCents')))}`)
+  }
 
   return (
     <>
@@ -122,10 +153,11 @@ export function Lines({ needsMode = false }: { needsMode?: boolean } = {}) {
         <input
           className="grow"
           type="search"
-          placeholder="Search description, payee, notes"
+          placeholder="Search words, or an amount like 45.20"
           aria-label="Search"
           defaultValue={apiParams.get('q') ?? ''}
-          onKeyDown={(e) => e.key === 'Enter' && set('q', (e.target as HTMLInputElement).value)}
+          key={`q-${apiParams.get('q') ?? ''}`}
+          onKeyDown={(e) => e.key === 'Enter' && search((e.target as HTMLInputElement).value)}
         />
         <select aria-label="Sort" value={apiParams.get('sort') ?? 'date_desc'} onChange={(e) => set('sort', e.target.value)}>
           {SORTS.map((s) => (
@@ -169,6 +201,20 @@ export function Lines({ needsMode = false }: { needsMode?: boolean } = {}) {
           <option value="in">Money in</option>
           <option value="out">Money out</option>
         </select>
+        {(['minCents', 'maxCents'] as const).map((key) => (
+          <input
+            key={`${key}-${apiParams.get(key) ?? ''}`}
+            className="amount-box"
+            type="text"
+            inputMode="decimal"
+            aria-label={key === 'minCents' ? 'Amount from' : 'Amount to'}
+            placeholder={key === 'minCents' ? '$ from' : '$ to'}
+            title="Size of the line in dollars, whether it came in or went out"
+            defaultValue={apiParams.get(key) ? (Number(apiParams.get(key)) / 100).toFixed(2) : ''}
+            onKeyDown={(e) => e.key === 'Enter' && amountBox(key, (e.target as HTMLInputElement).value)}
+            onBlur={(e) => amountBox(key, e.target.value)}
+          />
+        ))}
         {filtersActive && (
           <button className="btn spacer" type="button" onClick={clearFilters}>
             Clear filters
@@ -280,7 +326,7 @@ export function Lines({ needsMode = false }: { needsMode?: boolean } = {}) {
                     </td>
                     <td onClick={needsMode && canAnswer && !l.isSplitPart ? (e) => e.stopPropagation() : undefined}>
                       {needsMode && canAnswer && l.type && !l.isSplitPart ? (
-                        <AnswerCell line={l} categories={(categories.data ?? []).filter((c) => c.name !== 'Uncategorized')} isOwner={isOwner} onDone={setMessage} />
+                        <AnswerCell line={l} categories={(categories.data ?? []).filter((c) => c.name !== 'Uncategorized')} isOwner={isOwner} onDone={setMessage} onOpen={() => set('tx', String(l.transactionId))} />
                       ) : l.type ? (
                         <>
                           <Pick onPick={() => set('type', l.type)} title="Only this type">
@@ -353,6 +399,7 @@ function Pick({ onPick, title, children }: { onPick: () => void; title: string; 
 /** Change several lines at once: the quick way to fix a pile of tags or categories. */
 function BulkBar({ ids, categories, leftOut, onDone }: { ids: number[]; categories: CategoryInfo[]; leftOut: boolean; onDone: () => void }) {
   const client = useQueryClient()
+  const canCreate = useMe().user.role === 'owner'
   const [categoryId, setCategoryId] = useState('')
   const [type, setType] = useState('')
   const [addTags, setAddTags] = useState('')
@@ -392,9 +439,9 @@ function BulkBar({ ids, categories, leftOut, onDone }: { ids: number[]; categori
     },
   })
 
-  const pickCategory = (value: string) => {
+  const pickCategory = (value: string, made: CategoryInfo | null = null) => {
     setCategoryId(value)
-    const chosen = categories.find((c) => String(c.id) === value)
+    const chosen = made ?? categories.find((c) => String(c.id) === value)
     if (chosen && !type) setType(chosen.type)
   }
 
@@ -441,14 +488,7 @@ function BulkBar({ ids, categories, leftOut, onDone }: { ids: number[]; categori
       }}
     >
       <strong>{ids.length} selected</strong>
-      <select aria-label="Set category" value={categoryId} onChange={(e) => pickCategory(e.target.value)}>
-        <option value="">Category: no change</option>
-        {categories.map((c) => (
-          <option key={c.id} value={c.id}>
-            {c.name}
-          </option>
-        ))}
-      </select>
+      <CategoryPicker categories={categories} value={categoryId} label="Set category" canCreate={canCreate} noneLabel="Category: no change" onChange={pickCategory} />
       <select aria-label="Set type" value={type} onChange={(e) => setType(e.target.value)}>
         <option value="">Type: no change</option>
         {['income', 'bill', 'required', 'extra', 'one_time', 'savings'].map((t) => (

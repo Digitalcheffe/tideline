@@ -44,6 +44,31 @@ public sealed class NeedsCategoryTests : IDisposable
     // ---- the count and the lines behind it ------------------------------------------------------------------------
 
     [Fact]
+    public async Task An_answer_can_give_the_line_a_type_other_than_the_categorys_own()
+    {
+        var id = _api.IdOf("MYSTERY VENDOR 9");
+        var rent = Category("Rent"); // a Required category: a house cleaner's check is in it, but counts as Extra
+
+        await Answer(id, new { categoryId = rent, type = "extra" });
+
+        var line = await _api.Get($"/api/v1/transactions/{id}");
+        line.GetProperty("categoryName").GetString().Should().Be("Rent");
+        line.GetProperty("type").GetString().Should().Be("extra", "the person's choice wins over the category's default");
+        line.GetProperty("isManualOverride").GetBoolean().Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task Without_a_type_the_category_decides_and_a_made_up_type_is_refused()
+    {
+        var id = _api.IdOf("MYSTERY VENDOR 9");
+        await Answer(id, new { categoryId = Category("Rent"), type = "nonsense" }, HttpStatusCode.BadRequest);
+        (await _api.Get($"/api/v1/transactions/{id}")).GetProperty("categoryName").GetString().Should().Be("Uncategorized", "a refused answer changes nothing");
+
+        await Answer(id, new { categoryId = Category("Rent") });
+        (await _api.Get($"/api/v1/transactions/{id}")).GetProperty("type").GetString().Should().Be("required");
+    }
+
+    [Fact]
     public async Task The_count_is_live_and_its_drill_opens_exactly_those_lines()
     {
         var n = await Needs();

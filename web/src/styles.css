@@ -739,6 +739,10 @@ tr.clickable:hover td.chevron {
   cursor: pointer;
 }
 
+.filterbar .amount-box {
+  width: 7rem;
+}
+
 .filterbar .spacer {
   margin-left: auto;
 }
@@ -835,6 +839,68 @@ button.btn:disabled {
   overflow-y: auto;
   padding: 16px;
   box-shadow: -4px 0 16px rgb(0 0 0 / 20%);
+}
+
+/* the category picker: type a few letters, or make a new one on the spot */
+.picker {
+  position: relative;
+  min-width: 13rem;
+  flex: 1 1 13rem;
+}
+
+.picker input {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.picker-pop {
+  position: fixed;
+  z-index: 40;
+  max-height: 18rem;
+  overflow-y: auto;
+  padding: 0.25rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 6px 20px rgb(0 0 0 / 25%);
+}
+
+.picker-pop ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.picker-pop li {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.4rem 0.6rem;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.picker-pop li.active {
+  background: var(--surface-2);
+}
+
+.picker-create {
+  display: grid;
+  gap: 0.5rem;
+  padding: 0.5rem;
+}
+
+.picker-create p {
+  margin: 0;
+}
+
+/* the quick answer on a row of the Needs pile */
+.answer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  align-items: center;
+  min-width: 20rem;
 }
 
 /* the title and Close stay in view while the rest scrolls */

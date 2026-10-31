@@ -28,7 +28,8 @@ lines out of the totals; Restore puts them back.
 
 ## The Ledger
 
-Every line for the period, with filters for account, category, type, direction, tags and text. Open a line to:
+Every line for the period, with filters for account, category, type, direction, tags and text. Type words in the search box, or a lone amount such
+as `45.20` to find lines of exactly that size, or use the **$ from** and **$ to** boxes for a range (in or out). Click a line's description to open it, to:
 
 - change its category, type, payee, tags and notes (it is then marked as set by you, and rules will not overwrite it);
 - **split** it across categories and types without changing the total;
@@ -44,6 +45,8 @@ Tick several lines to change them together, or, with two ticked, to pair them as
 Conditions (words in the description, amount range, account, direction) decide the category, type, payee and tags. They run in order and the first
 match wins. Before saving, **See what it would change** lists every past line a draft rule would change. **Apply** then updates past lines, and
 skips any you set by hand.
+
+**Save and apply to matching lines** on the rule form saves the rule and uses it on every past line it matches in one step, and says how many changed.
 
 A rule you add or change only works on new lines until you use it on the past. **Run all the rules again over past lines** (Settings, Rules) tries
 every rule, in order, on lines already in the ledger, for the last 90 days, the last year or everything. It lists what would change first, then
@@ -64,9 +67,14 @@ out are never in the pile. The count is live (not the nightly one) and does not 
 It shows as a tile on the Overview and a number beside Ledger in the menu, and opens exactly those lines in the Ledger (`needs=true`).
 
 The **Needs a category** screen is the Ledger showing only that pile, with the same search, sort, account and direction filters, tick-boxes and
-bulk bar. Each row has a category picker and an **Answer** button. The type comes from the category, the line is marked as set by you, and `review`
-is dropped. Owners also get **Answer and make a rule**, which makes a rule from the line's words and applies it to the other lines in the pile, so
-the look-alikes disappear. Click a line's description to open the full line. Giving a line a category in the drawer or in bulk drops `review` too,
+bulk bar. Each row has a category picker and an **Answer** button. The type comes from the category unless you choose another on the row (a check
+to a house cleaner can be Home maintenance and still count as Extra). The line is marked as set by you, and `review` is dropped. Owners also get
+**Answer and make a rule**, which makes a rule from the line's words and applies it to the other lines in the pile, so the look-alikes disappear.
+**More** (or the line's description) opens the full line.
+
+The **category picker** is the same everywhere a category is chosen (the pile, the line drawer, the bulk bar, rules and recurring items). Type a few
+letters to narrow the list; the categories used last come first. If nothing fits, an owner can press **Make a new category**, say what type it
+usually counts as, and it is made and used on the spot. Giving a line a category in the drawer or in bulk drops `review` too,
 unless you set the tags yourself in the same save.
 
 Checks are asked about one at a time (the alert above), because the bank gives only a number and an amount. For a check you write often for the

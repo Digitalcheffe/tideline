@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { get, send } from '../../api'
+import { get, send, type CategoryInfo } from '../../api'
+import { CategoryPicker } from '../../CategoryPicker'
 import { dateLabel, dollars, parseDollars } from '../../format'
 import { Panel, Problem, centsText, useAct } from './common'
 
@@ -49,7 +50,7 @@ export function QuickRecurring({
   seed, categories, onClose, onDone,
 }: {
   seed: QuickSeed
-  categories: { id: number; name: string }[]
+  categories: CategoryInfo[]
   onClose: () => void
   onDone: (message: string) => void
 }) {
@@ -67,14 +68,7 @@ export function QuickRecurring({
       {lineIds === '' && (
         <label>
           Which category are the payments in?
-          <select value={categoryId} onChange={(e) => setCategoryId(e.target.value)}>
-            <option value="">Pick a category</option>
-            {categories.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-          </select>
+          <CategoryPicker categories={categories} value={categoryId} label="Category of the payments" canCreate onChange={(id) => setCategoryId(id)} />
         </label>
       )}
       {ready && suggestion.isLoading && <p className="muted">Looking through the lines…</p>}

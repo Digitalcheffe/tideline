@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test'
+import { pickCategory } from './pick'
 
 // Signed in as the owner by global-setup. Names are unique so these do not disturb the other specs.
 test.describe.serial('settings', () => {
@@ -35,16 +36,19 @@ test.describe.serial('settings', () => {
     await page.getByRole('button', { name: 'Add a rule' }).click()
     await page.getByLabel('Name').fill('E2E try this')
     await page.getByLabel('Value').fill('MYSTERY')
-    await page.locator('label', { hasText: /^Category/ }).locator('select').selectOption({ label: 'Groceries' })
+    await pickCategory(page, page.getByRole('combobox', { name: 'Category' }), 'Groceries')
     await page.getByRole('button', { name: 'See what it would change' }).click()
     await expect(page.getByRole('status').filter({ hasText: 'would change' })).toBeVisible()
 
     await page.getByLabel('Value').fill('')
-    await expect(page.getByRole('button', { name: 'Save' })).toBeDisabled()
-    await page.getByLabel('Value').fill('MYSTERY')
-    await page.getByRole('button', { name: 'Save' }).click()
+    await expect(page.getByRole('button', { name: 'Save', exact: true })).toBeDisabled()
+    // words no real line has, so applying it to the past changes none of the lines other specs count
+    await page.getByLabel('Value').fill('E2E NO SUCH SHOP')
+    // Save and apply saves the rule and uses it on past lines in one step, and says how many it changed
+    await page.getByRole('button', { name: 'Save and apply to matching lines' }).click()
+    await expect(page.getByRole('status').filter({ hasText: /Rule saved, and it changed \d+ past lines?/ })).toBeVisible()
     await expect(page.getByRole('cell', { name: 'E2E try this', exact: true })).toBeVisible()
-    await expect(page.getByText('the description contains MYSTERY')).toBeVisible()
+    await expect(page.getByText('the description contains E2E NO SUCH SHOP')).toBeVisible()
   })
 
   test('"Create rule from this" in the ledger opens a rule with the line already filled in', async ({ page }) => {
@@ -62,7 +66,7 @@ test.describe.serial('settings', () => {
     await page.getByRole('row', { name: /MYSTERY VENDOR/ }).getByRole('link', { name: 'Make a rule' }).click()
     await expect(page).toHaveURL(/\/settings\/rules/)
     await expect(page.getByLabel('Value')).toHaveValue('MYSTERY VENDOR')
-    await expect(page.getByRole('button', { name: 'Save' })).toBeDisabled()
+    await expect(page.getByRole('button', { name: 'Save', exact: true })).toBeDisabled()
   })
 
   test('inviting someone gives a setup link once, and a token is shown once', async ({ page }) => {

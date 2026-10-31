@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useMe } from '../auth'
 import { get, send, type AccountInfo, type CategoryInfo, type TransactionDetail } from '../api'
 import { Badge } from '../components'
+import { CategoryPicker } from '../CategoryPicker'
 import { dollars, parseDollars, ruleParams, typeLabel } from '../format'
 
 const TYPES = ['income', 'bill', 'required', 'extra', 'one_time', 'savings']
@@ -65,9 +66,9 @@ function MeaningForm({ t }: { t: TransactionDetail }) {
   })
   const reset = useMutation({ mutationFn: () => send('POST', `/transactions/${t.id}/reset-to-rules`), onSuccess: refresh })
 
-  const pickCategory = (value: string) => {
+  const pickCategory = (value: string, made: CategoryInfo | null = null) => {
     setCategoryId(value)
-    const chosen = categories.data?.find((c) => String(c.id) === value)
+    const chosen = made ?? categories.data?.find((c) => String(c.id) === value)
     if (chosen) setType(chosen.type)
     // a real category answers "review", so the tag goes (the tags box is still yours to edit before you save)
     if (chosen && chosen.name !== 'Uncategorized') setTags(tags.split(',').map((x) => x.trim()).filter((x) => x && x !== 'review').join(', '))
@@ -83,14 +84,7 @@ function MeaningForm({ t }: { t: TransactionDetail }) {
       <div className="form two">
         <label>
           Category
-          <select value={categoryId} onChange={(e) => pickCategory(e.target.value)}>
-            <option value="">No category</option>
-            {categories.data?.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-          </select>
+          <CategoryPicker categories={categories.data ?? []} value={categoryId} label="Category" canCreate={isOwner} noneLabel="No category" onChange={pickCategory} />
         </label>
         <label>
           Type
