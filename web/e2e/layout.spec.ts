@@ -19,6 +19,26 @@ test.describe('the ledger and the line drawer', () => {
     await expect(drawer.getByRole('button', { name: 'Close' })).toBeInViewport()
   })
 
+  test('the category list in the drawer stays open while you scroll it', async ({ page }) => {
+    await page.setViewportSize({ width: 1200, height: 560 })
+    await page.goto(`/lines?${MARCH}&q=grocery`)
+    await page.getByRole('button', { name: 'GROCERY STORE #12' }).click()
+    const drawer = page.getByRole('dialog', { name: 'Transaction' })
+    await drawer.getByRole('combobox', { name: 'Category' }).click()
+    const list = page.getByRole('listbox')
+    await expect(list).toBeVisible()
+
+    // scrolling inside the list (a wheel, or a scroll event from it) must not close it
+    await list.hover()
+    await page.mouse.wheel(0, 300)
+    await list.evaluate((el) => el.dispatchEvent(new Event('scroll')))
+    await expect(list).toBeVisible()
+
+    // and choosing from it still works
+    await list.getByRole('option').nth(2).click()
+    await expect(list).toBeHidden()
+  })
+
   test('the filters sit in one block and the search box does not wrap under the dropdowns', async ({ page }) => {
     await page.setViewportSize({ width: 1200, height: 800 })
     await page.goto(`/lines?${MARCH}`)

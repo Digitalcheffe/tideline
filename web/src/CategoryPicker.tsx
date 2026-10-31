@@ -41,6 +41,7 @@ export function CategoryPicker({
 }) {
   const client = useQueryClient()
   const box = useRef<HTMLInputElement>(null)
+  const pop = useRef<HTMLDivElement>(null)
   const [made, setMade] = useState<CategoryInfo | null>(null)
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
@@ -56,7 +57,11 @@ export function CategoryPicker({
   // the list is drawn at a fixed place so a table or card around it cannot clip it; it closes if the page moves
   useEffect(() => {
     if (!open) return
-    const close = () => setOpen(false)
+    // scrolling the list itself must not close it; only the page or drawer moving underneath it does
+    const close = (e: Event) => {
+      if (e.target instanceof Node && pop.current?.contains(e.target)) return
+      setOpen(false)
+    }
     window.addEventListener('scroll', close, true)
     window.addEventListener('resize', close)
     return () => {
@@ -161,7 +166,11 @@ export function CategoryPicker({
         }}
       />
       {open && at && (
-        <div className="picker-pop" style={{ top: at.top, left: at.left, width: at.width }} onMouseDown={(e) => e.preventDefault()}>
+        <div className="picker-pop" ref={pop}
+          style={{ top: at.top, left: at.left, width: at.width }}
+          onMouseDown={(e) => e.preventDefault()}
+          // inside a form label, a click here would be passed on to the box and open the list again
+          onClick={(e) => e.preventDefault()}>
           {creating ? (
             <div className="picker-create">
               <p>
