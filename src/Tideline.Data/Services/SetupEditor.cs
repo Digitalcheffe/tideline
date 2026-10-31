@@ -533,6 +533,28 @@ public sealed class SetupEditor(IDbConnection conn, TimeProvider clock, Actor? a
         return 0;
     });
 
+    /// <summary>
+    /// What deleting a recurring item changed: the lines that were linked to it (kept, no longer linked), the rules that set it (kept, no longer
+    /// setting it) and the alerts about it (marked cleared).
+    /// </summary>
+    public sealed record RecurringDeleted(int LinesUnlinked, int RulesChanged, int AlertsCleared);
+
+    /// <summary>
+    /// Removes a recurring item. Its lines stay in the ledger exactly as they are, only without the link; a rule that linked lines to it keeps its
+    /// other settings. Pausing it (Still expected off) is the gentler choice when it might come back.
+    /// </summary>
+    public RecurringDeleted DeleteRecurring(long id) => InTransaction((tx, audit) =>
+    {
+        var before = RecurringSnapshot(id, tx) ?? throw Missing("recurring item");
+        var lines = conn.Execute("UPDATE transactions SET recurring_id = NULL, updated_at = @now WHERE recurring_id = @id", new { id, now = clock.GetUtcNow() }, tx);
+        var rules = conn.Execute("UPDATE rules SET set_recurring_id = NULL WHERE set_recurring_id = @id", new { id }, tx);
+        var alerts = conn.Execute("UPDATE flags SET resolved_at = @now WHERE subject_type = 'recurring' AND subject_id = @id AND resolved_at IS NULL", new { id, now = clock.GetUtcNow() }, tx);
+        conn.Execute("DELETE FROM recurring WHERE id = @id", new { id }, tx);
+        var result = new RecurringDeleted(lines, rules, alerts);
+        audit.Write("recurring.deleted", "recurring", id, before, result);
+        return result;
+    });
+
     // ---- app settings --------------------------------------------------------------------------------------------
 
     public const string OneTimeAttentionKey = "one_time_attention_cents";

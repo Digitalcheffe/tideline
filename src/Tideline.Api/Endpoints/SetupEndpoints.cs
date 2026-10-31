@@ -48,6 +48,8 @@ public static class SetupEndpoints
             Edits.Run(http, f, t, (c, clock, who) => new { id = new SetupEditor(c, clock, who).CreateRecurring(input) }, created: true));
         api.MapPatch("/recurring/{id:long}", (long id, RecurringInput input, HttpContext http, SqliteConnectionFactory f, TimeProvider t) =>
             Edits.Run(http, f, t, (c, clock, who) => { new SetupEditor(c, clock, who).UpdateRecurring(id, input); return new { updated = true }; }));
+        api.MapDelete("/recurring/{id:long}", (long id, HttpContext http, SqliteConnectionFactory f, TimeProvider t) =>
+            Edits.Run(http, f, t, (c, clock, who) => new SetupEditor(c, clock, who).DeleteRecurring(id)));
 
         // rules
         api.MapGet("/rules", (SqliteConnectionFactory f, TimeProvider t) =>

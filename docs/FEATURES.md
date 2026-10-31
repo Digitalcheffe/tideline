@@ -72,7 +72,7 @@ same amount (rent, a sitter), a rule that starts with `Check #` and has that amo
 - **Accounts**: each account by month, with in, out and balance.
 - **Cards**: was each card paid in full each month (using its statement day if you entered one), interest charged, payments, and spending by category.
 - **Bills**: a year grid of recurring bills. Each cell is paid, unusual, extra, due, missing or projected. Future months use the last three payments.
-  An **Other** row holds bill lines with no recurring item, so the grid always matches the Overview. **Find my bills** (Settings, Recurring, and a nudge here) looks through the lines that are not tracked yet for payments that repeat on a pattern (monthly, every 2, 3 or 6 months, or yearly, for about the same amount), and adds the ones you pick as recurring items, linking their past lines and adding a rule so next month's link themselves. Large one-time items are listed for a look.
+  An **Other** row holds bill lines with no recurring item, so the grid always matches the Overview. **Find my bills** (Settings, Recurring, and a nudge here) looks through the lines that are not tracked yet for payments that repeat on a pattern (monthly, every 2, 3 or 6 months, or yearly, for about the same amount), and adds the ones you pick as recurring items, linking their past lines and adding a rule so next month's link themselves. Large one-time items are listed for a look. A recurring item can be paused (Still expected off) or deleted; deleting keeps every line in the ledger, only unlinked.
 - **Required** and **Extra**: totals by category and by payee. Extra also lists subscriptions and notices price changes.
 - **Income**: expected against actual, by source.
 

@@ -35,6 +35,7 @@ export function RecurringSettings() {
   const categories = useQuery({ queryKey: ['categories'], queryFn: () => get<Named[]>('/categories') })
   const accounts = useQuery({ queryKey: ['accounts-list'], queryFn: () => get<Named[]>('/accounts') })
   const [editing, setEditing] = useState<RecurringRow | 'new' | null>(null)
+  const { run, error, busy } = useAct()
 
   if (recurring.isLoading || categories.isLoading || accounts.isLoading) return <Loading what="recurring items" />
   if (recurring.error || !recurring.data || !categories.data || !accounts.data) return <ErrorBox error={recurring.error ?? categories.error ?? accounts.error} />
@@ -91,6 +92,18 @@ export function RecurringSettings() {
                   <td>
                     <button type="button" className="btn" onClick={() => setEditing(r)}>
                       Change
+                    </button>{' '}
+                    <button
+                      type="button"
+                      className="btn"
+                      disabled={busy}
+                      title="Removes the item. Its lines stay in the ledger. To keep it for later, use Change and untick Still expected."
+                      onClick={() => {
+                        if (window.confirm(`Delete ${r.name}? Its ${r.lineCount} line${r.lineCount === 1 ? '' : 's'} stay in the ledger, no longer linked to it.\n\nTo keep it for later, use Change and untick Still expected instead.`))
+                          void run(() => send('DELETE', `/recurring/${r.id}`))
+                      }}
+                    >
+                      Delete
                     </button>
                   </td>
                 </tr>
@@ -98,6 +111,7 @@ export function RecurringSettings() {
             </tbody>
           </table>
         </div>
+        <Problem message={error} />
       </Card>
     </>
   )

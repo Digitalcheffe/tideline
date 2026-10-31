@@ -161,7 +161,7 @@ export function Bills({ period }: { period: Period }) {
             </table>
           </div>
         )}
-        <p className="muted">Marking an item as known or planned arrives with the flags in Phase 5.</p>
+        <p className="muted">A payment you know is a one-off can be marked as One-time from its line, or from the large payment suggestion.</p>
       </Card>
     </>
   )
