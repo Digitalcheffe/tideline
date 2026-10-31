@@ -72,6 +72,34 @@ public class RecurringInferenceTests
     }
 
     [Fact]
+    public void Nothing_to_look_at_is_an_answer_of_none_not_an_exception()
+    {
+        RecurringInference.Infer([], Today).Should().BeNull("an empty list");
+        RecurringInference.Infer(On(5_000, "2026-09-08"), Today).Should().BeNull("one payment");
+        RecurringInference.Infer(On(0, "2026-07-08", "2026-08-08", "2026-09-08"), Today).Should().BeNull("zero is not a payment");
+        RecurringInference.Infer(On(-5_000, "2026-07-08", "2026-08-08", "2026-09-08"), Today).Should().BeNull("only money out is passed in, as a positive number");
+        RecurringInference.Infer(On(5_000, "2020-07-08", "2020-08-08", "2020-09-08"), Today).Should().BeNull("all of it is older than the window");
+        RecurringInference.Infer(On(5_000, "2026-12-08", "2027-01-08", "2027-02-08"), Today).Should().BeNull("dates after today do not make a pattern that is still going");
+    }
+
+    [Fact]
+    public void A_missing_list_is_refused_in_plain_terms()
+    {
+        var act = () => RecurringInference.Infer(null!, Today);
+
+        act.Should().Throw<ArgumentNullException>().WithParameterName("payments");
+    }
+
+    [Fact]
+    public void A_bill_on_the_31st_lands_on_the_last_day_of_a_short_month()
+    {
+        var p = RecurringInference.Infer(On(9_000, "2026-05-31", "2026-06-30", "2026-07-31", "2026-08-31", "2026-09-30"), Today)!;
+
+        p.DueDay.Should().Be(31);
+        p.FirstDueOn.Should().Be(new DateOnly(2026, 5, 31));
+    }
+
+    [Fact]
     public void A_monthly_bill_may_skip_a_month_and_two_payments_in_one_month_count_as_one()
     {
         var p = RecurringInference.Infer(On(7_999, "2026-04-09", "2026-05-09", "2026-07-09", "2026-08-09", "2026-09-09", "2026-09-20"), Today);

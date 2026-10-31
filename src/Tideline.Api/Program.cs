@@ -151,6 +151,7 @@ if (behindProxy)
     app.UseForwardedHeaders();
 }
 app.UseMiddleware<SecurityHeadersMiddleware>();
+app.UseMiddleware<ErrorMiddleware>(); // inside the security headers so an error answer carries them; outside everything else so nothing escapes it
 app.UseRateLimiter();
 app.UseMiddleware<AuthMiddleware>();
 app.UseMiddleware<AccessMiddleware>();

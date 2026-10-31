@@ -23,8 +23,9 @@ public static class RecurringInference
 
     public static RecurringProposal? Infer(IReadOnlyList<(DateOnly On, long Cents)> payments, DateOnly today)
     {
+        ArgumentNullException.ThrowIfNull(payments);
         var since = today.AddMonths(-WindowMonths);
-        var months = payments.Where(p => p.On >= since && p.Cents > 0)
+        var months = payments.Where(p => p.On >= since && p.On <= today && p.Cents > 0)
             .GroupBy(p => Month(p.On))
             .OrderBy(g => g.Key)
             .Select(g => (Month: g.Key, Cents: g.Sum(p => p.Cents), First: g.OrderBy(p => p.On).First().On))
