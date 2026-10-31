@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom'
 import { get, send, type TransactionDetail } from '../api'
 import { Badge, ErrorBox, Loading, Money } from '../components'
 import { useMe } from '../auth'
-import { dateLabel, typeLabel } from '../format'
+import { dateLabel, ruleWords, typeLabel } from '../format'
 import { EditPanel } from './EditPanel'
 
 /** The transaction drawer (docs/ARCHITECTURE.md). Editing arrives with the splits editor. */
@@ -148,6 +148,14 @@ function Detail({ t, onClose }: { t: TransactionDetail; onClose: () => void }) {
           </div>
         </div>
       </div>
+      <p className="similar">
+        <Link
+          to={`/lines?${new URLSearchParams({ from: '1900-01-01', to: '2999-12-31', q: ruleWords(t.bank.description), move: 'include' }).toString()}`}
+          title="Search the whole ledger for lines with these words"
+        >
+          Show all transactions like this one
+        </Link>
+      </p>
       <details className="frombank">
         <summary>
           <strong>From the bank</strong> <span className="muted">(never changes)</span>

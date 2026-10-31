@@ -124,6 +124,7 @@ export function Lines({ needsMode = false }: { needsMode?: boolean } = {}) {
   const categoryName = (id: string) => (id === '0' ? 'No category' : (categories.data?.find((c) => String(c.id) === id)?.name ?? `category ${id}`))
   // the pile of lines waiting for a category is not a period, so it has no dates to show
   if (needsView) chips.push('needs a category')
+  else if (apiParams.get('from') === '1900-01-01' && apiParams.get('to') === '2999-12-31') chips.push('all dates')
   else chips.push(`${dateLabel(apiParams.get('from')!)} to ${dateLabel(apiParams.get('to')!)}`)
   if (apiParams.get('type')) chips.push(apiParams.get('type')!.split(',').map(typeLabel).join(' or '))
   if (apiParams.get('category')) chips.push(apiParams.get('category')!.split(',').map(categoryName).join(', '))

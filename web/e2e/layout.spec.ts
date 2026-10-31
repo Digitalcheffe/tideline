@@ -74,6 +74,17 @@ test.describe('the ledger and the line drawer', () => {
     for (const text of cells) expect(text).toMatch(/^[•*•]*\d{4}$/)
   })
 
+  test('a line has a link at the top that shows every line like it, across all dates', async ({ page }) => {
+    await page.goto(`/lines?${MARCH}&q=grocery`)
+    await page.getByRole('button', { name: 'GROCERY STORE #12' }).click()
+    await page.getByRole('link', { name: 'Show all transactions like this one' }).click()
+
+    await expect(page).toHaveURL(/q=GROCERY\+STORE/)
+    await expect(page.getByText('all dates')).toBeVisible()
+    await expect(page.getByRole('dialog', { name: 'Transaction' })).toHaveCount(0) // the drawer closes, the list is what is shown
+    await expect(page.getByRole('button', { name: 'GROCERY STORE #12' })).toBeVisible()
+  })
+
   test('the category list in the drawer stays open while you scroll it', async ({ page }) => {
     await page.setViewportSize({ width: 1200, height: 560 })
     await page.goto(`/lines?${MARCH}&q=grocery`)

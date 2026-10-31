@@ -930,6 +930,11 @@ button.btn:disabled {
   white-space: nowrap;
 }
 
+.similar {
+  margin: 0 0 0.6rem;
+  font-size: 0.9rem;
+}
+
 .setby {
   margin: 0.6rem 0;
   font-size: 0.9rem;
