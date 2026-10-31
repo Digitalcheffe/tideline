@@ -1109,6 +1109,15 @@ tr.left-out td {
   flex-basis: 100%;
 }
 
+.bulkbar .pattern-bits .pattern-help {
+  flex-basis: 100%;
+  margin: 0;
+}
+
+.bulkbar .pattern-bits .pattern-words {
+  flex: 1 1 22rem;
+}
+
 .bulkbar .pattern-bits label {
   display: grid;
   gap: 0.2rem;

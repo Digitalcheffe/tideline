@@ -27,7 +27,17 @@ export function Lines({ needsMode = false }: { needsMode?: boolean } = {}) {
   const me = useMe().user
   const isOwner = me.role === 'owner' // making a rule is an owner's job
   const canAnswer = me.role !== 'viewer'
-  const [message, setMessage] = useState<string | null>(null)
+  // what the last action did, said under the filters; a pairing can be undone from it
+  const [notice, setNotice] = useState<{ text: string; undoMove?: number } | null>(null)
+  const setMessage = (text: string) => setNotice({ text })
+  const undoPair = useMutation({
+    mutationFn: (moveId: number) => send('DELETE', `/moves/${moveId}`),
+    onSuccess: () => {
+      setNotice({ text: 'Unpaired. The two lines are ordinary lines again.' })
+      queryClient.invalidateQueries()
+    },
+  })
+  const queryClient = useQueryClient()
   const open = params.get('tx')
   const apiParams = new URLSearchParams(params)
   apiParams.delete('tx')
@@ -60,8 +70,10 @@ export function Lines({ needsMode = false }: { needsMode?: boolean } = {}) {
 
   const accounts = useQuery({ queryKey: ['accounts'], queryFn: () => get<AccountInfo[]>('/accounts') })
   const categories = useQuery({ queryKey: ['categories'], queryFn: () => get<CategoryInfo[]>('/categories') })
+  // the last four digits of each account (the only part Tideline keeps), shown small under its name so look-alike accounts can be told apart
+  const maskOf = new Map((accounts.data ?? []).map((a) => [a.id, a.bankNumberMask] as const))
 
-  const set = (key: string, value: string | null) => {
+  const set =(key: string, value: string | null) => {
     const next = new URLSearchParams(params)
     if (value === null || value === '') next.delete(key)
     else next.set(key, value)
@@ -235,7 +247,22 @@ export function Lines({ needsMode = false }: { needsMode?: boolean } = {}) {
         </div>
       )}
       </div>
-      {message && <p role="status">{message}</p>}
+      {notice && (
+        <p role="status">
+          {notice.text}{' '}
+          {notice.undoMove !== undefined && (
+            <>
+              <button type="button" className="btn" disabled={undoPair.isPending} onClick={() => undoPair.mutate(notice.undoMove!)}>
+                Undo
+              </button>{' '}
+              <button type="button" className="btn" onClick={() => set('move', 'include')} title="Transfers are left out of this list. Show them to see the pair.">
+                Show transfers
+              </button>
+            </>
+          )}
+          {undoPair.error && <span className="problem"> {undoPair.error.message}</span>}
+        </p>
+      )}
 
       <Card
         title={lines.data ? `${lines.data.summary.count} ${lines.data.summary.count === 1 ? 'line' : 'lines'}` : 'Lines'}
@@ -257,7 +284,7 @@ export function Lines({ needsMode = false }: { needsMode?: boolean } = {}) {
             categories={categories.data}
             leftOut={leftOutView}
             onDone={() => setSelected(new Set())}
-            onMessage={setMessage}
+            onMessage={(text, undoMove) => setNotice({ text, undoMove })}
           />
         )}
         {lines.data && lines.data.items.length > 0 && (
@@ -298,6 +325,7 @@ export function Lines({ needsMode = false }: { needsMode?: boolean } = {}) {
                       <Pick onPick={() => set('account', String(l.accountId))} title={`Only ${l.accountName}`}>
                         {l.accountName}
                       </Pick>
+                      {maskOf.get(l.accountId) && <span className="cell-note">{maskOf.get(l.accountId)}</span>}
                     </td>
                     <td>
                       <button
@@ -407,7 +435,7 @@ function Pick({ onPick, title, children }: { onPick: () => void; title: string; 
 /** Change several lines at once: the quick way to fix a pile of tags or categories. */
 function BulkBar({
   ids, lines, categories, leftOut, onDone, onMessage,
-}: { ids: number[]; lines: Line[]; categories: CategoryInfo[]; leftOut: boolean; onDone: () => void; onMessage: (message: string) => void }) {
+}: { ids: number[]; lines: Line[]; categories: CategoryInfo[]; leftOut: boolean; onDone: () => void; onMessage: (message: string, undoMove?: number) => void }) {
   const client = useQueryClient()
   const canCreate = useMe().user.role === 'owner'
   const [categoryId, setCategoryId] = useState('')
@@ -445,29 +473,34 @@ function BulkBar({
   const [outLine, inLine] = lines.length === 2 && lines[0].amountCents < 0 ? [lines[0], lines[1]] : [lines[1], lines[0]]
   const looksLikeTransfer =
     lines.length === 2 && outLine.amountCents < 0 && inLine.amountCents === -outLine.amountCents && outLine.accountId !== inLine.accountId
-  const [remember, setRemember] = useState(false)
+  // an owner is asked to remember it unless they say otherwise; the words show at once so they can be fixed or the box cleared
+  const [remember, setRemember] = useState(canCreate)
   const [applyPast, setApplyPast] = useState(true)
-  const [fromWords, setFromWords] = useState(looksLikeTransfer ? ruleWords(outLine.description) : '')
-  const [toWords, setToWords] = useState(looksLikeTransfer ? ruleWords(inLine.description) : '')
+  // the whole text of each line to start with; delete the parts that change from one transfer to the next (a date, a number) to match more
+  const [fromWords, setFromWords] = useState(looksLikeTransfer ? outLine.description : '')
+  const [toWords, setToWords] = useState(looksLikeTransfer ? inLine.description : '')
 
   const pair = useMutation({
-    mutationFn: async () => {
-      await send('POST', '/moves', { transactionIds: ids })
-      if (!remember || !looksLikeTransfer) return 'Paired as a transfer.'
+    mutationFn: async (): Promise<{ text: string; undoMove?: number }> => {
+      const made = await send<{ id: number }>('POST', '/moves', { transactionIds: ids })
+      // the pair leaves this list (transfers are not shown unless asked for), so say where it went and offer the way back
+      if (!remember || !looksLikeTransfer) return { text: 'Paired as a transfer. It is left out of this list; Show transfers brings it back into view.', undoMove: made.id }
       try {
         const pattern = await send<{ id: number }>('POST', '/move-patterns', {
           fromAccountId: outLine.accountId, fromContains: fromWords.trim(), toAccountId: inLine.accountId, toContains: toWords.trim(),
         })
-        if (!applyPast) return `Paired as a transfer, and remembered for next time (${outLine.accountName} to ${inLine.accountName}).`
+        if (!applyPast) return { text: `Paired as a transfer, and remembered for next time (${outLine.accountName} to ${inLine.accountName}). The pattern is in Settings, Accounts.` }
         const done = await send<{ paired: number; skipped: number }>('POST', `/move-patterns/${pattern.id}/apply`)
-        return `Paired as a transfer, and remembered for next time. ${done.paired === 0 ? 'No other lines in the ledger matched it.' : `${done.paired} other ${done.paired === 1 ? 'pair' : 'pairs'} in the ledger paired too.`}${done.skipped > 0 ? ` ${done.skipped} could not be paired (a split line, for example).` : ''}`
+        return {
+          text: `Paired as a transfer, and remembered for next time. ${done.paired === 0 ? 'No other lines in the ledger matched it.' : `${done.paired} other ${done.paired === 1 ? 'pair' : 'pairs'} in the ledger paired too.`}${done.skipped > 0 ? ` ${done.skipped} could not be paired (a split line, for example).` : ''} The pattern is in Settings, Accounts.`,
+        }
       } catch (e) {
-        return `Paired as a transfer, but the pattern was not saved: ${e instanceof Error ? e.message : String(e)}`
+        return { text: `Paired as a transfer, but the pattern was not saved: ${e instanceof Error ? e.message : String(e)}`, undoMove: made.id }
       }
     },
-    onSuccess: (message) => {
+    onSuccess: (result) => {
       client.invalidateQueries()
-      onMessage(message)
+      onMessage(result.text, result.undoMove)
       onDone()
     },
   })
@@ -478,14 +511,6 @@ function BulkBar({
     if (chosen && !type) setType(chosen.type)
   }
 
-  const [reason, setReason] = useState('')
-  const out = useMutation({
-    mutationFn: () => send<{ leftOut: number; skipped: number }>('POST', '/transactions/leave-out', { ids, reason: reason.trim() || undefined }),
-    onSuccess: () => {
-      client.invalidateQueries()
-      onDone()
-    },
-  })
   const back = useMutation({
     mutationFn: () => send('POST', '/transactions/bring-back', { ids }),
     onSuccess: () => {
@@ -573,12 +598,16 @@ function BulkBar({
       )}
       {remember && ids.length === 2 && looksLikeTransfer && (
         <div className="pattern-bits">
-          <label>
-            Out of {outLine.accountName}, the words
+          <p className="muted pattern-help">
+            Next time, a line with these words is paired with one from the other account for the same amount. These are the full descriptions. Delete anything that changes
+            each time, such as a date or a number, so more lines match.
+          </p>
+          <label className="pattern-words">
+            Out of {outLine.accountName}, the line says
             <input type="text" aria-label="Words on the line going out" value={fromWords} onChange={(e) => setFromWords(e.target.value)} />
           </label>
-          <label>
-            Into {inLine.accountName}, the words
+          <label className="pattern-words">
+            Into {inLine.accountName}, the line says
             <input type="text" aria-label="Words on the line coming in" value={toWords} onChange={(e) => setToWords(e.target.value)} />
           </label>
           <label>
@@ -589,22 +618,12 @@ function BulkBar({
       <Link className="btn" to={`/settings/recurring?lines=${ids.slice(0, 200).join(',')}`} title="Start a new bill or subscription from the selected lines">
         Make a recurring item
       </Link>
-      <input type="text" placeholder="Why leave out? (optional)" aria-label="Why leave these out" maxLength={200} value={reason} onChange={(e) => setReason(e.target.value)} />
-      <button
-        className="btn"
-        type="button"
-        disabled={out.isPending}
-        title="Takes the selected lines out of every total without changing them. Find them again under Left out."
-        onClick={() => out.mutate()}
-      >
-        {out.isPending ? 'Working…' : 'Leave out of the totals'}
-      </button>
       <button className="btn" type="button" onClick={onDone}>
         Clear selection
       </button>
-      {(apply.error ?? pair.error ?? out.error) && (
+      {(apply.error ?? pair.error) && (
         <span className="problem" role="alert">
-          {(apply.error ?? pair.error ?? out.error)!.message}
+          {(apply.error ?? pair.error)!.message}
         </span>
       )}
     </form>

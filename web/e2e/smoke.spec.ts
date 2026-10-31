@@ -163,6 +163,7 @@ test.describe.serial('smoke', () => {
 
     await page.goto(`/lines?${MARCH}&q=PAIR ME`)
     await page.getByLabel('Select all lines on this page').check()
+    await page.getByLabel('Remember this for next time').uncheck() // it starts ticked; this is a one-off pairing, so no pattern is saved
     await page.getByRole('button', { name: 'Pair as a transfer' }).click()
     await expect(page.getByText('No lines match.')).toBeVisible()
 

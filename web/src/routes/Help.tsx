@@ -86,7 +86,7 @@ const TOPICS: Topic[] = [
         <p>
           A duplicate, or a line that should never have been counted: open it in the <L to="/lines">Ledger</L> and press <strong>Leave out of the totals</strong> (you can give a reason).
           Nothing is deleted. The line stays as the bank gave it, but is in no total, balance or alert. Tick <strong>Left out</strong> in the Ledger to see them, and <strong>Bring it back</strong> any time.
-          Several lines can be ticked and left out together. A line that is part of a transfer has to be unpaired first.
+          A line that is part of a transfer has to be unpaired first. Lines left out can be ticked together and brought back.
         </p>
         <p>
           A whole file that went in wrong (the wrong account, or twice): in <strong>Recent imports</strong> press <strong>Undo this import</strong>. Every line of it leaves the totals in one step, and <strong>Restore</strong> puts them back.

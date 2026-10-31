@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom'
 import { get, send, type TransactionDetail } from '../api'
 import { Badge, ErrorBox, Loading, Money } from '../components'
 import { useMe } from '../auth'
-import { dateLabel, ruleWords, typeLabel } from '../format'
+import { dateLabel, typeLabel } from '../format'
 import { EditPanel } from './EditPanel'
 
 /** The transaction drawer (docs/ARCHITECTURE.md). Editing arrives with the splits editor. */
@@ -197,8 +197,8 @@ function Detail({ t, onClose }: { t: TransactionDetail; onClose: () => void }) {
               <Link
                 to={`/settings/accounts?${new URLSearchParams(
                   t.bank.amountCents < 0
-                    ? { pattern: '1', from: String(t.bank.accountId), fromContains: ruleWords(t.bank.description), to: String(t.movePartner.accountId), toContains: ruleWords(t.movePartner.description) }
-                    : { pattern: '1', from: String(t.movePartner.accountId), fromContains: ruleWords(t.movePartner.description), to: String(t.bank.accountId), toContains: ruleWords(t.bank.description) },
+                    ? { pattern: '1', from: String(t.bank.accountId), fromContains: t.bank.description, to: String(t.movePartner.accountId), toContains: t.movePartner.description }
+                    : { pattern: '1', from: String(t.movePartner.accountId), fromContains: t.movePartner.description, to: String(t.bank.accountId), toContains: t.bank.description },
                 ).toString()}`}
                 title="Open a transfer pattern with these two accounts and their words filled in, so the next ones pair themselves"
               >

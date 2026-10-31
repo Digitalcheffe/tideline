@@ -61,6 +61,19 @@ test.describe('the ledger and the line drawer', () => {
     await expect(page.getByRole('row', { name: /e2e-multi/ })).toHaveCount(0)
   })
 
+  test('the Ledger shows the last four digits of each account in small text under its name', async ({ page }) => {
+    const accounts: { name: string; bankNumberMask: string | null }[] = await (await page.request.get('/api/v1/accounts')).json()
+    const withMask = accounts.filter((a) => a.bankNumberMask)
+    expect(withMask.length).toBeGreaterThan(0)
+
+    await page.goto(`/lines?${MARCH}`)
+    await expect(page.getByRole('button', { name: 'GROCERY STORE #12' })).toBeVisible()
+    // a masked account has its mask in the Account cell of its rows; nothing longer than four digits is ever shown
+    const cells = await page.locator('tbody tr td:nth-child(3) .cell-note').allTextContents()
+    expect(cells.length).toBeGreaterThan(0)
+    for (const text of cells) expect(text).toMatch(/^[•*•]*\d{4}$/)
+  })
+
   test('the category list in the drawer stays open while you scroll it', async ({ page }) => {
     await page.setViewportSize({ width: 1200, height: 560 })
     await page.goto(`/lines?${MARCH}&q=grocery`)
