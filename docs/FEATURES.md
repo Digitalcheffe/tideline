@@ -38,7 +38,10 @@ as `45.20` to find lines of exactly that size, or use the **$ from** and **$ to*
 - **reset it to the rules**, or **create a rule from it**;
 - **leave it out of the totals** (a duplicate, or a line that should not count) with a reason, and bring it back any time. The line is not changed or deleted; find them under **Left out**. A line you added by hand can also be deleted.
 
-Tick several lines to change them together, or, with two ticked, to pair them as a transfer.
+Tick several lines to change them together, or, with two ticked, to pair them as a transfer. When the two look like a transfer (out of one account,
+into another, the same amount), an owner can tick **Remember this for next time**: the words from the two lines (editable) are saved as a transfer
+pattern, so the next ones pair themselves on import, and by default the matching lines already in the ledger are paired too. A paired transfer's
+drawer has **Make a pattern from this transfer**, which opens the pattern form in Settings, Accounts already filled in.
 
 ## Rules
 

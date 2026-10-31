@@ -1100,6 +1100,22 @@ tr.left-out td {
   background: var(--warn-bg);
 }
 
+/* the words for a transfer pattern, under the bulk bar's buttons */
+.bulkbar .pattern-bits {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+  align-items: end;
+  flex-basis: 100%;
+}
+
+.bulkbar .pattern-bits label {
+  display: grid;
+  gap: 0.2rem;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
 .bulkbar {
   display: flex;
   flex-wrap: wrap;

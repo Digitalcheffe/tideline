@@ -117,8 +117,8 @@ const TOPICS: Topic[] = [
         </p>
         <h3>Transfers</h3>
         <p>
-          A transfer between your own accounts has two lines, one out and one in, for the same amount. Tideline pairs them by itself when it can. If it cannot, pair them by hand as above. If one was
-          paired wrongly, open it and press <strong>Not a transfer: unpair</strong>.
+          A transfer between your own accounts has two lines, one out and one in, for the same amount. Tideline pairs them by itself when it can. If it cannot, pair them by hand as above, and tick <strong>Remember this for next time</strong> so the
+          next ones pair by themselves (it can pair the matching lines already in the ledger too). If one was paired wrongly, open it and press <strong>Not a transfer: unpair</strong>.
         </p>
         <h3>Adding a line by hand</h3>
         <p>

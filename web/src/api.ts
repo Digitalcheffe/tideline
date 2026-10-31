@@ -161,7 +161,7 @@ export interface TransactionDetail {
   planId: number | null
   asset: { id: number; name: string } | null
   moveId: number | null
-  movePartner: { transactionId: number; accountName: string; postedOn: string; amountCents: number; description: string } | null
+  movePartner: { transactionId: number; accountId: number; accountName: string; postedOn: string; amountCents: number; description: string } | null
   splits: { id: number; amountCents: number; categoryId: number; categoryName: string; type: string; note: string | null; tags: string[] }[]
   unassignedCents: number
   version: string

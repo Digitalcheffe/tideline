@@ -3,7 +3,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import { get, send, type TransactionDetail } from '../api'
 import { Badge, ErrorBox, Loading, Money } from '../components'
-import { dateLabel, typeLabel } from '../format'
+import { useMe } from '../auth'
+import { dateLabel, ruleWords, typeLabel } from '../format'
 import { EditPanel } from './EditPanel'
 
 /** The transaction drawer (docs/ARCHITECTURE.md). Editing arrives with the splits editor. */
@@ -116,6 +117,7 @@ function RemoveLine({ t }: { t: TransactionDetail }) {
 
 function Detail({ t, onClose }: { t: TransactionDetail; onClose: () => void }) {
   const client = useQueryClient()
+  const isOwner = useMe().user.role === 'owner'
   const unpair = useMutation({
     mutationFn: () => send('DELETE', `/moves/${t.moveId}`),
     onSuccess: () => client.invalidateQueries(),
@@ -190,6 +192,20 @@ function Detail({ t, onClose }: { t: TransactionDetail; onClose: () => void }) {
             <Money cents={t.movePartner.amountCents} /> “{t.movePartner.description}”. Transfers between your own accounts are not counted as money in or out.
           </p>
           {unpairButton('Not a transfer: unpair')}
+          {isOwner && (
+            <p>
+              <Link
+                to={`/settings/accounts?${new URLSearchParams(
+                  t.bank.amountCents < 0
+                    ? { pattern: '1', from: String(t.bank.accountId), fromContains: ruleWords(t.bank.description), to: String(t.movePartner.accountId), toContains: ruleWords(t.movePartner.description) }
+                    : { pattern: '1', from: String(t.movePartner.accountId), fromContains: ruleWords(t.movePartner.description), to: String(t.bank.accountId), toContains: ruleWords(t.bank.description) },
+                ).toString()}`}
+                title="Open a transfer pattern with these two accounts and their words filled in, so the next ones pair themselves"
+              >
+                Make a pattern from this transfer
+              </Link>
+            </p>
+          )}
         </>
       ) : t.moveId ? (
         <>

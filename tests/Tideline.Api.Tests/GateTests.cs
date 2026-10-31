@@ -250,6 +250,7 @@ public sealed partial class GateTests(ITestOutputHelper output) : IDisposable
             new("DELETE /tags/{id:long}", Kind.Delete, "tag.deleted", () => Ok(HttpMethod.Delete, $"/api/v1/tags/{tag}")),
             new("POST /move-patterns", Kind.Create, "move_pattern.created", async () => pattern = (await Ok(HttpMethod.Post, "/api/v1/move-patterns", new { fromAccountId = checking, fromContains = "A", toAccountId = savings, toContains = "B" }, HttpStatusCode.Created)).GetProperty("id").GetInt64()),
             new("PATCH /move-patterns/{id:long}", Kind.Update, "move_pattern.updated", () => Ok(HttpMethod.Patch, $"/api/v1/move-patterns/{pattern}", new { fromAccountId = checking, fromContains = "A2", toAccountId = savings, toContains = "B2" })),
+            new("POST /move-patterns/{id:long}/apply", Kind.Update, "move_pattern.applied", () => Ok(HttpMethod.Post, $"/api/v1/move-patterns/{pattern}/apply")),
             new("DELETE /move-patterns/{id:long}", Kind.Delete, "move_pattern.deleted", () => Ok(HttpMethod.Delete, $"/api/v1/move-patterns/{pattern}")),
             new("POST /recurring", Kind.Create, "recurring.created", async () => recurring = (await Ok(HttpMethod.Post, "/api/v1/recurring", new { name = "Gate bill", categoryId = utilities, expectedMinCents = 1, expectedMaxCents = 2, dueDay = 5, firstDueOn = "2026-01-05" }, HttpStatusCode.Created)).GetProperty("id").GetInt64()),
             new("PATCH /recurring/{id:long}", Kind.Update, "recurring.updated", () => Ok(HttpMethod.Patch, $"/api/v1/recurring/{recurring}", new { expectedMaxCents = 3 })),

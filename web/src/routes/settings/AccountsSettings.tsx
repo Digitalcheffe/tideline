@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
+import { useSearchParams } from 'react-router-dom'
 import { get, send } from '../../api'
 import { Badge, Card, ErrorBox, Loading } from '../../components'
 import { dollars, parseDollars } from '../../format'
@@ -53,7 +54,14 @@ export function AccountsSettings() {
   const accounts = useQuery({ queryKey: ['settings', 'accounts'], queryFn: () => get<AccountRow[]>('/accounts') })
   const patterns = useQuery({ queryKey: ['settings', 'patterns'], queryFn: () => get<PatternRow[]>('/move-patterns') })
   const [editing, setEditing] = useState<AccountRow | 'new' | null>(null)
-  const [pattern, setPattern] = useState<PatternRow | 'new' | null>(null)
+  // "Make a pattern from this transfer" in the Ledger arrives here with both accounts and their words filled in
+  const [params, setParams] = useSearchParams()
+  const [pattern, setPattern] = useState<PatternRow | 'new' | null>(params.get('pattern') ? 'new' : null)
+  const prefill = pattern === 'new' && params.get('pattern') ? params : null
+  const closePattern = () => {
+    setPattern(null)
+    if (params.get('pattern')) setParams({}, { replace: true })
+  }
 
   if (accounts.isLoading || patterns.isLoading) return <Loading what="accounts" />
   if (accounts.error || patterns.error || !accounts.data || !patterns.data) return <ErrorBox error={accounts.error ?? patterns.error} />
@@ -114,7 +122,7 @@ export function AccountsSettings() {
         </div>
       </Card>
 
-      {pattern && <PatternForm key={pattern === 'new' ? 'new' : pattern.id} pattern={pattern === 'new' ? null : pattern} accounts={accounts.data} onClose={() => setPattern(null)} />}
+      {pattern && <PatternForm key={pattern === 'new' ? 'new' : pattern.id} pattern={pattern === 'new' ? null : pattern} prefill={prefill} accounts={accounts.data} onClose={closePattern} />}
       <Card
         title="Transfers between your accounts"
         aside={
@@ -352,12 +360,14 @@ function AccountForm({ account, all, onClose }: { account: AccountRow | null; al
   )
 }
 
-function PatternForm({ pattern, accounts, onClose }: { pattern: PatternRow | null; accounts: AccountRow[]; onClose: () => void }) {
+function PatternForm({
+  pattern, prefill, accounts, onClose,
+}: { pattern: PatternRow | null; prefill: URLSearchParams | null; accounts: AccountRow[]; onClose: () => void }) {
   const { run, error, busy } = useAct(onClose)
-  const [from, setFrom] = useState(pattern?.fromAccountId?.toString() ?? '')
-  const [fromContains, setFromContains] = useState(pattern?.fromContains ?? '')
-  const [to, setTo] = useState(pattern?.toAccountId?.toString() ?? '')
-  const [toContains, setToContains] = useState(pattern?.toContains ?? '')
+  const [from, setFrom] = useState(pattern?.fromAccountId?.toString() ?? prefill?.get('from') ?? '')
+  const [fromContains, setFromContains] = useState(pattern?.fromContains ?? prefill?.get('fromContains') ?? '')
+  const [to, setTo] = useState(pattern?.toAccountId?.toString() ?? prefill?.get('to') ?? '')
+  const [toContains, setToContains] = useState(pattern?.toContains ?? prefill?.get('toContains') ?? '')
   const [days, setDays] = useState(String(pattern?.maxDaysApart ?? 3))
 
   const valid = from !== '' && to !== '' && from !== to && fromContains.trim() !== '' && toContains.trim() !== ''

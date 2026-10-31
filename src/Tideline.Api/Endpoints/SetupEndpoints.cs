@@ -27,6 +27,9 @@ public static class SetupEndpoints
             Edits.Run(http, f, t, (c, clock, who) => new { id = new SetupEditor(c, clock, who).CreatePattern(input) }, created: true));
         api.MapPatch("/move-patterns/{id:long}", (long id, PatternInput input, HttpContext http, SqliteConnectionFactory f, TimeProvider t) =>
             Edits.Run(http, f, t, (c, clock, who) => { new SetupEditor(c, clock, who).UpdatePattern(id, input); return new { updated = true }; }));
+        // pair the lines already in the ledger that a saved pattern recognises (imports only look at new lines and waiting legs)
+        api.MapPost("/move-patterns/{id:long}/apply", (long id, HttpContext http, SqliteConnectionFactory f, TimeProvider t) =>
+            Edits.Run(http, f, t, (c, clock, who) => new SetupEditor(c, clock, who).ApplyPattern(id)));
         api.MapDelete("/move-patterns/{id:long}", (long id, HttpContext http, SqliteConnectionFactory f, TimeProvider t) =>
             Edits.Run(http, f, t, (c, clock, who) => { new SetupEditor(c, clock, who).DeletePattern(id); return new { deleted = true }; }));
 

@@ -8,6 +8,9 @@ using Tideline.Data.Security;
 
 namespace Tideline.Data.Services;
 
+/// <summary>What using a transfer pattern on past lines did: pairs made, and pairs that could not be made (a split line, say).</summary>
+public sealed record PatternApplied(int Paired, int Skipped);
+
 public sealed record CardInput(bool IsPayInFull = true, int? StatementDay = null, int? DueDay = null, long? CreditLimitCents = null);
 
 public sealed record LoanInput(
@@ -342,6 +345,54 @@ public sealed class SetupEditor(IDbConnection conn, TimeProvider clock, Actor? a
             new { id, f = p.FromAccountId, fc = p.FromContains!.Trim(), t = p.ToAccountId, tc = p.ToContains!.Trim(), days = p.MaxDaysApart ?? before.Days }, tx);
         audit.Write("move_pattern.updated", "move_pattern", id, before, p);
     });
+
+    private sealed class PastLine
+    {
+        public long Id { get; set; }
+        public long AccountId { get; set; }
+        public DateOnly PostedOn { get; set; }
+        public long AmountCents { get; set; }
+        public string Description { get; set; } = "";
+    }
+
+    /// <summary>
+    /// Uses a saved pattern on lines already in the ledger, which imports never go back to: an out line and an in line with the same amount,
+    /// the pattern's words and no more than its days apart become a move. Lines left out, in a move already, or split are not paired.
+    /// Each pair is made the way a hand pairing is (and audited the same way); one that cannot be made is counted as skipped.
+    /// </summary>
+    public PatternApplied ApplyPattern(long id)
+    {
+        TypeHandlers.EnsureRegistered();
+        var p = conn.QuerySingleOrDefault<(long F, string Fc, long T, string Tc, int Days)?>("SELECT from_account_id, from_contains, to_account_id, to_contains, max_days_apart FROM move_patterns WHERE id = @id", new { id })
+            ?? throw Missing("transfer pattern");
+
+        var rows = conn.Query<PastLine>("""
+            SELECT id AS Id, account_id AS AccountId, posted_on AS PostedOn, amount_cents AS AmountCents, original_description AS Description
+            FROM transactions WHERE move_id IS NULL AND left_out_at IS NULL AND account_id IN (@f, @t)
+            """, new { f = p.F, t = p.T })
+            .Select(r => new Tideline.Core.Moves.MoveCandidate(r.Id, r.AccountId, r.PostedOn, r.AmountCents, r.Description)).ToList();
+        var found = Tideline.Core.Moves.MovePairer.Pair(rows, [new Tideline.Core.Moves.MovePattern(id, p.F, p.Fc, p.T, p.Tc, p.Days)]);
+
+        var editor = new TransactionEditor(conn, clock, actor);
+        int paired = 0, skipped = 0;
+        foreach (var pair in found.Pairs)
+        {
+            try
+            {
+                editor.Pair([pair.OutTransactionId, pair.InTransactionId]);
+                paired++;
+            }
+            catch (EditException)
+            {
+                skipped++;
+            }
+        }
+
+        using var tx = conn.BeginTransaction();
+        new AuditWriter(conn, clock, tx, actor).Write("move_pattern.applied", "move_pattern", id, new { pattern = p }, new { paired, skipped });
+        tx.Commit();
+        return new PatternApplied(paired, skipped);
+    }
 
     public void DeletePattern(long id) => InTransaction((tx, audit) =>
     {

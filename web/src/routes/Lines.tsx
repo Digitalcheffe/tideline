@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useMe } from '../auth'
-import { getLines, get, send, type AccountInfo, type CategoryInfo } from '../api'
+import { getLines, get, send, type AccountInfo, type CategoryInfo, type Line } from '../api'
 import { Badge, Card, Empty, ErrorBox, Loading, Money } from '../components'
 import { dateLabel, dollars, parseDollars, ruleParams, ruleWords, typeLabel } from '../format'
 import { usePeriod } from '../period'
@@ -250,7 +250,15 @@ export function Lines({ needsMode = false }: { needsMode?: boolean } = {}) {
           </p>
         )}
         {selected.size > 0 && categories.data && (
-          <BulkBar ids={[...selected]} categories={categories.data} leftOut={leftOutView} onDone={() => setSelected(new Set())} />
+          <BulkBar
+            key={[...selected].sort((a, b) => a - b).join(',')}
+            ids={[...selected]}
+            lines={(lines.data?.items ?? []).filter((l) => selected.has(l.transactionId))}
+            categories={categories.data}
+            leftOut={leftOutView}
+            onDone={() => setSelected(new Set())}
+            onMessage={setMessage}
+          />
         )}
         {lines.data && lines.data.items.length > 0 && (
           <div className="table-wrap">
@@ -397,7 +405,9 @@ function Pick({ onPick, title, children }: { onPick: () => void; title: string; 
 }
 
 /** Change several lines at once: the quick way to fix a pile of tags or categories. */
-function BulkBar({ ids, categories, leftOut, onDone }: { ids: number[]; categories: CategoryInfo[]; leftOut: boolean; onDone: () => void }) {
+function BulkBar({
+  ids, lines, categories, leftOut, onDone, onMessage,
+}: { ids: number[]; lines: Line[]; categories: CategoryInfo[]; leftOut: boolean; onDone: () => void; onMessage: (message: string) => void }) {
   const client = useQueryClient()
   const canCreate = useMe().user.role === 'owner'
   const [categoryId, setCategoryId] = useState('')
@@ -431,10 +441,33 @@ function BulkBar({ ids, categories, leftOut, onDone }: { ids: number[]; categori
     },
   })
 
+  // two lines that look like the two sides of a transfer: out of one account, into another, the same amount
+  const [outLine, inLine] = lines.length === 2 && lines[0].amountCents < 0 ? [lines[0], lines[1]] : [lines[1], lines[0]]
+  const looksLikeTransfer =
+    lines.length === 2 && outLine.amountCents < 0 && inLine.amountCents === -outLine.amountCents && outLine.accountId !== inLine.accountId
+  const [remember, setRemember] = useState(false)
+  const [applyPast, setApplyPast] = useState(true)
+  const [fromWords, setFromWords] = useState(looksLikeTransfer ? ruleWords(outLine.description) : '')
+  const [toWords, setToWords] = useState(looksLikeTransfer ? ruleWords(inLine.description) : '')
+
   const pair = useMutation({
-    mutationFn: () => send<{ id: number }>('POST', '/moves', { transactionIds: ids }),
-    onSuccess: () => {
+    mutationFn: async () => {
+      await send('POST', '/moves', { transactionIds: ids })
+      if (!remember || !looksLikeTransfer) return 'Paired as a transfer.'
+      try {
+        const pattern = await send<{ id: number }>('POST', '/move-patterns', {
+          fromAccountId: outLine.accountId, fromContains: fromWords.trim(), toAccountId: inLine.accountId, toContains: toWords.trim(),
+        })
+        if (!applyPast) return `Paired as a transfer, and remembered for next time (${outLine.accountName} to ${inLine.accountName}).`
+        const done = await send<{ paired: number; skipped: number }>('POST', `/move-patterns/${pattern.id}/apply`)
+        return `Paired as a transfer, and remembered for next time. ${done.paired === 0 ? 'No other lines in the ledger matched it.' : `${done.paired} other ${done.paired === 1 ? 'pair' : 'pairs'} in the ledger paired too.`}${done.skipped > 0 ? ` ${done.skipped} could not be paired (a split line, for example).` : ''}`
+      } catch (e) {
+        return `Paired as a transfer, but the pattern was not saved: ${e instanceof Error ? e.message : String(e)}`
+      }
+    },
+    onSuccess: (message) => {
       client.invalidateQueries()
+      onMessage(message)
       onDone()
     },
   })
@@ -526,12 +559,32 @@ function BulkBar({ ids, categories, leftOut, onDone }: { ids: number[]; categori
         <button
           className="btn"
           type="button"
-          disabled={pair.isPending}
+          disabled={pair.isPending || (remember && (fromWords.trim() === '' || toWords.trim() === ''))}
           title="One line going out of one account and one coming into another, for the same amount"
           onClick={() => pair.mutate()}
         >
           {pair.isPending ? 'Pairing…' : 'Pair as a transfer'}
         </button>
+      )}
+      {ids.length === 2 && canCreate && looksLikeTransfer && (
+        <label title="Save a transfer pattern from these two lines, so the next ones pair themselves when they are imported">
+          <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} /> Remember this for next time
+        </label>
+      )}
+      {remember && ids.length === 2 && looksLikeTransfer && (
+        <div className="pattern-bits">
+          <label>
+            Out of {outLine.accountName}, the words
+            <input type="text" aria-label="Words on the line going out" value={fromWords} onChange={(e) => setFromWords(e.target.value)} />
+          </label>
+          <label>
+            Into {inLine.accountName}, the words
+            <input type="text" aria-label="Words on the line coming in" value={toWords} onChange={(e) => setToWords(e.target.value)} />
+          </label>
+          <label>
+            <input type="checkbox" checked={applyPast} onChange={(e) => setApplyPast(e.target.checked)} /> Also pair the other matching lines already in the ledger
+          </label>
+        </div>
       )}
       <Link className="btn" to={`/settings/recurring?lines=${ids.slice(0, 200).join(',')}`} title="Start a new bill or subscription from the selected lines">
         Make a recurring item
