@@ -65,7 +65,7 @@ public static class BillFinder
     }
 
     /// <summary>A bank's wording, shouted and with store numbers, made readable: "CITY POWER" becomes "City Power".</summary>
-    private static string Title(string name)
+    internal static string Title(string name)
     {
         var trimmed = name.Trim();
         if (trimmed.Any(char.IsLower)) return trimmed.Length > 100 ? trimmed[..100] : trimmed;
@@ -134,7 +134,7 @@ public static class BillAdder
         return added;
     }
 
-    private static int Link(IDbConnection conn, TimeProvider clock, Actor? actor, long recurringId, IReadOnlyList<long> lineIds)
+    internal static int Link(IDbConnection conn, TimeProvider clock, Actor? actor, long recurringId, IReadOnlyList<long> lineIds)
     {
         using var tx = conn.BeginTransaction();
         var linked = 0;
@@ -146,7 +146,7 @@ public static class BillAdder
         return linked;
     }
 
-    private static string Unique(IDbConnection conn, string table, string name, int max)
+    internal static string Unique(IDbConnection conn, string table, string name, int max)
     {
         var baseName = name.Length > max - 5 ? name[..(max - 5)] : name;
         var candidate = baseName;

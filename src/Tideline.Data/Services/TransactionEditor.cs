@@ -29,7 +29,7 @@ public sealed record EditRequest(
     long? AssetId = null);
 
 /// <summary>One change applied to many lines at once (docs/ARCHITECTURE.md, POST /transactions/bulk). Null parts are left alone; an asset of 0 unlinks.</summary>
-public sealed record BulkChange(long? CategoryId = null, string? Type = null, IReadOnlyList<string>? AddTags = null, IReadOnlyList<string>? RemoveTags = null, long? AssetId = null);
+public sealed record BulkChange(long? CategoryId = null, string? Type = null, IReadOnlyList<string>? AddTags = null, IReadOnlyList<string>? RemoveTags = null, long? AssetId = null, long? RecurringId = null);
 
 public sealed record BulkResult(int Updated, int SkippedTransfers, int NotFound);
 
@@ -283,11 +283,13 @@ public sealed class TransactionEditor(IDbConnection conn, TimeProvider clock, Ac
         TypeHandlers.EnsureRegistered();
         if (ids.Count == 0) throw new EditException(EditError.Invalid, "Pick at least one line.");
         if (ids.Count > MaxBulk) throw new EditException(EditError.Invalid, $"Change {MaxBulk} lines or fewer at a time.");
-        if (change.CategoryId is null && change.Type is null && change.AssetId is null && (change.AddTags?.Count ?? 0) == 0 && (change.RemoveTags?.Count ?? 0) == 0)
-            throw new EditException(EditError.Invalid, "Say what to change: a category, a type, an asset, or tags to add or remove.");
+        if (change.CategoryId is null && change.Type is null && change.AssetId is null && change.RecurringId is null && (change.AddTags?.Count ?? 0) == 0 && (change.RemoveTags?.Count ?? 0) == 0)
+            throw new EditException(EditError.Invalid, "Say what to change: a category, a type, an asset, a recurring item, or tags to add or remove.");
 
         using var tx = conn.BeginTransaction();
         if (change.AssetId is { } linkTo and > 0) RequireAsset(linkTo, tx);
+        if (change.RecurringId is { } rec and > 0 && conn.ExecuteScalar<long>("SELECT COUNT(*) FROM recurring WHERE id = @rec", new { rec }, tx) == 0)
+            throw new EditException(EditError.Invalid, "That recurring item does not exist.");
 
         LineType? type = change.Type is null ? null : ParseType(change.Type);
         if (change.CategoryId is { } cat and > 0) RequireCategory(cat, tx);
@@ -307,12 +309,14 @@ public sealed class TransactionEditor(IDbConnection conn, TimeProvider clock, Ac
             conn.Execute("""
                 UPDATE transactions SET category_id = COALESCE(@category, category_id), type = COALESCE(@type, type),
                     asset_account_id = CASE WHEN @setAsset = 1 THEN @asset ELSE asset_account_id END,
+                    recurring_id = CASE WHEN @setRecurring = 1 THEN @recurring ELSE recurring_id END,
                     is_manual_override = 1, updated_at = @now
                 WHERE id = @id
                 """, new
             {
                 id, category = change.CategoryId is { } k and > 0 ? k : (long?)null, type = type?.ToDb(), now = clock.GetUtcNow(),
                 setAsset = change.AssetId is null ? 0 : 1, asset = change.AssetId is { } av and > 0 ? av : (long?)null,
+                setRecurring = change.RecurringId is null ? 0 : 1, recurring = change.RecurringId is { } rv and > 0 ? rv : (long?)null,
             }, tx);
             foreach (var t in add)
             {

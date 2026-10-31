@@ -290,6 +290,7 @@ public sealed partial class GateTests(ITestOutputHelper output) : IDisposable
             new("POST /transactions/bulk", Kind.Update, "transaction.update", () => Ok(HttpMethod.Post, "/api/v1/transactions/bulk", new { ids = new[] { mystery }, set = new { type = "one_time" } })),
             new("POST /transactions/leave-out", Kind.Update, "transaction.leave_out", () => Ok(HttpMethod.Post, "/api/v1/transactions/leave-out", new { ids = new[] { mystery }, reason = "gate" })),
             new("POST /transactions/bring-back", Kind.Update, "transaction.bring_back", () => Ok(HttpMethod.Post, "/api/v1/transactions/bring-back", new { ids = new[] { mystery } })),
+            new("POST /recurring/quick", Kind.Create, "recurring.created", () => Ok(HttpMethod.Post, "/api/v1/recurring/quick", new { name = "Gate quick", categoryId = utilities, minCents = 1, maxCents = 2 }, HttpStatusCode.Created)),
             new("DELETE /recurring/{id:long}", Kind.Delete, "recurring.deleted", () => Ok(HttpMethod.Delete, $"/api/v1/recurring/{recurring}")),
             new("POST /recurring/candidates/add", Kind.Create, "recurring.created", async () =>
             {

@@ -319,10 +319,12 @@ function BulkBar({ ids, categories, leftOut, onDone }: { ids: number[]; categori
   const [addTags, setAddTags] = useState('')
   const [removeTags, setRemoveTags] = useState('')
   const [assetId, setAssetId] = useState('')
+  const [recurringId, setRecurringId] = useState('')
   const assetChoices = useQuery({ queryKey: ['accounts'], queryFn: () => get<AccountInfo[]>('/accounts') }).data?.filter((a) => a.kind === 'asset') ?? []
+  const recurringChoices = useQuery({ queryKey: ['settings', 'recurring'], queryFn: () => get<{ id: number; name: string }[]>('/recurring') }).data ?? []
 
   const words = (text: string) => text.split(',').map((x) => x.trim()).filter(Boolean)
-  const nothing = !categoryId && !type && !assetId && words(addTags).length === 0 && words(removeTags).length === 0
+  const nothing = !categoryId && !type && !assetId && !recurringId && words(addTags).length === 0 && words(removeTags).length === 0
 
   const apply = useMutation({
     mutationFn: () =>
@@ -332,6 +334,7 @@ function BulkBar({ ids, categories, leftOut, onDone }: { ids: number[]; categori
           categoryId: categoryId ? Number(categoryId) : undefined,
           type: type || undefined,
           assetId: assetId ? Number(assetId) : undefined,
+          recurringId: recurringId ? Number(recurringId) : undefined,
           addTags: words(addTags),
           removeTags: words(removeTags),
         },
@@ -426,6 +429,15 @@ function BulkBar({ ids, categories, leftOut, onDone }: { ids: number[]; categori
           ))}
         </select>
       )}
+      <select aria-label="Link to a recurring item" value={recurringId} onChange={(e) => setRecurringId(e.target.value)}>
+        <option value="">Bill or subscription: no change</option>
+        <option value="0">Bill or subscription: none</option>
+        {recurringChoices.map((r) => (
+          <option key={r.id} value={r.id}>
+            {r.name}
+          </option>
+        ))}
+      </select>
       <input type="text" placeholder="Add tags" aria-label="Add tags" value={addTags} onChange={(e) => setAddTags(e.target.value)} />
       <input type="text" placeholder="Remove tags" aria-label="Remove tags" value={removeTags} onChange={(e) => setRemoveTags(e.target.value)} />
       <button className="btn primary" type="submit" disabled={nothing || apply.isPending}>
@@ -442,6 +454,9 @@ function BulkBar({ ids, categories, leftOut, onDone }: { ids: number[]; categori
           {pair.isPending ? 'Pairing…' : 'Pair as a transfer'}
         </button>
       )}
+      <Link className="btn" to={`/settings/recurring?lines=${ids.slice(0, 200).join(',')}`} title="Start a new bill or subscription from the selected lines">
+        Make a recurring item
+      </Link>
       <input type="text" placeholder="Why leave out? (optional)" aria-label="Why leave these out" maxLength={200} value={reason} onChange={(e) => setReason(e.target.value)} />
       <button
         className="btn"

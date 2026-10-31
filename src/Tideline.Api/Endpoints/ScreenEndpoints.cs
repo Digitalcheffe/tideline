@@ -281,7 +281,7 @@ public static class ScreenEndpoints
                 return new BillCell(key, paid != 0 ? "paid" : "not_expected", paid, 0,
                     paid != 0 ? Drill.Range(first, Months.Last(first), ("type", "bill"), ("category", g.Key), ("recurring", "other")) : null);
             }).ToList();
-            rows.Add(new BillRow(null, "Other: " + g.First().CategoryName, g.First().CategoryName, true, cells, cells.Sum(c => c.PaidCents), 0));
+            rows.Add(new BillRow(null, "Other: " + g.First().CategoryName, g.First().CategoryName, true, cells, cells.Sum(c => c.PaidCents), 0, g.Key));
         }
 
         var columnTotals = Enumerable.Range(0, 12).Select(i => new
@@ -314,7 +314,7 @@ public static class ScreenEndpoints
 
     private sealed record BillCell(string Month, string Status, long PaidCents, long ProjectedCents, string? Drill);
 
-    private sealed record BillRow(long? RecurringId, string Name, string CategoryName, bool IsOther, List<BillCell> Cells, long TotalCents, long TotalProjectedCents);
+    private sealed record BillRow(long? RecurringId, string Name, string CategoryName, bool IsOther, List<BillCell> Cells, long TotalCents, long TotalProjectedCents, long? CategoryId = null);
 
     // ---- required / extra ----------------------------------------------------------------------------------
 

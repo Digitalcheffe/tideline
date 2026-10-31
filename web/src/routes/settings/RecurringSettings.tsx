@@ -1,9 +1,11 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
+import { useSearchParams } from 'react-router-dom'
 import { get, send } from '../../api'
 import { Badge, Card, ErrorBox, Loading } from '../../components'
 import { dollars, parseDollars, todayLocal, typeLabel } from '../../format'
 import { FindBills } from './FindBills'
+import { QuickRecurring, type QuickSeed } from './QuickRecurring'
 import { Panel, Problem, centsText, useAct } from './common'
 
 interface RecurringRow {
@@ -37,6 +39,19 @@ export function RecurringSettings() {
   const [editing, setEditing] = useState<RecurringRow | 'new' | null>(null)
   const { run, error, busy } = useAct()
 
+  // the quick form: from "Add one", or opened by a link with the lines or category it starts from (Bills, the Ledger, a line)
+  const [params, setParams] = useSearchParams()
+  const linesParam = params.get('lines')
+  const categoryParam = params.get('category')
+  const [quick, setQuick] = useState<QuickSeed | null>(
+    linesParam ? { lineIds: linesParam.split(',').map(Number).filter((n) => n > 0) } : categoryParam ? { categoryId: Number(categoryParam) } : null,
+  )
+  const [added, setAdded] = useState<string | null>(null)
+  const closeQuick = () => {
+    setQuick(null)
+    if (linesParam || categoryParam) setParams({}, { replace: true })
+  }
+
   if (recurring.isLoading || categories.isLoading || accounts.isLoading) return <Loading what="recurring items" />
   if (recurring.error || !recurring.data || !categories.data || !accounts.data) return <ErrorBox error={recurring.error ?? categories.error ?? accounts.error} />
 
@@ -51,13 +66,32 @@ export function RecurringSettings() {
           onClose={() => setEditing(null)}
         />
       )}
+      {quick && (
+        <QuickRecurring
+          key={JSON.stringify(quick)}
+          seed={quick}
+          categories={categories.data}
+          onClose={closeQuick}
+          onDone={(message) => setAdded(message)}
+        />
+      )}
+      {added && (
+        <p role="status">
+          <Badge tone="good">Done</Badge> {added}
+        </p>
+      )}
       <FindBills />
       <Card
         title="Recurring items"
         aside={
-          <button type="button" className="btn primary" onClick={() => setEditing('new')}>
-            Add one
-          </button>
+          <>
+            <button type="button" className="btn primary" onClick={() => { setAdded(null); setQuick({}) }}>
+              Add one
+            </button>{' '}
+            <button type="button" className="btn" title="Every field by hand, with no lines linked" onClick={() => setEditing('new')}>
+              Add with every field
+            </button>
+          </>
         }
       >
         <p className="muted">Bills and subscriptions you expect on a schedule. The Bills screen shows each month as paid, due or missed against these.</p>

@@ -27,6 +27,32 @@ public static class BillEndpoints
             }));
         });
 
+        // the quick form: filled in from the lines it is opened with (a category, or lines a person selected)
+        api.MapGet("/recurring/suggest", (HttpRequest req, SqliteConnectionFactory f, Clock clock) =>
+        {
+            long? category = long.TryParse(req.Query["categoryId"], out var c) ? c : null;
+            var lines = req.Query["lineIds"].ToString().Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .Select(x => long.TryParse(x, out var n) ? n : 0).Where(n => n > 0).ToList();
+            using var conn = f.Open();
+            try
+            {
+                var s = QuickRecurring.Suggest(conn, clock.Today, category, lines, req.Query["name"].ToString() is { Length: > 0 } n ? n : null);
+                return Results.Ok(new
+                {
+                    s.Name, s.CategoryId, s.CategoryName, s.Frequency, s.EveryN, s.UsualCents, s.MinCents, s.MaxCents, s.DueDay,
+                    firstDueOn = s.FirstDueOn.ToString("yyyy-MM-dd"), linksNextOnes = s.Match is not null,
+                    lines = s.Lines.Select(l => new { l.Id, postedOn = l.PostedOn.ToString("yyyy-MM-dd"), l.Description, l.Payee, l.Cents, l.Selected }),
+                });
+            }
+            catch (EditException e)
+            {
+                return Results.Problem(title: e.Kind == EditError.NotFound ? "Not found" : "Check the request", detail: e.Message, statusCode: e.Kind == EditError.NotFound ? 404 : 400);
+            }
+        });
+
+        api.MapPost("/recurring/quick", (QuickInput input, HttpContext http, SqliteConnectionFactory f, TimeProvider t, Clock clock) =>
+            Edits.Run(http, f, t, (c, time, who) => QuickRecurring.Create(c, time, who, input, clock.Today), created: true));
+
         api.MapPost("/recurring/candidates/add", (AddRequest request, HttpContext http, SqliteConnectionFactory f, TimeProvider t, Clock clock) =>
             Edits.Run(http, f, t, (c, time, who) =>
             {

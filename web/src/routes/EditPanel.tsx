@@ -40,6 +40,8 @@ function MeaningForm({ t }: { t: TransactionDetail }) {
   const [planId, setPlanId] = useState(t.planId ? String(t.planId) : '')
   const plans = useQuery({ queryKey: ['plans-pick'], queryFn: () => get<{ id: number; name: string; lifecycle: string }[]>('/plans') })
   const [assetId, setAssetId] = useState<string>(t.asset ? String(t.asset.id) : '')
+  const [recurringId, setRecurringId] = useState<string>(t.recurring ? String(t.recurring.id) : '')
+  const items = useQuery({ queryKey: ['settings', 'recurring'], queryFn: () => get<{ id: number; name: string }[]>('/recurring') })
   const assets = useQuery({ queryKey: ['accounts'], queryFn: () => get<AccountInfo[]>('/accounts') })
   const assetChoices = assets.data?.filter((a) => a.kind === 'asset') ?? []
 
@@ -49,6 +51,7 @@ function MeaningForm({ t }: { t: TransactionDetail }) {
         version: t.version,
         planId: planId ? Number(planId) : 0,
         assetId: assetId ? Number(assetId) : 0,
+        recurringId: recurringId ? Number(recurringId) : 0,
         categoryId: categoryId ? Number(categoryId) : 0,
         type,
         payee,
@@ -131,6 +134,22 @@ function MeaningForm({ t }: { t: TransactionDetail }) {
             </select>
           </label>
         )}
+        <label>
+          Recurring bill or subscription
+          <select value={recurringId} onChange={(e) => setRecurringId(e.target.value)}>
+            <option value="">None</option>
+            {items.data?.map((r) => (
+              <option key={r.id} value={r.id}>
+                {r.name}
+              </option>
+            ))}
+          </select>
+          {recurringId === '' && (
+            <span className="muted">
+              Not in the list? <Link to={`/settings/recurring?lines=${t.id}`}>Make one from this line</Link>
+            </span>
+          )}
+        </label>
         <label>
           Notes
           <textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />

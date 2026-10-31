@@ -35,7 +35,7 @@ export function Bills({ period }: { period: Period }) {
       <h1>Bills, {data.year}</h1>
       <p className="muted">
         One row per recurring bill. Past months show what was paid; future months are projected from the last three payments (shown lighter). Bills with no recurring item are
-        grouped as “Other” so the total matches the Bills number on the Overview.
+        grouped as “Other” so the total matches the Bills number on the Overview. Use “Track this” on an Other row to make it a bill of its own.
       </p>
 
       {untracked > 0 && (
@@ -68,6 +68,13 @@ export function Bills({ period }: { period: Period }) {
                   <tr key={r.recurringId ?? r.name}>
                     <th className="sticky-col" scope="row">
                       {r.name}
+                      {r.isOther && r.categoryId !== null && (
+                        <div>
+                          <Link to={`/settings/recurring?category=${r.categoryId}`} title="Make a bill row for this, and link its lines">
+                            Track this
+                          </Link>
+                        </div>
+                      )}
                     </th>
                     {r.cells.map((c) => {
                       const status = STATUS[c.status]

@@ -265,6 +265,8 @@ export interface Bills {
     name: string
     categoryName: string
     isOther: boolean
+    /** for an "Other" row: the category its lines are in, so it can be tracked as a bill */
+    categoryId: number | null
     cells: { month: string; status: string; paidCents: number; projectedCents: number; drill: string | null }[]
     totalCents: number
     totalProjectedCents: number
