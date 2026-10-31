@@ -30,7 +30,8 @@ public sealed record ImportResult(
     int MovesPending,
     string? Error = null,
     long? BatchId = null,
-    Reconciliation? Reconciliation = null)
+    Reconciliation? Reconciliation = null,
+    int RowsRestored = 0)
 {
     public bool Succeeded => Status == ImportStatus.Done;
 }
@@ -153,6 +154,15 @@ public sealed class ImportPipeline(SqliteConnectionFactory factory, WriteGate ga
         var existing = ledger.ExistingExternalIds(file.Rows.Select(r => r.ExternalId));
         var fresh = file.Rows.Where(r => !existing.Contains(r.ExternalId)).ToList();
 
+        // 1b. lines an undone import took out: sending the file again is a plain wish to have them back, so they come back (lines left out by hand stay out)
+        var restoredIds = ledger.BringBackUndone(account.Id, existing);
+        if (restoredIds.Count > 0)
+        {
+            var audit = new AuditWriter(conn, clock, tx);
+            foreach (var id in restoredIds)
+                audit.Write("transaction.bring_back", "transaction", id, new { leftOut = true }, new { leftOut = false, reason = "The file was imported again" });
+        }
+
         // 2. cutover: CSV rows after csv_until_on belong to SimpleFIN
         if (source == ImportSource.Csv && account.CsvUntilOn is { } until && fresh.FirstOrDefault(r => r.PostedOn > until) is not null)
         {
@@ -270,7 +280,7 @@ public sealed class ImportPipeline(SqliteConnectionFactory factory, WriteGate ga
 
         batches.Finish(batchId, "done", file.Rows.Count, inserted, file.Rows.Count - fresh.Count, review);
         return new ImportResult(name, ImportStatus.Done, file.Rows.Count, inserted, file.Rows.Count - fresh.Count, review,
-            paired, stillPending, null, batchId, reconciliation);
+            paired, stillPending, null, batchId, reconciliation, restoredIds.Count);
     }
 
     private static bool LegMatches(MovePattern p, long accountId, TruistRow row) =>

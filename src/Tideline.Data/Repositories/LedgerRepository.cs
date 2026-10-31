@@ -45,6 +45,24 @@ public sealed class LedgerRepository(IDbConnection conn, TimeProvider clock, IDb
         return found;
     }
 
+    /// <summary>
+    /// Counts again the lines of this account, among these external ids, that an undone import left out. A line left out by hand stays out.
+    /// Only the left-out marks change, never a bank field. Returns the ids brought back.
+    /// </summary>
+    public IReadOnlyList<long> BringBackUndone(long accountId, IEnumerable<string> externalIds)
+    {
+        var back = new List<long>();
+        foreach (var chunk in externalIds.Chunk(500))
+            back.AddRange(conn.Query<long>("""
+                SELECT id FROM transactions
+                WHERE account_id = @accountId AND external_id IN @chunk AND left_out_at IS NOT NULL AND left_out_import_id IS NOT NULL
+                """, new { accountId, chunk }, tx));
+        foreach (var chunk in back.Chunk(500))
+            conn.Execute("UPDATE transactions SET left_out_at = NULL, left_out_reason = NULL, left_out_import_id = NULL, updated_at = @now WHERE id IN @chunk",
+                new { now = clock.GetUtcNow(), chunk }, tx);
+        return back;
+    }
+
     public long Count() => conn.ExecuteScalar<long>("SELECT COUNT(*) FROM transactions", transaction: tx);
 
     public TransactionRow? Get(long id) => Query("WHERE t.id = @id", new { id }).SingleOrDefault();

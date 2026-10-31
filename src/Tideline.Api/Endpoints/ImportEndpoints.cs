@@ -100,7 +100,7 @@ public static class ImportEndpoints
 
             return Results.Ok(new
             {
-                fileName = result.FileName, status = result.Status.ToString().ToLowerInvariant(), result.RowsRead, result.RowsInserted, result.RowsExisting, result.RowsReview,
+                fileName = result.FileName, status = result.Status.ToString().ToLowerInvariant(), result.RowsRead, result.RowsInserted, result.RowsExisting, result.RowsReview, result.RowsRestored,
                 result.MovesPaired, result.MovesPending, result.Error, result.BatchId,
                 reconciliation = result.Reconciliation is { } r ? new { r.AccountId, asOf = r.AsOf.ToString("yyyy-MM-dd"), r.BankCents, r.LedgerCents, matches = r.Matches } : null,
             });

@@ -50,6 +50,8 @@ interface UploadResult {
   rowsInserted: number
   rowsExisting: number
   rowsReview: number
+  /** lines of an undone import that came back because the file was sent again */
+  rowsRestored: number
   movesPaired: number
   movesPending: number
   error: string | null
@@ -80,7 +82,7 @@ export function ImportsSettings() {
       <Card title="Bring in a file">
         <p className="muted">
           Drop the bank's CSV into the inbox folder, or send it from here. Both go through the same checks. Lines already seen are skipped, so sending the
-          same file twice is safe.
+          same file twice is safe. If you undid an import and send its file again, those lines come back.
         </p>
         <div className="toolbar">
           <input ref={picker} type="file" accept=".csv,text/csv" aria-label="CSV file" onChange={(e) => void send(e.target.files?.[0])} disabled={busy} />
@@ -96,6 +98,7 @@ export function ImportsSettings() {
             ) : (
               <p>
                 <Badge tone="good">Imported</Badge> {result.fileName}: {result.rowsRead} rows read, {result.rowsInserted} new, {result.rowsExisting} already there
+                {result.rowsRestored > 0 && `, ${result.rowsRestored} brought back from the import you undid`}
                 {result.rowsReview > 0 && (
                   <>
                     , <Link to="/lines?review=true">{result.rowsReview} to review</Link>

@@ -93,7 +93,7 @@ public sealed class InboxProcessor(
             var dest = Path.Combine(inboxPath, "Done", now.ToString("yyyy-MM", CultureInfo.InvariantCulture));
             Directory.CreateDirectory(dest);
             File.Move(path, UniquePath(dest, name, now));
-            Log(EventLevel.Info, $"Imported {name}: {result.RowsInserted} new, {result.RowsExisting} already there, {result.RowsReview} to review.");
+            Log(EventLevel.Info, $"Imported {name}: {result.RowsInserted} new, {result.RowsExisting} already there{(result.RowsRestored > 0 ? $", {result.RowsRestored} brought back from an undone import" : "")}, {result.RowsReview} to review.");
         }
         else
         {
