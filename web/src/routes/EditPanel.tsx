@@ -14,10 +14,10 @@ function useCategories() {
 }
 
 /** Editing a line: what it means, and how it is split. The bank fields above it never change. */
-export function EditPanel({ t }: { t: TransactionDetail }) {
+export function EditPanel({ t, onSaved }: { t: TransactionDetail; onSaved: () => void }) {
   return (
     <>
-      <MeaningForm t={t} />
+      <MeaningForm t={t} onSaved={onSaved} />
       <details className="fold" open={t.splits.length > 0}>
         <summary>Split this line{t.splits.length > 0 ? ` (${t.splits.length})` : ''}</summary>
         <SplitsForm t={t} />
@@ -31,7 +31,7 @@ function useRefresh() {
   return () => client.invalidateQueries()
 }
 
-function MeaningForm({ t }: { t: TransactionDetail }) {
+function MeaningForm({ t, onSaved }: { t: TransactionDetail; onSaved: () => void }) {
   const categories = useCategories()
   const refresh = useRefresh()
   const isOwner = useMe().user.role === 'owner'
@@ -62,7 +62,11 @@ function MeaningForm({ t }: { t: TransactionDetail }) {
         notes,
         tags: tags.split(',').map((x) => x.trim()).filter(Boolean),
       }),
-    onSuccess: refresh,
+    // the lists behind the drawer update, and the drawer closes: the change shows in the row
+    onSuccess: async () => {
+      await refresh()
+      onSaved()
+    },
   })
   const reset = useMutation({ mutationFn: () => send('POST', `/transactions/${t.id}/reset-to-rules`), onSuccess: refresh })
 
@@ -151,7 +155,6 @@ function MeaningForm({ t }: { t: TransactionDetail }) {
           <textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
         </label>
       </div>
-      {save.isSuccess && <p><Badge tone="good">Saved</Badge> <span className="muted">This line is now marked as set by you.</span></p>}
       {(save.error || reset.error) && <p className="problem" role="alert">{String((save.error ?? reset.error)?.message)}</p>}
       <div className="savebar">
         <button className="btn primary" type="submit" disabled={save.isPending}>

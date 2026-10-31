@@ -19,6 +19,48 @@ test.describe('the ledger and the line drawer', () => {
     await expect(drawer.getByRole('button', { name: 'Close' })).toBeInViewport()
   })
 
+  test('saving a line closes the drawer and the row shows the change', async ({ page }) => {
+    // a line of its own, in a month no other spec reads
+    const csrf: string = (await (await page.request.get('/api/v1/auth/me')).json()).csrf
+    const accounts: { id: number; name: string }[] = await (await page.request.get('/api/v1/accounts')).json()
+    const categories: { id: number; name: string }[] = await (await page.request.get('/api/v1/categories')).json()
+    const made = await page.request.post('/api/v1/transactions', {
+      headers: { 'X-CSRF-Token': csrf },
+      data: {
+        accountId: accounts.find((a) => a.name === 'Checking')!.id,
+        postedOn: '2025-08-04',
+        amountCents: -777,
+        description: 'E2E SAVE CLOSES',
+        categoryId: categories.find((c) => c.name === 'Groceries')!.id,
+      },
+    })
+    expect(made.ok(), await made.text()).toBeTruthy()
+
+    await page.goto('/lines?from=2025-08-01&to=2025-08-31')
+    await page.getByRole('button', { name: 'E2E SAVE CLOSES' }).click()
+    const drawer = page.getByRole('dialog', { name: 'Transaction' })
+    await drawer.getByLabel('Tags').fill('e2e-kept')
+    await drawer.getByRole('button', { name: 'Save', exact: true }).click()
+
+    await expect(drawer).toBeHidden()
+    await expect(page.getByRole('row', { name: /E2E SAVE CLOSES/ })).toContainText('e2e-kept')
+  })
+
+  test('several files can be sent at once, each is reported, and one failing does not stop the others', async ({ page }) => {
+    await page.goto('/settings/imports')
+    const junk = (name: string) => ({ name, mimeType: 'text/csv', buffer: Buffer.from('this,is,not\na,bank,file\n') })
+    await page.getByLabel('CSV file').setInputFiles([junk('e2e-multi-one.csv'), junk('e2e-multi-two.csv')])
+
+    await expect(page.getByText('e2e-multi-one.csv was not imported')).toBeVisible()
+    await expect(page.getByText('e2e-multi-two.csv was not imported')).toBeVisible()
+    await expect(page.getByText('0 of 2 files imported, 2 not imported.')).toBeVisible()
+
+    // clear them from the list again so the other specs see what they expect
+    for (const name of ['e2e-multi-one', 'e2e-multi-two'])
+      await page.getByRole('row', { name: new RegExp(name) }).getByRole('button', { name: 'Dismiss' }).click()
+    await expect(page.getByRole('row', { name: /e2e-multi/ })).toHaveCount(0)
+  })
+
   test('the category list in the drawer stays open while you scroll it', async ({ page }) => {
     await page.setViewportSize({ width: 1200, height: 560 })
     await page.goto(`/lines?${MARCH}&q=grocery`)

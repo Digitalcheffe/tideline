@@ -16,7 +16,7 @@ A tour of what Tideline does, screen by screen. Pictures are in [screenshots](sc
 
 | Way in | What it does |
 |---|---|
-| **Upload** (Settings, Imports) | Send a Truist CSV export from any browser, including a phone. The account comes from the digits in the file name. |
+| **Upload** (Settings, Imports) | Send one or several Truist CSV exports from any browser, including a phone. Several are sent one after another in the order your computer lists them (name them oldest first); each is reported on its own, and one failing does not stop the rest. The account comes from the digits in the file name. |
 | **Inbox folder** | Drop files in a folder (a shared folder works) and they are imported every few minutes. A file that fails is moved to a `Failed` folder. |
 | **SimpleFIN** (Settings, SimpleFIN) | Pulls new transactions every few hours. A takeover day per account says where files stop and the sync starts. Try a month first compares it with your file. |
 | **Add a line** (Accounts) | For cash or anything the bank does not report. |

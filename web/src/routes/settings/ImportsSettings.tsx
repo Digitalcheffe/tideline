@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import { get, send as post, upload } from '../../api'
 import { Badge, Card, Empty, ErrorBox, Loading } from '../../components'
@@ -61,19 +61,36 @@ interface UploadResult {
 export function ImportsSettings() {
   const page = useQuery({ queryKey: ['settings', 'imports'], queryFn: () => get<ImportsPage>('/imports') })
   const picker = useRef<HTMLInputElement>(null)
-  const { run, error, busy } = useAct()
-  const [result, setResult] = useState<UploadResult | null>(null)
+  const client = useQueryClient()
+  const { run, error, busy: acting } = useAct()
+  const [busy, setBusy] = useState<{ done: number; total: number } | null>(null)
+  const [results, setResults] = useState<UploadResult[]>([])
 
   if (page.isLoading) return <Loading what="imports" />
   if (page.error || !page.data) return <ErrorBox error={page.error} />
   const { inbox, batches, balanceChecks } = page.data
   const bad = balanceChecks.filter((c) => !c.matches)
 
-  const send = async (file: File | undefined) => {
-    if (!file) return
-    setResult(null)
-    const done = await run(() => upload<UploadResult>('/imports/upload', file))
-    if (done) setResult(done)
+  /** Sends the files one after another, in the order given. A file that fails is reported and the rest carry on. */
+  const send = async (files: FileList | null) => {
+    if (!files || files.length === 0) return
+    const list = [...files]
+    setResults([])
+    const done: UploadResult[] = []
+    for (const [i, file] of list.entries()) {
+      setBusy({ done: i, total: list.length })
+      try {
+        done.push(await upload<UploadResult>('/imports/upload', file))
+      } catch (e) {
+        done.push({
+          fileName: file.name, status: 'failed', rowsRead: 0, rowsInserted: 0, rowsExisting: 0, rowsReview: 0, rowsRestored: 0, movesPaired: 0, movesPending: 0,
+          error: e instanceof Error ? e.message : String(e), reconciliation: null,
+        })
+      }
+      setResults([...done])
+    }
+    setBusy(null)
+    await client.invalidateQueries()
     if (picker.current) picker.current.value = ''
   }
 
@@ -82,15 +99,27 @@ export function ImportsSettings() {
       <Card title="Bring in a file">
         <p className="muted">
           Drop the bank's CSV into the inbox folder, or send it from here. Both go through the same checks. Lines already seen are skipped, so sending the
-          same file twice is safe. If you undid an import and send its file again, those lines come back.
+          same file twice is safe. If you undid an import and send its file again, those lines come back. You can pick several files at once. They are sent one
+          after another in the order your computer lists them, so name them oldest first (a file for an account with nothing in it yet sets that account's opening
+          balance).
         </p>
         <div className="toolbar">
-          <input ref={picker} type="file" accept=".csv,text/csv" aria-label="CSV file" onChange={(e) => void send(e.target.files?.[0])} disabled={busy} />
-          {busy && <span role="status">Importing…</span>}
+          <input ref={picker} type="file" multiple accept=".csv,text/csv" aria-label="CSV file" onChange={(e) => void send(e.target.files)} disabled={busy !== null} />
+          {busy && (
+            <span role="status">
+              Importing file {Math.min(busy.done + 1, busy.total)} of {busy.total}…
+            </span>
+          )}
         </div>
         <Problem message={error} />
-        {result && (
-          <div role="status">
+        {results.length > 1 && !busy && (
+          <p role="status">
+            {results.filter((r) => r.status === 'done').length} of {results.length} files imported
+            {results.some((r) => r.status === 'failed') && `, ${results.filter((r) => r.status === 'failed').length} not imported`}.
+          </p>
+        )}
+        {results.map((result, i) => (
+          <div role="status" key={`${result.fileName}-${i}`}>
             {result.status === 'failed' ? (
               <p className="problem">
                 {result.fileName} was not imported. {result.error}
@@ -121,7 +150,7 @@ export function ImportsSettings() {
               </p>
             )}
           </div>
-        )}
+        ))}
       </Card>
 
       <Card title="Automatic bank sync">
@@ -220,7 +249,7 @@ export function ImportsSettings() {
                         <button
                           className="btn"
                           type="button"
-                          disabled={busy}
+                          disabled={acting}
                           title="Clear this from the list. It also stops the alert about it. A record is kept in the audit log."
                           onClick={() => run(() => post('POST', `/imports/${b.id}/dismiss`))}
                         >
@@ -231,7 +260,7 @@ export function ImportsSettings() {
                         <button
                           className="btn"
                           type="button"
-                          disabled={busy}
+                          disabled={acting}
                           title="For the wrong file or the wrong account: takes every line of this import out of the totals. Nothing is deleted, and Restore puts them back."
                           onClick={() => {
                             if (window.confirm(`Take ${b.countedLines} line${b.countedLines === 1 ? '' : 's'} of ${b.fileName ?? 'this import'} out of the totals?\n\nNothing is deleted. A line of it that was paired as a transfer is unpaired first. You can restore it afterwards.`))
@@ -247,7 +276,7 @@ export function ImportsSettings() {
                           <button
                             className="btn"
                             type="button"
-                            disabled={busy}
+                            disabled={acting}
                             title="Count these lines again"
                             onClick={() => run(() => post('POST', `/imports/${b.id}/restore`))}
                           >

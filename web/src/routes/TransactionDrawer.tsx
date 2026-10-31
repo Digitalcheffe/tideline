@@ -29,7 +29,7 @@ export function TransactionDrawer({ id, onClose }: { id: number; onClose: () => 
 
         {isLoading && <Loading what="the transaction" />}
         {error && <ErrorBox error={error} />}
-        {data && <Detail key={data.version} t={data} />}
+        {data && <Detail key={data.version} t={data} onClose={onClose} />}
       </aside>
     </>
   )
@@ -114,7 +114,7 @@ function RemoveLine({ t }: { t: TransactionDetail }) {
   )
 }
 
-function Detail({ t }: { t: TransactionDetail }) {
+function Detail({ t, onClose }: { t: TransactionDetail; onClose: () => void }) {
   const client = useQueryClient()
   const unpair = useMutation({
     mutationFn: () => send('DELETE', `/moves/${t.moveId}`),
@@ -257,7 +257,7 @@ function Detail({ t }: { t: TransactionDetail }) {
         </dl>
       )}
 
-      {!t.moveId && !t.leftOut && <EditPanel t={t} />}
+      {!t.moveId && !t.leftOut && <EditPanel t={t} onSaved={onClose} />}
       {!t.moveId && !t.leftOut && <RemoveLine t={t} />}
 
       {(t.moveId || t.leftOut) && <h3>Splits as they stand</h3>}
