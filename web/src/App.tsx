@@ -1,7 +1,6 @@
 import { lazy, Suspense, useEffect, useState } from 'react'
 import { Link, NavLink, Route, Routes, useLocation } from 'react-router-dom'
-import { PeriodPicker, usePeriod } from './period'
-import { monthLabel, wholeMonth, wholeYear } from './format'
+import { usePeriod } from './period'
 import { AuthGate, useMe, useSignOut } from './auth'
 import { useNeedsCategory } from './needs'
 import { Coming } from './routes/Coming'
@@ -55,9 +54,6 @@ const GROUPS: { title: string; items: { to: string; label: string }[] }[] = [
   { title: 'Detail', items: [{ to: '/lines', label: 'Ledger' }, { to: '/needs', label: 'Needs a category' }] },
 ]
 
-// screens where the period picker does nothing, so it is not shown
-const NO_PERIOD = ['/help', '/account', '/savings', '/assets', '/planning', '/retirement', '/settings', '/recommendations', '/needs']
-
 function Logo() {
   return <LogoMark />
 }
@@ -76,19 +72,12 @@ function Shell() {
   const period = usePeriod()
   const location = useLocation()
   const [menuOpen, setMenuOpen] = useState(false)
-  const showPeriod = !NO_PERIOD.some((p) => location.pathname === p || location.pathname.startsWith(`${p}/`))
 
   // the menu closes when you pick a screen
   useEffect(() => setMenuOpen(false), [location.pathname])
 
   const needs = useNeedsCategory()
   const waiting = needs.data?.count ?? 0
-  const link = (to: string) => (to === '/settings' || to === '/needs' ? to : `${to}?from=${period.from}&to=${period.to}`)
-  const periodLabel = wholeMonth(period.from, period.to)
-    ? monthLabel(period.from.slice(0, 7))
-    : wholeYear(period.from, period.to)
-      ? String(period.year)
-      : `${period.from} to ${period.to}`
 
   return (
     <div className="shell">
@@ -106,7 +95,6 @@ function Shell() {
         <Link to="/" className="brand">
           <Logo /> <Wordmark />
         </Link>
-        {showPeriod && <span className="muted mobile-period">{periodLabel}</span>}
       </header>
 
       {menuOpen && <div className="menu-scrim" onClick={() => setMenuOpen(false)} />}
@@ -116,8 +104,6 @@ function Shell() {
           <Logo /> <Wordmark />
         </Link>
 
-        {showPeriod && <PeriodPicker period={period} />}
-
         <nav aria-label="Screens">
           {GROUPS.map((g) => (
             <div className="nav-group" key={g.title}>
@@ -126,7 +112,7 @@ function Shell() {
                 // the pile only has a place in the menu while something is waiting (or while you are on it)
                 .filter((n) => n.to !== '/needs' || waiting > 0 || location.pathname === '/needs')
                 .map((n) => (
-                  <NavLink key={n.to} to={link(n.to)} end={n.to === '/'} className={({ isActive }) => (isActive ? 'active' : '')}>
+                  <NavLink key={n.to} to={n.to} end={n.to === '/'} className={({ isActive }) => (isActive ? 'active' : '')}>
                     {n.label}
                     {n.to === '/needs' && waiting > 0 && (
                       <span className="nav-count" aria-label={`${waiting} waiting`}>

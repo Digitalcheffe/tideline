@@ -73,7 +73,7 @@ test.describe.serial('smoke', () => {
     await expect(spread).toContainText('$960.36') // Left over, unchanged
   })
 
-  test('the menu is on the left on a wide screen and keeps the chosen period when you move between screens', async ({ page }) => {
+  test('the menu is on the left on a wide screen, has no period picker, and links carry no dates', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 800 })
     await page.goto(`/?${MARCH}`)
 
@@ -82,10 +82,10 @@ test.describe.serial('smoke', () => {
     expect(box!.x).toBe(0)
     expect(box!.width).toBeLessThan(300)
     await expect(menu.getByRole('link', { name: 'Bills' })).toBeVisible()
-    await expect(page.getByLabel('Month', { exact: true })).toHaveValue('2026-03')
+    await expect(page.getByRole('group', { name: 'Period' })).toHaveCount(0)
 
     await menu.getByRole('link', { name: 'Required' }).click()
-    await expect(page).toHaveURL(/\/required\?from=2026-03-01&to=2026-03-31/)
+    await expect(page).toHaveURL(/\/required$/)
     await expect(page.getByRole('heading', { name: 'Required', level: 1 })).toBeVisible()
   })
 
@@ -103,11 +103,10 @@ test.describe.serial('smoke', () => {
     await expect(menu).toBeHidden()
   })
 
-  test('the Ledger has its own tab, shows the period in the menu, and filters by account', async ({ page }) => {
+  test('the Ledger has its own tab and filters by account', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 800 })
-    await page.goto(`/?${MARCH}`)
+    await page.goto(`/lines?${MARCH}`)
 
-    await page.getByRole('complementary', { name: 'Menu' }).getByRole('link', { name: 'Ledger' }).click()
     await expect(page.getByRole('heading', { name: 'Ledger', level: 1 })).toBeVisible()
 
     const count = page.getByRole('heading', { level: 2 }).filter({ hasText: /^\d+ lines?$/ })

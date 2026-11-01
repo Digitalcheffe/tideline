@@ -18,7 +18,7 @@ const SORTS: { key: string; label: string }[] = [
 ]
 
 /**
- * The ledger: every line, for the period in the menu. It is also the drill-down view that every number on every screen
+ * The ledger: every line, for the dates in the address (this month if none). It is also the drill-down view that every number on every screen
  * opens (docs/ARCHITECTURE.md), so the filters live in the URL.
  */
 export function Lines({ needsMode = false }: { needsMode?: boolean } = {}) {
@@ -48,7 +48,7 @@ export function Lines({ needsMode = false }: { needsMode?: boolean } = {}) {
     apiParams.set('to', '2999-12-31')
     if (!apiParams.has('sort')) apiParams.set('sort', 'date_asc')
   }
-  // no period in the address means the one in the menu (this month)
+  // no dates in the address means this month
   if (!apiParams.has('from')) apiParams.set('from', period.from)
   if (!apiParams.has('to')) apiParams.set('to', period.to)
   const page = Number(apiParams.get('page') ?? '1') || 1

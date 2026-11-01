@@ -87,7 +87,7 @@ export function Overview({ period }: { period: Period }) {
 
       <Card title="Where the money went" aside={`${data.from} to ${data.to}`}>
         {!hasData ? (
-          <p className="muted">Nothing in this period yet. Import a bank export, or pick another period.</p>
+          <p className="muted">Nothing in this period yet. Import a bank export to get started.</p>
         ) : (
           <>
             <ShareBar

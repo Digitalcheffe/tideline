@@ -210,7 +210,7 @@ h2 {
   border-radius: 1px;
 }
 
-/* the period picker lives at the top of the menu */
+/* the period picker (not in the menu any more; kept for the pages that will get their own) */
 .period {
   display: flex;
   flex-direction: column;
@@ -295,10 +295,6 @@ h2 {
     padding: 0.5rem 16px;
   }
 
-  .mobile-period {
-    margin-left: auto;
-    font-size: 0.85rem;
-  }
 
   .desktop-only {
     display: none;

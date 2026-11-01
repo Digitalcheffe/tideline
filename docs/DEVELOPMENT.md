@@ -18,7 +18,7 @@ Then open http://localhost:5173. The API restarts when C# changes and the web ap
 An empty database asks for the first account on the first visit, and then for an authenticator app. To look around without signing in
 (your own computer only), run `npm --prefix web run dev:test`: demo data, sign-in switched off, and a red banner so you never forget.
 
-The period picker is at the top of the menu on the left; every number is a link to the lines behind it.
+Screens show the current month or year; every number is a link to the lines behind it.
 
 ## The command line
 

@@ -28,7 +28,7 @@ lines out of the totals; Restore puts them back.
 
 ## The Ledger
 
-Every line for the period, with filters for account, category, type, direction, tags and text. Type words in the search box, or a lone amount such
+Every line for the current month (or for the dates a number on another screen sent you with), with filters for account, category, type, direction, tags and text. Type words in the search box, or a lone amount such
 as `45.20` to find lines of exactly that size, or use the **$ from** and **$ to** boxes for a range (in or out). Click a line's description to open it, to:
 
 - change its category, type, payee, tags and notes (it is then marked as set by you, and rules will not overwrite it);
@@ -66,7 +66,7 @@ review has a **Make a rule** link that opens a new rule with the line's words al
 ## Needs a category
 
 A line is **waiting for an answer** when it has no category, is still in Uncategorized, or still carries the review tag. Transfers and lines left
-out are never in the pile. The count is live (not the nightly one) and does not depend on the period in the menu, because it is a to-do list.
+out are never in the pile. The count is live (not the nightly one) and does not depend on any dates, because it is a to-do list.
 It shows as a tile on the Overview and a number beside Ledger in the menu, and opens exactly those lines in the Ledger (`needs=true`).
 
 The **Needs a category** screen is the Ledger showing only that pile, with the same search, sort, account and direction filters, tick-boxes and

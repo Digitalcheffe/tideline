@@ -100,7 +100,7 @@ const TOPICS: Topic[] = [
     body: (
       <>
         <p>
-          The <L to="/lines">Ledger</L> lists every line for the period chosen in the menu. Use the filters at the top (account, category, type, direction, tags) or click anything in a line to filter by it.
+          The <L to="/lines">Ledger</L> lists the lines for the month you are in, or for the dates a number on another screen sent you with. Use the filters at the top (account, category, type, direction, tags) or click anything in a line to filter by it.
         </p>
         <h3>Open a line</h3>
         <p>Click a line to see the drawer. The top part is what the bank said and never changes. Below it you can:</p>
@@ -161,7 +161,7 @@ const TOPICS: Topic[] = [
     title: 'Reading the screens',
     body: (
       <>
-        <p>The period picker at the top of the menu (month, year or custom range) sets the dates for most screens and is kept as you move between them.</p>
+        <p>Most screens show the month you are in. Clicking a number on any screen opens the Ledger for exactly the dates behind that number.</p>
         <ul>
           <li><L to="/">Overview</L>: the month at a glance, your plans, and what needs you. The <strong>Net worth</strong> tab shows what you own and owe.</li>
           <li><L to="/accounts">Accounts</L>: each account by month, with money in, money out and the balance at month end.</li>
